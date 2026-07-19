@@ -6,6 +6,7 @@ local TEST_MODULES = {
     "tests.CoreTest",
     "tests.ProjectLoaderTest",
     "tests.SampleGameTest",
+    "tests.EditorTest",
 }
 
 function TestRunner.run()
