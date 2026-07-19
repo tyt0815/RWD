@@ -20,7 +20,7 @@ Core는 Editor와 Project를 알지 못한다. Project는 Editor를 알지 못�
 
 Editor는 `Menu | Categories | Events | Properties | Values` 상단 영역과 하단 타임라인을 가진다. 테스트 플레이 중에는 Properties와 Values 영역을 프로젝트의 실시간 `TestPlayer` Canvas가 대체한다.
 
-현재 구현은 고정 패널과 타임라인을 렌더링하고, 비활성 TestPlayer 객체만 소유한다. Event 편집과 실제 프로젝트 미리보기는 현재 범위에 없다.
+현재 구현은 고정 패널과 타임라인을 렌더링하고, 비활성 TestPlayer 객체만 소유한다. `StageDocument`는 Stage 버전 1 데이터를 검증하고, `StageStore`는 검증된 식별자로 `projects/<projectId>/stages/<stageId>.json` 경로만 읽고 쓴다. 네이티브 파일 경계는 원자 교체를 사용하며 패키징된 `.love` 소스에는 쓰지 않는다. Event 편집과 실제 프로젝트 미리보기는 현재 범위에 없다.
 
 ## Project
 

@@ -20,7 +20,7 @@
 ## 2. Pattern과 Stage 런타임
 
 - [ ] 프로젝트 Event 등록 계약
-- [ ] Stage JSON 검증과 로딩
+- [x] Stage JSON 검증과 로딩
 - [ ] Pattern 참조와 파라미터 전개
 - [ ] 존재하지 않는 Pattern 오류 처리
 
