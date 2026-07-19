@@ -19,14 +19,20 @@ function TestPlayer.new(options)
 end
 
 function TestPlayer:start(project)
+    self:stop()
+
     if type(self.createGame) ~= "function" then
         return nil, "TestPlayer requires createGame(project)."
     end
 
-    local game, errorMessage = self.createGame(project)
-    if not game then
-        self:stop()
-        return nil, errorMessage
+    local succeeded, game, errorMessage = pcall(self.createGame, project)
+    if not succeeded then
+        return nil, "Project preview creation failed: " .. tostring(game)
+    end
+
+    if type(game) ~= "table" then
+        return nil, "Project preview creation failed: "
+            .. tostring(errorMessage or "createGame(project) must return a game table.")
     end
 
     self.game = game
