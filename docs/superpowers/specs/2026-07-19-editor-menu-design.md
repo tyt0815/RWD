@@ -104,7 +104,7 @@ Lua 5.1부터 5.5까지 지원하고 들여쓰기 인코딩을 제공하는 `dkj
 
 ### 3.6 Core.PlaybackClock
 
-고정 BPM, 현재 beat와 재생 여부를 담당한다. `play`, `pause`, `update`, `getBeat`, `setBpm`을 제공한다. Pause는 beat를 보존하고 다음 Play가 같은 위치에서 재개한다. 재생 중 BPM을 바꾸면 현재 beat를 유지한 채 이후 진행 속도만 변경한다.
+고정 BPM, 현재 beat와 재생 여부를 담당한다. `play`, `pause`, `update`, `getBeat`, `setBpm`을 제공한다. LÖVE의 `deltaTime`으로 beat를 진행하며 아직 오디오 재생 위치를 기준으로 보정하지 않는다. Pause는 beat를 보존하고 다음 Play가 같은 위치에서 재개한다. 재생 중 BPM을 바꾸면 현재 beat를 유지한 채 이후 진행 속도만 변경한다.
 
 이번 구현은 Event 실행 없이 beat를 계속 증가시킨다. Stage 길이와 자동 종료 규칙은 정의하지 않는다.
 
@@ -175,6 +175,8 @@ Open 모달 상단에서 Project를 선택하면 해당 `stages` 폴더의 `.jso
 
 Play 중에도 Menu, Categories, Events와 타임라인은 유지한다. Properties와 Values 영역은 두 패널의 합친 크기와 위치를 사용하는 TestPlayer Canvas로 교체한다. 타임라인에는 현재 beat 위치의 세로 플레이헤드를 표시한다.
 
+플레이헤드가 보이는 타임라인 범위의 오른쪽 끝을 넘으면 뷰 시작 beat를 4박자 단위로 자동 이동해 플레이헤드를 계속 표시한다. New와 Open 성공 시 뷰 시작 beat도 0으로 초기화하고 Pause는 현재 뷰를 보존한다. 수동 스크롤은 이번 범위에 포함하지 않는다.
+
 ### 5.6 Pause
 
 PlaybackClock을 현재 beat에서 멈춘다. TestPlayer를 중지하고 Canvas를 숨긴 뒤 Properties와 Values를 복원한다. 다음 Play는 같은 beat에서 재개한다.
@@ -213,7 +215,7 @@ Values의 BPM 숫자를 클릭하면 숫자 입력 모달을 연다. 유효한 �
 
 ## 8. 모달과 입력
 
-모달은 에디터 중앙에 표시하고 배경을 어둡게 처리한다. 모달이 열려 있으면 Menu, 패널과 타임라인의 마우스 입력을 차단한다.
+모달은 에디터 중앙에 표시하고 배경을 어둡게 처리한다. 모달이 열려 있으면 Menu, 패널과 타임라인의 마우스 입력을 차단한다. 재생 중 모달을 열면 PlaybackClock과 TestPlayer 업데이트를 임시로 정지하지만 재생 상태 자체는 바꾸지 않는다. 모달을 취소하거나 현재 Stage를 유지한 채 닫으면 기존 재생을 자동으로 이어간다. New/Open 성공, Quit 완료 또는 미리보기 오류처럼 상태 전환이 확정된 경우에는 재생을 이어가지 않는다.
 
 필요한 모달은 다음과 같다.
 
