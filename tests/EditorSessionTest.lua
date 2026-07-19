@@ -7,6 +7,15 @@ local VALID_STAGE = {
     events = {},
 }
 
+local OTHER_STAGE = {
+    schemaVersion = 1,
+    projectId = "other",
+    stageId = "replacement",
+    name = "Replacement",
+    tempoMap = { { startBeat = 0, bpm = 100 } },
+    events = {},
+}
+
 local function newFixture(options)
     options = options or {}
     local stored = options.stored
@@ -140,6 +149,42 @@ return {
             test.assertEqual(session:isPlaying(), true)
             test.assertEqual(testPlayer.playing, true)
             test.assertEqual(testPlayer.game, currentGame)
+
+            local Core = require("core")
+            local clockCreationCount = 0
+            local function failingReplacementClockFactory(bpm)
+                clockCreationCount = clockCreationCount + 1
+                if clockCreationCount == 2 then
+                    return nil, "replacement clock failed"
+                end
+                return Core.PlaybackClock.new(bpm)
+            end
+            local clockSession, clockTestPlayer = newSession({
+                stored = OTHER_STAGE,
+                clockFactory = failingReplacementClockFactory,
+            })
+            assert(clockSession:createStage("sample", "current", "Current", 120))
+            assert(clockSession:play())
+            assert(clockSession:update(7, 12))
+            local clockProject = clockSession:getProject()
+            local clockDocument = clockSession:getDocument()
+            local clockGame = clockTestPlayer.game
+
+            local replaced, replacementError = clockSession:openStage(
+                "other",
+                "replacement"
+            )
+            test.assertEqual(replaced, nil)
+            test.assertContains(replacementError, "replacement clock failed")
+            test.assertEqual(clockCreationCount, 2)
+            test.assertEqual(clockSession:getProject(), clockProject)
+            test.assertEqual(clockSession:getDocument(), clockDocument)
+            test.assertEqual(clockSession:isDirty(), true)
+            test.assertNear(clockSession:getBeat(), 14, 0.000001)
+            test.assertEqual(clockSession:getTimelineStartBeat(), 4)
+            test.assertEqual(clockSession:isPlaying(), true)
+            test.assertEqual(clockTestPlayer.playing, true)
+            test.assertEqual(clockTestPlayer.game, clockGame)
         end,
     },
     {
