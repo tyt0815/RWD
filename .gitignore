@@ -1,2 +1,6 @@
 .worktrees/
 .superpowers/
+dist/
+*.love
+Thumbs.db
+.DS_Store
