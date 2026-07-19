@@ -10,6 +10,7 @@ local TEST_MODULES = {
     "tests.ProjectLoaderTest",
     "tests.ProjectCatalogTest",
     "tests.SampleGameTest",
+    "tests.TestPlayerTest",
     "tests.EditorTest",
     "tests.LauncherTest",
 }

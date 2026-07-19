@@ -60,6 +60,27 @@ return {
             local succeeded = launcher:openProject("sample")
             test.assertEqual(succeeded, true)
             test.assertEqual(launcher:getMode(), "project:sample")
+
+            local receivedWidth, receivedHeight
+            launcher.activeApp.draw = function(_, width, height)
+                receivedWidth, receivedHeight = width, height
+            end
+            local previousLove = love
+            love = {
+                graphics = {
+                    getDimensions = function()
+                        return 640, 360
+                    end,
+                },
+            }
+            local drawn, drawError = pcall(function()
+                launcher:draw()
+            end)
+            love = previousLove
+
+            test.assertTrue(drawn, drawError)
+            test.assertEqual(receivedWidth, 640)
+            test.assertEqual(receivedHeight, 360)
         end,
     },
     {

@@ -81,7 +81,8 @@ end
 
 function Launcher:draw()
     if self.activeApp and self.activeApp.draw then
-        self.activeApp:draw()
+        local width, height = love.graphics.getDimensions()
+        self.activeApp:draw(width, height)
         return
     end
 

@@ -12,8 +12,9 @@ function SampleGame:update(deltaTime)
     self.elapsedTime = self.elapsedTime + deltaTime
 end
 
-function SampleGame:draw()
-    local width, height = love.graphics.getDimensions()
+function SampleGame:draw(width, height)
+    width = width or love.graphics.getWidth()
+    height = height or love.graphics.getHeight()
 
     love.graphics.clear(0.06, 0.08, 0.12, 1)
     love.graphics.setColor(0.55, 0.9, 1, 1)
