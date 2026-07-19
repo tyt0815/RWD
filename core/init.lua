@@ -9,4 +9,6 @@ Core.JudgmentResult = {
     EMPTY_INPUT = "EMPTY_INPUT",
 }
 
+Core.PlaybackClock = require("core.PlaybackClock")
+
 return Core

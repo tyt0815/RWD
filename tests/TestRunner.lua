@@ -4,6 +4,7 @@ local TestRunner = {}
 
 local TEST_MODULES = {
     "tests.CoreTest",
+    "tests.PlaybackClockTest",
     "tests.ProjectLoaderTest",
     "tests.SampleGameTest",
     "tests.EditorTest",

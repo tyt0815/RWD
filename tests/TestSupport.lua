@@ -11,6 +11,18 @@ function TestSupport.assertEqual(actual, expected, message)
     end
 end
 
+function TestSupport.assertNear(actual, expected, tolerance, message)
+    if math.abs(actual - expected) > tolerance then
+        error(string.format(
+            "%s\nexpected: %s ± %s\nactual: %s",
+            message or "값이 허용 오차를 벗어났습니다.",
+            tostring(expected),
+            tostring(tolerance),
+            tostring(actual)
+        ), 2)
+    end
+end
+
 function TestSupport.assertTrue(value, message)
     if not value then
         error(message or "참이어야 합니다.", 2)
