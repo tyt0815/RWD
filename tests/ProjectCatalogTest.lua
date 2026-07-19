@@ -12,9 +12,13 @@ return {
         name = "Project 목록은 유효한 매니페스트만 제목 순으로 반환한다",
         run = function(test)
             local ProjectCatalog = require("editor.project.ProjectCatalog")
+            local zetaProject = manifest("zeta")
+            zetaProject.title = "A Project"
+            local alphaProject = manifest("alpha")
+            alphaProject.title = "Z Project"
             local modules = {
-                ["projects.zeta.project"] = manifest("zeta"),
-                ["projects.alpha.project"] = manifest("alpha"),
+                ["projects.zeta.project"] = zetaProject,
+                ["projects.alpha.project"] = alphaProject,
                 ["projects.bad.project"] = { id = "bad" },
             }
             local catalog = ProjectCatalog.new({
@@ -24,8 +28,10 @@ return {
             })
             local projects = catalog:listProjects()
             test.assertEqual(#projects, 2)
-            test.assertEqual(projects[1].id, "alpha")
-            test.assertEqual(projects[2].id, "zeta")
+            test.assertEqual(projects[1].title, "A Project")
+            test.assertEqual(projects[1].id, "zeta")
+            test.assertEqual(projects[2].title, "Z Project")
+            test.assertEqual(projects[2].id, "alpha")
         end,
     },
     {
@@ -57,22 +63,61 @@ return {
         end,
     },
     {
-        name = "Project 게임 생성의 예외를 안전한 오류로 바꾼다",
+        name = "Project 게임 생성은 주입된 factory에 위임하고 오류를 안전하게 반환한다",
         run = function(test)
             local ProjectCatalog = require("editor.project.ProjectCatalog")
+            local project = manifest("delegated")
+            local expectedGame = {}
+            local receivedProject = nil
             local catalog = ProjectCatalog.new({
                 listDirectory = function() return {} end,
-                loadModule = function(name)
-                    if name == "games.throwing" then
-                        return { new = function() error("boom") end }
-                    end
-                    return manifest("throwing")
+                loadModule = function()
+                    error("game entry modules must not be loaded")
+                end,
+                createGame = function(forwardedProject)
+                    receivedProject = forwardedProject
+                    return expectedGame
                 end,
                 coreApiVersion = 1,
             })
-            local game, errorMessage = catalog:createGame(manifest("throwing"))
+
+            local game, errorMessage = catalog:createGame(project)
+            test.assertEqual(receivedProject, project)
+            test.assertEqual(game, expectedGame)
+            test.assertEqual(errorMessage, nil)
+
+            local failedCatalog = ProjectCatalog.new({
+                createGame = function()
+                    return nil, "delegated failure"
+                end,
+            })
+            game, errorMessage = failedCatalog:createGame(project)
+            test.assertEqual(game, nil)
+            test.assertContains(errorMessage, "delegated failure")
+
+            local throwingCatalog = ProjectCatalog.new({
+                createGame = function()
+                    error("boom")
+                end,
+            })
+            game, errorMessage = throwingCatalog:createGame(project)
             test.assertEqual(game, nil)
             test.assertContains(errorMessage, "Failed to create game")
+            test.assertContains(errorMessage, "boom")
+
+            local invalidCatalog = ProjectCatalog.new({
+                createGame = function()
+                    return "not a game"
+                end,
+            })
+            game, errorMessage = invalidCatalog:createGame(project)
+            test.assertEqual(game, nil)
+            test.assertContains(errorMessage, "must return a table")
+
+            local unconfiguredCatalog = ProjectCatalog.new()
+            game, errorMessage = unconfiguredCatalog:createGame(project)
+            test.assertEqual(game, nil)
+            test.assertContains(errorMessage, "not configured")
         end,
     },
 }

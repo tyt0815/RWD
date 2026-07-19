@@ -38,6 +38,7 @@ function ProjectCatalog.new(options)
     return setmetatable({
         listDirectory = options.listDirectory or defaultListDirectory,
         loadModule = options.loadModule or defaultLoadModule,
+        createGameFactory = options.createGame,
         coreApiVersion = options.coreApiVersion or Core.CORE_API_VERSION,
     }, ProjectCatalog)
 end
@@ -83,22 +84,20 @@ function ProjectCatalog:listProjects()
 end
 
 function ProjectCatalog:createGame(project)
-    local loaded, moduleOrError = pcall(self.loadModule, project.entryModule)
-    if not loaded then
-        return nil, "Failed to load game entry module: " .. tostring(moduleOrError)
+    if type(self.createGameFactory) ~= "function" then
+        return nil, "Project game factory is not configured."
     end
 
-    if type(moduleOrError) ~= "table" or type(moduleOrError.new) ~= "function" then
-        return nil, "Game entry module must provide new(project)."
-    end
-
-    local created, gameOrError = pcall(moduleOrError.new, project)
+    local created, gameOrError, factoryError = pcall(self.createGameFactory, project)
     if not created then
         return nil, "Failed to create game: " .. tostring(gameOrError)
     end
 
     if type(gameOrError) ~= "table" then
-        return nil, "Game constructor must return a table."
+        if factoryError ~= nil then
+            return nil, tostring(factoryError)
+        end
+        return nil, "Game factory must return a table."
     end
 
     return gameOrError, nil
