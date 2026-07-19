@@ -1,3 +1,35 @@
+local function withProjectFixture(projectId, gameModuleFactory, run)
+    local projectModuleName = "projects." .. projectId .. ".project"
+    local gameModuleName = "projects." .. projectId .. ".game.TestGame"
+    local previousProjectPreload = package.preload[projectModuleName]
+    local previousProjectLoaded = package.loaded[projectModuleName]
+    local previousGamePreload = package.preload[gameModuleName]
+    local previousGameLoaded = package.loaded[gameModuleName]
+
+    package.preload[projectModuleName] = function()
+        return {
+            id = projectId,
+            title = "Test Project",
+            coreApiVersion = 1,
+            entryModule = gameModuleName,
+        }
+    end
+    package.loaded[projectModuleName] = nil
+    package.preload[gameModuleName] = gameModuleFactory
+    package.loaded[gameModuleName] = nil
+
+    local succeeded, errorMessage = xpcall(run, debug.traceback)
+
+    package.preload[projectModuleName] = previousProjectPreload
+    package.loaded[projectModuleName] = previousProjectLoaded
+    package.preload[gameModuleName] = previousGamePreload
+    package.loaded[gameModuleName] = previousGameLoaded
+
+    if not succeeded then
+        error(errorMessage, 0)
+    end
+end
+
 return {
     {
         name = "실행기는 메뉴 모드로 시작한다",
@@ -40,6 +72,50 @@ return {
             test.assertEqual(succeeded, false)
             test.assertEqual(launcher:getMode(), "menu")
             test.assertContains(launcher:getErrorMessage(), "Failed to load project")
+        end,
+    },
+    {
+        name = "게임 생성자가 예외를 던지면 메뉴에 남아 오류를 기록한다",
+        run = function(test)
+            withProjectFixture("throwing-constructor", function()
+                return {
+                    new = function()
+                        error("constructor exploded")
+                    end,
+                }
+            end, function()
+                local Launcher = require("launcher.Launcher")
+                local launcher = Launcher.new()
+
+                local succeeded = launcher:openProject("throwing-constructor")
+                local errorMessage = launcher:getErrorMessage()
+
+                test.assertEqual(succeeded, false)
+                test.assertEqual(launcher:getMode(), "menu")
+                test.assertTrue(type(errorMessage) == "string" and errorMessage ~= "")
+            end)
+        end,
+    },
+    {
+        name = "게임 생성자가 nil을 반환하면 메뉴에 남아 오류를 기록한다",
+        run = function(test)
+            withProjectFixture("nil-constructor", function()
+                return {
+                    new = function()
+                        return nil
+                    end,
+                }
+            end, function()
+                local Launcher = require("launcher.Launcher")
+                local launcher = Launcher.new()
+
+                local succeeded = launcher:openProject("nil-constructor")
+                local errorMessage = launcher:getErrorMessage()
+
+                test.assertEqual(succeeded, false)
+                test.assertEqual(launcher:getMode(), "menu")
+                test.assertTrue(type(errorMessage) == "string" and errorMessage ~= "")
+            end)
         end,
     },
 }

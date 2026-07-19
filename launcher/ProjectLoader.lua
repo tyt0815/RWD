@@ -50,7 +50,17 @@ function ProjectLoader.createGame(project)
         return nil, "Game entry module must provide new(project)."
     end
 
-    return gameModuleOrError.new(project), nil
+    local created, gameOrError = pcall(gameModuleOrError.new, project)
+
+    if not created then
+        return nil, "Failed to create game: " .. tostring(gameOrError)
+    end
+
+    if type(gameOrError) ~= "table" then
+        return nil, "Game constructor must return a table."
+    end
+
+    return gameOrError, nil
 end
 
 return ProjectLoader

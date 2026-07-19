@@ -10,13 +10,13 @@
 - 프로젝트 매니페스트와 Core API 버전 호환 검사
 - 독립 Sample Project 화면과 빈 Tutorial Stage JSON 생성
 - `Menu | Categories | Events | Properties | Values` 에디터 패널과 하단 타임라인 렌더링
-- 외부 프레임워크 없는 14개 자동 테스트 작성
+- 외부 프레임워크 없는 16개 자동 테스트 작성
 - 아키텍처, 제작 흐름, Stage 형식과 로드맵 문서 작성
 
 ## 최근 검증
 
 - `love --version`: `LOVE 11.5 (Mysterious Mysteries)` 확인
-- `love . --test`: `PASS: 14 tests` 확인
+- `love . --test`: `PASS: 16 tests` 확인
 - `tutorial.json`: PowerShell `ConvertFrom-Json` 통과
 - 금지된 내부 Core 의존성과 Project→Editor 의존성 없음
 - `love .`: 실행 프로세스가 정상적으로 시작되어 응답하는 상태 확인
