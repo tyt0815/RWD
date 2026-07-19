@@ -18,9 +18,58 @@ local function nativeFileExists(path)
     return true
 end
 
-function NativeFileSystem.new(sourceRoot)
+local function writeFile(path, contents)
+    local file, openError = io.open(path, "wb")
+    if not file then
+        return nil, tostring(openError)
+    end
+    local wrote, writeError = file:write(contents)
+    local closed, closeError = file:close()
+    if not wrote or not closed then
+        return nil, tostring(writeError or closeError)
+    end
+    return true, nil
+end
+
+local function copyFile(sourcePath, targetPath)
+    local sourceFile, openError = io.open(sourcePath, "rb")
+    if not sourceFile then
+        return nil, tostring(openError)
+    end
+    local contents, readError = sourceFile:read("*a")
+    local closed, closeError = sourceFile:close()
+    if not contents or not closed then
+        return nil, tostring(readError or closeError)
+    end
+    return writeFile(targetPath, contents)
+end
+
+local NATIVE_OPERATIONS = {}
+
+function NATIVE_OPERATIONS:write(path, contents)
+    return writeFile(path, contents)
+end
+
+function NATIVE_OPERATIONS:exists(path)
+    return nativeFileExists(path)
+end
+
+function NATIVE_OPERATIONS:remove(path)
+    return os.remove(path)
+end
+
+function NATIVE_OPERATIONS:rename(sourcePath, targetPath)
+    return os.rename(sourcePath, targetPath)
+end
+
+function NATIVE_OPERATIONS:copy(sourcePath, targetPath)
+    return copyFile(sourcePath, targetPath)
+end
+
+function NativeFileSystem.new(sourceRoot, operations)
     return setmetatable({
         sourceRoot = sourceRoot or love.filesystem.getSource(),
+        operations = operations or NATIVE_OPERATIONS,
     }, NativeFileSystem)
 end
 
@@ -40,8 +89,12 @@ function NativeFileSystem:read(relativePath)
     return contents, nil
 end
 
-function NativeFileSystem:exists(relativePath)
+function NativeFileSystem:isFile(relativePath)
     return love.filesystem.getInfo(relativePath, "file") ~= nil
+end
+
+function NativeFileSystem:exists(relativePath)
+    return self:isFile(relativePath)
 end
 
 function NativeFileSystem:writeAtomic(relativePath, contents)
@@ -52,37 +105,50 @@ function NativeFileSystem:writeAtomic(relativePath, contents)
     local targetPath = join(self.sourceRoot, relativePath)
     local temporaryPath = targetPath .. ".tmp"
     local backupPath = targetPath .. ".bak"
-    local file, openError = io.open(temporaryPath, "wb")
-    if not file then
-        return nil, "Failed to open temporary Stage file: " .. tostring(openError)
-    end
-    local wrote, writeError = file:write(contents)
-    local closed, closeError = file:close()
-    if not wrote or not closed then
-        os.remove(temporaryPath)
-        return nil, "Failed to write temporary Stage file: " .. tostring(writeError or closeError)
+    local wrote, writeError = self.operations:write(temporaryPath, contents)
+    if not wrote then
+        self.operations:remove(temporaryPath)
+        return nil, "Failed to write temporary Stage file: " .. tostring(writeError)
     end
 
-    local hadTarget = nativeFileExists(targetPath)
+    local hadTarget = self.operations:exists(targetPath)
     if hadTarget then
-        os.remove(backupPath)
-        local backedUp, backupError = os.rename(targetPath, backupPath)
+        self.operations:remove(backupPath)
+        local backedUp, backupError = self.operations:rename(targetPath, backupPath)
         if not backedUp then
-            os.remove(temporaryPath)
+            self.operations:remove(temporaryPath)
             return nil, "Failed to back up Stage file: " .. tostring(backupError)
         end
     end
 
-    local replaced, replaceError = os.rename(temporaryPath, targetPath)
+    local replaced, replaceError = self.operations:rename(temporaryPath, targetPath)
     if not replaced then
-        if hadTarget then
-            os.rename(backupPath, targetPath)
+        self.operations:remove(temporaryPath)
+        if not hadTarget then
+            return nil, "Failed to replace Stage file: " .. tostring(replaceError)
         end
-        os.remove(temporaryPath)
+
+        local restored, restoreError = self.operations:rename(backupPath, targetPath)
+        if restored then
+            return nil, "Failed to replace Stage file: " .. tostring(replaceError)
+        end
+
+        local copied, copyError = self.operations:copy(backupPath, targetPath)
+        if copied then
+            self.operations:remove(backupPath)
+            return nil, "Failed to replace Stage file: " .. tostring(replaceError)
+                .. "; original restored by copy after rollback rename failed: "
+                .. tostring(restoreError)
+        end
+
+        self.operations:remove(targetPath)
         return nil, "Failed to replace Stage file: " .. tostring(replaceError)
+            .. "; failed to restore original Stage file from retained backup '"
+            .. backupPath .. "': rollback rename failed: " .. tostring(restoreError)
+            .. "; copy fallback failed: " .. tostring(copyError)
     end
     if hadTarget then
-        os.remove(backupPath)
+        self.operations:remove(backupPath)
     end
     return true, nil
 end

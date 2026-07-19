@@ -12,6 +12,7 @@ end
 local function newFakeFileSystem()
     local fileSystem = {
         files = {},
+        directories = {},
         directoryItems = {},
         writeError = nil,
     }
@@ -32,6 +33,10 @@ local function newFakeFileSystem()
         return self.files[relativePath] ~= nil
     end
 
+    function fileSystem:isFile(relativePath)
+        return not self.directories[relativePath]
+    end
+
     function fileSystem:writeAtomic(relativePath, contents)
         if self.writeError then
             return nil, self.writeError
@@ -43,6 +48,59 @@ local function newFakeFileSystem()
     return fileSystem
 end
 
+local function newFakeNativeOperations()
+    local operations = {
+        files = {},
+        renameErrors = {},
+        copyError = nil,
+        mutationCount = 0,
+    }
+
+    function operations:write(path, contents)
+        self.mutationCount = self.mutationCount + 1
+        self.files[path] = contents
+        return true, nil
+    end
+
+    function operations:exists(path)
+        return self.files[path] ~= nil
+    end
+
+    function operations:remove(path)
+        self.mutationCount = self.mutationCount + 1
+        self.files[path] = nil
+        return true, nil
+    end
+
+    function operations:rename(sourcePath, targetPath)
+        self.mutationCount = self.mutationCount + 1
+        local renameError = self.renameErrors[sourcePath .. "->" .. targetPath]
+        if renameError then
+            return nil, renameError
+        end
+        if self.files[sourcePath] == nil then
+            return nil, "missing source: " .. sourcePath
+        end
+        self.files[targetPath] = self.files[sourcePath]
+        self.files[sourcePath] = nil
+        return true, nil
+    end
+
+    function operations:copy(sourcePath, targetPath)
+        self.mutationCount = self.mutationCount + 1
+        if self.copyError then
+            return nil, self.copyError
+        end
+        if self.files[sourcePath] == nil then
+            return nil, "missing source: " .. sourcePath
+        end
+        self.files[targetPath] = self.files[sourcePath]
+        return true, nil
+    end
+
+    return operations
+end
+
 return {
     {
         name = "고정된 dkjson 버전을 사용한다",
@@ -52,13 +110,15 @@ return {
         end,
     },
     {
-        name = "Stage 목록은 JSON 확장자만 ID 순으로 반환한다",
+        name = "Stage 목록은 안전한 실제 JSON 파일만 ID 순으로 반환한다",
         run = function(test)
             local StageStore = require("editor.stage.StageStore")
             local fileSystem = newFakeFileSystem()
             fileSystem.directoryItems["projects/sample/stages"] = {
-                "zeta.json", "notes.txt", "alpha.json",
+                "zeta.json", "notes.txt", "alpha.json", "con.json",
+                "aux.json", "com1.json", "folder.json",
             }
+            fileSystem.directories["projects/sample/stages/folder.json"] = true
             local store = StageStore.new(fileSystem)
             local stages = assert(store:listStages("sample"))
             test.assertEqual(#stages, 2)
@@ -74,6 +134,18 @@ return {
             local stages, errorMessage = store:listStages("../outside")
             test.assertEqual(stages, nil)
             test.assertContains(errorMessage, "projectId")
+
+            local reservedProjectStages, reservedProjectError = store:listStages("con")
+            test.assertEqual(reservedProjectStages, nil)
+            test.assertContains(reservedProjectError, "projectId")
+
+            local reservedStageExists, reservedStageError = store:stageExists("sample", "com1")
+            test.assertEqual(reservedStageExists, nil)
+            test.assertContains(reservedStageError, "stageId")
+
+            local auxiliaryStageExists, auxiliaryStageError = store:stageExists("sample", "aux")
+            test.assertEqual(auxiliaryStageExists, nil)
+            test.assertContains(auxiliaryStageError, "stageId")
         end,
     },
     {
@@ -102,7 +174,7 @@ return {
         end,
     },
     {
-        name = "선택 Project와 JSON projectId가 다르면 거부한다",
+        name = "Stage load는 JSON schema와 경로 ID 일치를 검증한다",
         run = function(test)
             local json = require("vendor.dkjson")
             local StageStore = require("editor.stage.StageStore")
@@ -114,6 +186,19 @@ return {
             local loaded, errorMessage = store:load("sample", "wrong")
             test.assertEqual(loaded, nil)
             test.assertContains(errorMessage, "$.projectId")
+
+            local mismatchedStage = validStage("inside")
+            fileSystem.files["projects/sample/stages/mismatch.json"] = json.encode(mismatchedStage)
+            local mismatched, mismatchError = store:load("sample", "mismatch")
+            test.assertEqual(mismatched, nil)
+            test.assertContains(mismatchError, "$.stageId")
+
+            local invalidSchema = validStage("invalid")
+            invalidSchema.schemaVersion = 2
+            fileSystem.files["projects/sample/stages/invalid.json"] = json.encode(invalidSchema)
+            local invalid, invalidError = store:load("sample", "invalid")
+            test.assertEqual(invalid, nil)
+            test.assertContains(invalidError, "$.schemaVersion")
         end,
     },
     {
@@ -147,6 +232,7 @@ return {
     {
         name = "원자 쓰기 실패를 호출자에게 전달한다",
         run = function(test)
+            local NativeFileSystem = require("editor.stage.NativeFileSystem")
             local StageStore = require("editor.stage.StageStore")
             local fileSystem = newFakeFileSystem()
             fileSystem.writeError = "disk full"
@@ -154,6 +240,45 @@ return {
             local saved, errorMessage = store:save(validStage(), true)
             test.assertEqual(saved, nil)
             test.assertContains(errorMessage, "disk full")
+
+            local packagedOperations = newFakeNativeOperations()
+            local packagedFileSystem = NativeFileSystem.new("C:/game.love", packagedOperations)
+            local packaged, packagedError = packagedFileSystem:writeAtomic(
+                "projects/sample/stages/tutorial.json",
+                "replacement"
+            )
+            test.assertEqual(packaged, nil)
+            test.assertContains(packagedError, "packaged .love")
+            test.assertEqual(packagedOperations.mutationCount, 0)
+
+            local relativePath = "projects/sample/stages/tutorial.json"
+            local targetPath = "C:/project/" .. relativePath
+            local temporaryPath = targetPath .. ".tmp"
+            local backupPath = targetPath .. ".bak"
+            local recoveryOperations = newFakeNativeOperations()
+            recoveryOperations.files[targetPath] = "original"
+            recoveryOperations.renameErrors[temporaryPath .. "->" .. targetPath] = "replace blocked"
+            recoveryOperations.renameErrors[backupPath .. "->" .. targetPath] = "rollback blocked"
+            local recoveryFileSystem = NativeFileSystem.new("C:/project", recoveryOperations)
+            local replaced, replaceError = recoveryFileSystem:writeAtomic(relativePath, "replacement")
+            test.assertEqual(replaced, nil)
+            test.assertContains(replaceError, "replace blocked")
+            test.assertEqual(recoveryOperations.files[targetPath], "original")
+            test.assertEqual(recoveryOperations.files[backupPath], nil)
+
+            local failedOperations = newFakeNativeOperations()
+            failedOperations.files[targetPath] = "original"
+            failedOperations.renameErrors[temporaryPath .. "->" .. targetPath] = "replace blocked"
+            failedOperations.renameErrors[backupPath .. "->" .. targetPath] = "rollback blocked"
+            failedOperations.copyError = "copy blocked"
+            local failedFileSystem = NativeFileSystem.new("C:/project", failedOperations)
+            local failed, recoveryError = failedFileSystem:writeAtomic(relativePath, "replacement")
+            test.assertEqual(failed, nil)
+            test.assertContains(recoveryError, "replace blocked")
+            test.assertContains(recoveryError, "rollback blocked")
+            test.assertContains(recoveryError, "copy blocked")
+            test.assertContains(recoveryError, backupPath)
+            test.assertEqual(failedOperations.files[backupPath], "original")
         end,
     },
 }

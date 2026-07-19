@@ -46,7 +46,8 @@ function StageStore:listStages(projectId)
     local stageIds = {}
     for _, fileName in ipairs(items) do
         local stageId = fileName:match("^([a-z0-9][a-z0-9_-]*)%.json$")
-        if stageId then
+        local relativePath = stageDirectory(projectId) .. "/" .. fileName
+        if stageId and StageDocument.isSafeId(stageId) and self.fileSystem:isFile(relativePath) then
             table.insert(stageIds, stageId)
         end
     end
