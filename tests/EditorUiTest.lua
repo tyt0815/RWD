@@ -7,6 +7,152 @@ local function sessionState(values)
     }
 end
 
+local function copyColor(color)
+    return { color[1], color[2], color[3], color[4] }
+end
+
+local function withGraphicsRecorder(run)
+    local previousLove = _G.love
+    local currentColor = { 1, 1, 1, 1 }
+    local recorder = {
+        prints = {},
+        rectangles = {},
+        pushes = {},
+        pops = 0,
+        clears = {},
+    }
+    local graphics = {}
+
+    function graphics.setColor(red, green, blue, alpha)
+        currentColor = { red, green, blue, alpha }
+    end
+
+    function graphics.rectangle(mode, x, y, width, height)
+        table.insert(recorder.rectangles, {
+            mode = mode,
+            x = x,
+            y = y,
+            width = width,
+            height = height,
+            color = copyColor(currentColor),
+        })
+    end
+
+    local function recordPrint(kind, text, x, y, limit, align)
+        table.insert(recorder.prints, {
+            kind = kind,
+            text = tostring(text),
+            x = x,
+            y = y,
+            limit = limit,
+            align = align,
+            color = copyColor(currentColor),
+        })
+    end
+
+    function graphics.print(text, x, y)
+        recordPrint("print", text, x, y)
+    end
+
+    function graphics.printf(text, x, y, limit, align)
+        recordPrint("printf", text, x, y, limit, align)
+    end
+
+    function graphics.push(mode)
+        table.insert(recorder.pushes, mode)
+    end
+
+    function graphics.pop()
+        recorder.pops = recorder.pops + 1
+    end
+
+    function graphics.clear(red, green, blue, alpha)
+        table.insert(recorder.clears, { red, green, blue, alpha })
+    end
+
+    _G.love = { graphics = graphics }
+    local succeeded, errorMessage = xpcall(function()
+        run(recorder)
+    end, debug.traceback)
+    _G.love = previousLove
+
+    if not succeeded then
+        error(errorMessage, 0)
+    end
+end
+
+local function countPrints(recorder, text, y)
+    local count = 0
+    for _, call in ipairs(recorder.prints) do
+        if call.text == tostring(text) and (y == nil or call.y == y) then
+            count = count + 1
+        end
+    end
+    return count
+end
+
+local function countPrintsAtY(recorder, y)
+    local count = 0
+    for _, call in ipairs(recorder.prints) do
+        if call.y == y then
+            count = count + 1
+        end
+    end
+    return count
+end
+
+local function findPrint(recorder, text)
+    for _, call in ipairs(recorder.prints) do
+        if call.text == text then
+            return call
+        end
+    end
+    return nil
+end
+
+local function findRectangle(recorder, expected)
+    for _, call in ipairs(recorder.rectangles) do
+        if call.mode == expected.mode
+            and call.x == expected.x
+            and call.y == expected.y
+            and call.width == expected.width
+            and call.height == expected.height then
+            return call
+        end
+    end
+    return nil
+end
+
+local function assertColor(test, call, expected)
+    test.assertTrue(call ~= nil)
+    for index, component in ipairs(expected) do
+        test.assertEqual(call.color[index], component)
+    end
+end
+
+local function assertHeading(test, recorder, label, visible)
+    test.assertEqual(countPrints(recorder, label, 10), visible and 1 or 0)
+end
+
+local function assertPlayhead(test, recorder, layout, expectedX)
+    local playhead = findRectangle(recorder, {
+        mode = "fill",
+        x = expectedX,
+        y = layout.timeline.y,
+        width = 2,
+        height = layout.timeline.height,
+    })
+    assertColor(test, playhead, { 1, 0.45, 0.2, 1 })
+end
+
+local function assertTimelineLabels(test, recorder, timeline, labels)
+    local labelY = timeline.y + 8
+    test.assertEqual(countPrintsAtY(recorder, labelY), #labels)
+    for _, label in ipairs(labels) do
+        test.assertEqual(countPrints(recorder, label, labelY), 1)
+    end
+end
+
 return {
     {
         name = "Menu는 요청한 일곱 항목만 순서대로 제공한다",
@@ -18,6 +164,22 @@ return {
             for index, label in ipairs(labels) do
                 test.assertEqual(items[index].label, label)
             end
+
+            withGraphicsRecorder(function(recorder)
+                local panel = { x = 0, y = 0, width = 180, height = 360 }
+                EditorMenu.draw(panel, items, "new")
+
+                assertColor(test, findPrint(recorder, "New"), { 0.9, 0.91, 0.93, 1 })
+                assertColor(test, findPrint(recorder, "Save"), { 0.48, 0.49, 0.52, 1 })
+                local hover = findRectangle(recorder, {
+                    mode = "fill",
+                    x = 4,
+                    y = 32,
+                    width = 172,
+                    height = 24,
+                })
+                assertColor(test, hover, { 0.25, 0.27, 0.3, 1 })
+            end)
         end,
     },
     {
@@ -29,26 +191,97 @@ return {
             test.assertEqual(items[4].enabled, false)
             test.assertEqual(items[5].enabled, false)
             test.assertEqual(items[6].enabled, false)
+
+            withGraphicsRecorder(function(recorder)
+                local panel = { x = 0, y = 0, width = 180, height = 360 }
+                EditorMenu.draw(panel, items, "save")
+                test.assertEqual(#recorder.rectangles, 0)
+            end)
         end,
     },
     {
         name = "dirty Stage는 Save 별표를 표시한다",
         run = function(test)
             local EditorMenu = require("editor.menu.EditorMenu")
+            local EditorLayout = require("editor.ui.EditorLayout")
             local items = EditorMenu.getItems(sessionState({ hasStage = true, dirty = true }))
             test.assertEqual(items[3].label, "Save*")
+
+            withGraphicsRecorder(function(recorder)
+                local previewCount = 0
+                local layout = EditorLayout.draw(288, 200, {
+                    hasStage = true,
+                    playing = false,
+                    bpm = 123,
+                    beat = 2.5,
+                    timelineStartBeat = 0,
+                    menuItems = items,
+                    hoveredAction = nil,
+                }, function()
+                    previewCount = previewCount + 1
+                end)
+
+                for _, label in ipairs({ "Menu", "Categories", "Events", "Properties", "Values" }) do
+                    assertHeading(test, recorder, label, true)
+                end
+                test.assertEqual(countPrints(recorder, "> Global"), 1)
+                test.assertEqual(countPrints(recorder, "> Mixtape Properties"), 1)
+                test.assertEqual(countPrints(recorder, "BPM"), 1)
+                test.assertEqual(countPrints(recorder, "123"), 1)
+                test.assertEqual(previewCount, 0)
+                test.assertEqual(#recorder.pushes, 1)
+                test.assertEqual(recorder.pushes[1], "all")
+                test.assertEqual(recorder.pops, 1)
+                test.assertEqual(#recorder.clears, 1)
+                assertTimelineLabels(test, recorder, layout.timeline, { "0", "4", "8" })
+                assertPlayhead(test, recorder, layout, 80)
+            end)
         end,
     },
     {
         name = "Play와 Pause 활성 상태는 재생 여부에 따라 교대한다",
         run = function(test)
             local EditorMenu = require("editor.menu.EditorMenu")
+            local EditorLayout = require("editor.ui.EditorLayout")
             local stopped = EditorMenu.getItems(sessionState({ hasStage = true }))
             local playing = EditorMenu.getItems(sessionState({ hasStage = true, playing = true }))
             test.assertEqual(stopped[5].enabled, true)
             test.assertEqual(stopped[6].enabled, false)
             test.assertEqual(playing[5].enabled, false)
             test.assertEqual(playing[6].enabled, true)
+
+            withGraphicsRecorder(function(recorder)
+                local previewCalls = {}
+                local layout = EditorLayout.draw(288, 200, {
+                    hasStage = true,
+                    playing = true,
+                    bpm = 123,
+                    beat = 6,
+                    timelineStartBeat = 4,
+                    menuItems = playing,
+                    hoveredAction = nil,
+                }, function(rect)
+                    table.insert(previewCalls, rect)
+                end)
+
+                assertHeading(test, recorder, "Menu", true)
+                assertHeading(test, recorder, "Categories", true)
+                assertHeading(test, recorder, "Events", true)
+                assertHeading(test, recorder, "Properties", false)
+                assertHeading(test, recorder, "Values", false)
+                test.assertEqual(countPrints(recorder, "> Global"), 1)
+                test.assertEqual(countPrints(recorder, "> Mixtape Properties"), 1)
+                test.assertEqual(countPrints(recorder, "BPM"), 0)
+                test.assertEqual(countPrints(recorder, "123"), 0)
+                test.assertEqual(#previewCalls, 1)
+                local expectedPreview = EditorLayout.getPreviewRect(layout)
+                test.assertEqual(previewCalls[1].x, expectedPreview.x)
+                test.assertEqual(previewCalls[1].y, expectedPreview.y)
+                test.assertEqual(previewCalls[1].width, expectedPreview.width)
+                test.assertEqual(previewCalls[1].height, expectedPreview.height)
+                assertTimelineLabels(test, recorder, layout.timeline, { "4", "8", "12" })
+                assertPlayhead(test, recorder, layout, 64)
+            end)
         end,
     },
     {
@@ -69,9 +302,24 @@ return {
             local preview = EditorLayout.getPreviewRect(layout)
             local bpm = EditorLayout.getBpmValueRect(layout)
             test.assertEqual(preview.x, layout.panels[4].x)
+            test.assertEqual(preview.y, layout.panels[4].y)
             test.assertEqual(preview.width, layout.panels[4].width + layout.panels[5].width)
+            test.assertEqual(preview.height, layout.panels[4].height)
             test.assertEqual(bpm.x, layout.panels[5].x)
             test.assertEqual(bpm.y, 32)
+            test.assertEqual(bpm.width, layout.panels[5].width)
+            test.assertEqual(bpm.height, 24)
+            test.assertEqual(EditorLayout.getVisibleBeatCount(layout), 37)
+            test.assertEqual(EditorLayout.hitTestBpmValue(layout, bpm.x, bpm.y), true)
+            test.assertEqual(EditorLayout.hitTestBpmValue(
+                layout,
+                bpm.x + bpm.width - 1,
+                bpm.y + bpm.height - 1
+            ), true)
+            test.assertEqual(EditorLayout.hitTestBpmValue(layout, bpm.x + bpm.width, bpm.y), false)
+            test.assertEqual(EditorLayout.hitTestBpmValue(layout, bpm.x, bpm.y + bpm.height), false)
+            test.assertEqual(EditorLayout.hitTestBpmValue(layout, bpm.x - 1, bpm.y), false)
+            test.assertEqual(EditorLayout.hitTestBpmValue(layout, bpm.x, bpm.y - 1), false)
         end,
     },
 }
