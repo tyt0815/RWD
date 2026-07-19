@@ -3,6 +3,15 @@ StageDocument.__index = StageDocument
 
 local SAFE_ID_PATTERN = "^[a-z0-9][a-z0-9_-]*$"
 
+local function isWindowsReservedBasename(value)
+    local normalized = string.lower(value)
+    if normalized == "con" or normalized == "prn" or normalized == "aux" or normalized == "nul" then
+        return true
+    end
+    return normalized:match("^com[1-9]$") ~= nil
+        or normalized:match("^lpt[1-9]$") ~= nil
+end
+
 local function isFiniteNumber(value)
     return type(value) == "number"
         and value == value
@@ -46,7 +55,9 @@ local function deepCopy(value, seen)
 end
 
 function StageDocument.isSafeId(value)
-    return type(value) == "string" and value:match(SAFE_ID_PATTERN) ~= nil
+    return type(value) == "string"
+        and value:match(SAFE_ID_PATTERN) ~= nil
+        and not isWindowsReservedBasename(value)
 end
 
 local function validateEvent(event, index)

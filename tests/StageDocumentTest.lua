@@ -31,6 +31,18 @@ return {
             local document, errorMessage = StageDocument.create("sample", "../escape", "Bad", 120)
             test.assertEqual(document, nil)
             test.assertContains(errorMessage, "$.stageId")
+
+            local conDocument, conError = StageDocument.create("sample", "con", "CON", 120)
+            local com1Document, com1Error = StageDocument.create("sample", "com1", "COM1", 120)
+            test.assertEqual(conDocument, nil)
+            test.assertContains(conError, "$.stageId")
+            test.assertEqual(com1Document, nil)
+            test.assertContains(com1Error, "$.stageId")
+
+            local prefixedDocument = StageDocument.create("sample", "con-stage", "CON Stage", 120)
+            local com10Document = StageDocument.create("sample", "com10", "COM10", 120)
+            test.assertTrue(prefixedDocument ~= nil)
+            test.assertTrue(com10Document ~= nil)
         end,
     },
     {
