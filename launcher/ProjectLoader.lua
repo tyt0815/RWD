@@ -39,4 +39,18 @@ function ProjectLoader.loadProject(projectId, coreApiVersion)
     return projectOrError, nil
 end
 
+function ProjectLoader.createGame(project)
+    local succeeded, gameModuleOrError = pcall(require, project.entryModule)
+
+    if not succeeded then
+        return nil, "Failed to load game entry module: " .. gameModuleOrError
+    end
+
+    if type(gameModuleOrError) ~= "table" or type(gameModuleOrError.new) ~= "function" then
+        return nil, "Game entry module must provide new(project)."
+    end
+
+    return gameModuleOrError.new(project), nil
+end
+
 return ProjectLoader
