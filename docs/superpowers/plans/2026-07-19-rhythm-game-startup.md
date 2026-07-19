@@ -1297,7 +1297,7 @@ git commit -m "feat: add common development launcher"
 ### Task 6: 프로젝트 문서와 인수인계
 
 **Files:**
-- Create: `.gitignore`
+- Modify: `.gitignore`
 - Create: `.gitattributes`
 - Create: `AGENTS.md`
 - Create: `README.md`
@@ -1316,6 +1316,7 @@ git commit -m "feat: add common development launcher"
 Create `.gitignore`:
 
 ```gitignore
+.worktrees/
 .superpowers/
 dist/
 *.love
