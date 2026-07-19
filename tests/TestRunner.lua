@@ -7,6 +7,7 @@ local TEST_MODULES = {
     "tests.PlaybackClockTest",
     "tests.StageDocumentTest",
     "tests.ProjectLoaderTest",
+    "tests.ProjectCatalogTest",
     "tests.SampleGameTest",
     "tests.EditorTest",
     "tests.LauncherTest",
