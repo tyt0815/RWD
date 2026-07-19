@@ -131,9 +131,14 @@ end
 function EditorSession:setBpm(bpm)
     if not self.document then return nil, "No Stage is open." end
 
-    local changed, errorMessage = self.document:setBpm(bpm)
-    if not changed then return nil, errorMessage end
-    return self.clock:setBpm(bpm)
+    local candidate = self.document:toTable()
+    candidate.tempoMap[1].bpm = bpm
+    local validationError = StageDocument.validate(candidate)
+    if validationError then return nil, validationError end
+
+    local clockChanged, clockError = self.clock:setBpm(bpm)
+    if not clockChanged then return nil, clockError end
+    return self.document:setBpm(bpm)
 end
 
 function EditorSession:play()

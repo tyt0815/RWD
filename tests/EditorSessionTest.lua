@@ -11,12 +11,14 @@ local function newFixture(options)
     options = options or {}
     local stored = options.stored
     local project = { id = "sample", title = "Sample", entryModule = "sample.game" }
+    local otherProject = { id = "other", title = "Other", entryModule = "other.game" }
     local catalog = {
         listProjects = function()
-            return { project }, nil
+            return { project, otherProject }, nil
         end,
         getProject = function(_, projectId)
             if projectId == "sample" then return project, nil end
+            if projectId == "other" then return otherProject, nil end
             return nil, "missing project"
         end,
         createGame = function()
@@ -39,6 +41,7 @@ local function newFixture(options)
             if options.conflict and not overwrite then
                 return nil, "already exists", "STAGE_EXISTS"
             end
+            if options.onSave then options.onSave(data, overwrite) end
             options.lastSaved = data
             return true, nil
         end,
@@ -75,6 +78,7 @@ local function newSession(options)
         projectCatalog = catalog,
         stageStore = store,
         testPlayer = testPlayer,
+        clockFactory = state.clockFactory,
     }), testPlayer, state
 end
 
@@ -115,13 +119,27 @@ return {
     {
         name = "Open 실패는 현재 Stage와 dirty 상태를 보존한다",
         run = function(test)
-            local session = newSession({ loadError = "broken Stage" })
+            local session, testPlayer = newSession({ loadError = "broken Stage" })
             assert(session:createStage("sample", "current", "Current", 120))
-            local opened, errorMessage = session:openStage("sample", "broken")
+            assert(session:play())
+            assert(session:update(7, 12))
+            local currentProject = session:getProject()
+            local currentDocument = session:getDocument()
+            local currentGame = testPlayer.game
+
+            local opened, errorMessage = session:openStage("other", "broken")
             test.assertEqual(opened, nil)
             test.assertContains(errorMessage, "broken Stage")
+            test.assertEqual(session:getProject(), currentProject)
+            test.assertEqual(session:getProject().id, "sample")
+            test.assertEqual(session:getDocument(), currentDocument)
             test.assertEqual(session:getDocument():getStageId(), "current")
             test.assertEqual(session:isDirty(), true)
+            test.assertNear(session:getBeat(), 14, 0.000001)
+            test.assertEqual(session:getTimelineStartBeat(), 4)
+            test.assertEqual(session:isPlaying(), true)
+            test.assertEqual(testPlayer.playing, true)
+            test.assertEqual(testPlayer.game, currentGame)
         end,
     },
     {
@@ -142,14 +160,35 @@ return {
         end,
     },
     {
-        name = "Save As 충돌은 원본 ID를 보존한다",
+        name = "Save As는 성공 후에만 ID와 이름을 교체한다",
         run = function(test)
             local session = newSession({ conflict = true })
             assert(session:createStage("sample", "source", "Source", 120))
+            local currentProject = session:getProject()
             local saved, _, errorCode = session:saveAs("copy", "Copy", false)
             test.assertEqual(saved, nil)
             test.assertEqual(errorCode, "STAGE_EXISTS")
             test.assertEqual(session:getDocument():getStageId(), "source")
+            test.assertEqual(session:getDocument():getName(), "Source")
+            test.assertEqual(session:isDirty(), true)
+            test.assertEqual(session:getProject(), currentProject)
+
+            local successOptions = {}
+            local successSession
+            successOptions.onSave = function(data)
+                test.assertEqual(data.stageId, "copy")
+                test.assertEqual(data.name, "Copy")
+                test.assertEqual(successSession:getDocument():getStageId(), "source")
+                test.assertEqual(successSession:getDocument():getName(), "Source")
+            end
+            successSession = newSession(successOptions)
+            assert(successSession:createStage("sample", "source", "Source", 120))
+            local successProject = successSession:getProject()
+            assert(successSession:saveAs("copy", "Copy", false))
+            test.assertEqual(successSession:getDocument():getStageId(), "copy")
+            test.assertEqual(successSession:getDocument():getName(), "Copy")
+            test.assertEqual(successSession:isDirty(), false)
+            test.assertEqual(successSession:getProject(), successProject)
         end,
     },
     {
@@ -162,6 +201,40 @@ return {
             session:play()
             assert(session:update(1, 16))
             test.assertNear(session:getBeat(), 1.5, 0.000001)
+
+            local sameSession = newSession({ stored = VALID_STAGE })
+            assert(sameSession:openStage("sample", "tutorial"))
+            assert(sameSession:setBpm(120))
+            test.assertEqual(sameSession:getBpm(), 120)
+            test.assertEqual(sameSession:isDirty(), false)
+
+            local clockState = {}
+            local function failingClockFactory(bpm)
+                clockState.bpm = bpm
+                return {
+                    isPlaying = function() return false end,
+                    getBeat = function() return 0 end,
+                    play = function() end,
+                    pause = function() end,
+                    update = function() end,
+                    setBpm = function(_, candidateBpm)
+                        clockState.candidateBpm = candidateBpm
+                        return nil, "clock BPM failed"
+                    end,
+                }, nil
+            end
+            local failingSession = newSession({
+                stored = VALID_STAGE,
+                clockFactory = failingClockFactory,
+            })
+            assert(failingSession:openStage("sample", "tutorial"))
+            local changed, errorMessage = failingSession:setBpm(90)
+            test.assertEqual(changed, nil)
+            test.assertContains(errorMessage, "clock BPM failed")
+            test.assertEqual(clockState.candidateBpm, 90)
+            test.assertEqual(clockState.bpm, 120)
+            test.assertEqual(failingSession:getBpm(), 120)
+            test.assertEqual(failingSession:isDirty(), false)
         end,
     },
     {
