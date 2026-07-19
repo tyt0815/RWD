@@ -1,0 +1,52 @@
+local activeApp = nil
+
+local function containsArgument(arguments, expected)
+    for _, argument in ipairs(arguments or {}) do
+        if argument == expected then
+            return true
+        end
+    end
+
+    return false
+end
+
+local function runTests()
+    local succeeded, errorMessage = xpcall(function()
+        local TestRunner = require("tests.TestRunner")
+        TestRunner.run()
+    end, debug.traceback)
+
+    if not succeeded then
+        io.stderr:write(errorMessage .. "\n")
+    end
+
+    love.event.quit(succeeded and 0 or 1)
+end
+
+function love.load(arguments)
+    if containsArgument(arguments, "--test") then
+        runTests()
+        return
+    end
+
+    local Launcher = require("launcher.Launcher")
+    activeApp = Launcher.new()
+end
+
+function love.update(deltaTime)
+    if activeApp and activeApp.update then
+        activeApp:update(deltaTime)
+    end
+end
+
+function love.draw()
+    if activeApp and activeApp.draw then
+        activeApp:draw()
+    end
+end
+
+function love.keypressed(key, scanCode, isRepeat)
+    if activeApp and activeApp.keypressed then
+        activeApp:keypressed(key, scanCode, isRepeat)
+    end
+end
