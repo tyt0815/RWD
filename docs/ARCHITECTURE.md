@@ -12,7 +12,7 @@ Core는 Editor와 Project를 알지 못한다. Project는 Editor를 알지 못�
 
 ## Core
 
-`core/init.lua`는 유일한 공개 진입점이다. 현재는 `CORE_API_VERSION`과 `JudgmentResult` 상수만 제공한다. 향후 시간 변환, Pattern 전개, Tap/Long Note 판정을 이 경계 뒤에 추가한다.
+`core/init.lua`는 유일한 공개 진입점이다. 현재는 `CORE_API_VERSION`, `JudgmentResult` 상수와 고정 BPM `PlaybackClock`을 제공한다. 향후 시간 변환, Pattern 전개, Tap/Long Note 판정을 이 경계 뒤에 추가한다.
 
 판정 결과는 `GOOD`, `BAD`, `MISS`, `EMPTY_INPUT` 네 가지다. Core는 결과를 만들지만 사운드, UI와 시각 효과는 Project가 처리한다.
 
@@ -20,7 +20,7 @@ Core는 Editor와 Project를 알지 못한다. Project는 Editor를 알지 못�
 
 Editor는 `Menu | Categories | Events | Properties | Values` 상단 영역과 하단 타임라인을 가진다. 테스트 플레이 중에는 Properties와 Values 영역을 프로젝트의 실시간 `TestPlayer` Canvas가 대체한다.
 
-현재 구현은 고정 패널과 타임라인을 렌더링한다. `TestPlayer`는 주입받은 `createGame(project)`로 프로젝트 앱을 만들고, 프로젝트의 `update(deltaTime)`과 `draw(width, height)`를 Canvas 안에서 실행한다. 프로젝트 실행 오류는 호출자에게 반환하며 프로젝트 입력은 전달하지 않는다. `StageDocument`는 Stage 버전 1 데이터를 검증하고, `StageStore`는 검증된 식별자로 `projects/<projectId>/stages/<stageId>.json` 경로만 읽고 쓴다. 네이티브 파일 경계는 원자 교체를 사용하며 패키징된 `.love` 소스에는 쓰지 않는다. EditorSession과 화면의 TestPlayer 연결, Event 편집은 현재 범위에 없다.
+현재 구현은 고정 패널과 타임라인을 렌더링한다. `TestPlayer`는 주입받은 `createGame(project)`로 프로젝트 앱을 만들고, 프로젝트의 `update(deltaTime)`과 `draw(width, height)`를 Canvas 안에서 실행한다. 프로젝트 실행 오류는 호출자에게 반환하며 프로젝트 입력은 전달하지 않는다. `StageDocument`는 Stage 버전 1 데이터를 검증하고, `StageStore`는 검증된 식별자로 `projects/<projectId>/stages/<stageId>.json` 경로만 읽고 쓴다. 네이티브 파일 경계는 원자 교체를 사용하며 패키징된 `.love` 소스에는 쓰지 않는다. `EditorSession`은 Project, Stage 문서, 저장소, 재생 시계와 TestPlayer를 조립해 Stage 생성·열기·저장, BPM, 재생과 4박자 단위 타임라인 추적 상태를 소유한다. EditorSession과 화면의 연결, Event 편집은 현재 범위에 없다.
 
 ## Project
 

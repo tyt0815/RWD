@@ -20,7 +20,7 @@ Core가 판정하는 원시 노트 종류는 Tap Note와 Long Note뿐이다. Pat
 
 ## 5. 테스트 플레이
 
-완성될 TestPlayer는 Stage 배치를 읽고 프로젝트 코드를 에디터 우측 상단 Canvas에서 실시간 실행한다. 에디터 타임라인과 TestPlayer는 같은 코어 재생 시계를 공유한다.
+EditorSession은 Stage와 고정 BPM 재생 시계를 소유하고 TestPlayer의 시작·중지·업데이트를 함께 제어한다. TestPlayer는 재생할 때마다 새 프로젝트 게임을 만들고 에디터 우측 상단 Canvas에서 실행한다. 화면 연결과 Stage Event 실행은 후속 작업 범위다.
 
 ## 6. 게임 연출
 
