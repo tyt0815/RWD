@@ -1,3 +1,5 @@
+local EditorMenu = require("editor.menu.EditorMenu")
+
 local EditorLayout = {}
 
 local PANEL_LABELS = {
@@ -11,6 +13,8 @@ local PANEL_LABELS = {
 local PANEL_WEIGHTS = { 1, 1.5, 1.5, 1.25, 1.25 }
 local TOP_HEIGHT_RATIO = 0.46
 local TIMELINE_STEP_WIDTH = 32
+local HEADER_HEIGHT = 32
+local PROPERTY_ROW_HEIGHT = 24
 
 function EditorLayout.getLayout(width, height)
     local topHeight = math.floor(height * TOP_HEIGHT_RATIO)
@@ -52,6 +56,37 @@ function EditorLayout.getLayout(width, height)
     }
 end
 
+function EditorLayout.getPreviewRect(layout)
+    local properties = layout.panels[4]
+    local values = layout.panels[5]
+    return {
+        x = properties.x,
+        y = properties.y,
+        width = properties.width + values.width,
+        height = properties.height,
+    }
+end
+
+function EditorLayout.getBpmValueRect(layout)
+    local values = layout.panels[5]
+    return {
+        x = values.x,
+        y = values.y + HEADER_HEIGHT,
+        width = values.width,
+        height = PROPERTY_ROW_HEIGHT,
+    }
+end
+
+function EditorLayout.getVisibleBeatCount(layout)
+    return math.max(1, math.floor(layout.timeline.width / TIMELINE_STEP_WIDTH))
+end
+
+function EditorLayout.hitTestBpmValue(layout, x, y)
+    local rect = EditorLayout.getBpmValueRect(layout)
+    return x >= rect.x and x < rect.x + rect.width
+        and y >= rect.y and y < rect.y + rect.height
+end
+
 local function drawPanel(panel)
     love.graphics.setColor(0.15, 0.16, 0.17, 1)
     love.graphics.rectangle("fill", panel.x, panel.y, panel.width, panel.height)
@@ -61,41 +96,69 @@ local function drawPanel(panel)
     love.graphics.print(panel.label, panel.x + 12, panel.y + 10)
 end
 
-local function drawTimeline(timeline)
-    love.graphics.setColor(0.18, 0.19, 0.21, 1)
-    love.graphics.rectangle("fill", timeline.x, timeline.y, timeline.width, timeline.height)
+local function drawPanelContent(layout, viewModel)
+    if not viewModel.hasStage then
+        return
+    end
 
-    local stepIndex = 0
-    for x = timeline.x, timeline.x + timeline.width, TIMELINE_STEP_WIDTH do
-        if stepIndex % 2 == 0 then
-            love.graphics.setColor(0.23, 0.24, 0.26, 1)
-        else
-            love.graphics.setColor(0.2, 0.21, 0.23, 1)
-        end
-
-        love.graphics.rectangle("fill", x, timeline.y + 32, TIMELINE_STEP_WIDTH, timeline.height - 32)
-
-        if stepIndex % 4 == 0 then
-            love.graphics.setColor(0.82, 0.83, 0.86, 1)
-            love.graphics.print(tostring(stepIndex), x + 4, timeline.y + 8)
-        end
-
-        stepIndex = stepIndex + 1
+    love.graphics.setColor(0.9, 0.91, 0.93, 1)
+    love.graphics.print("> Global", layout.panels[2].x + 12, HEADER_HEIGHT + 3)
+    love.graphics.print("> Mixtape Properties", layout.panels[3].x + 12, HEADER_HEIGHT + 3)
+    if not viewModel.playing then
+        love.graphics.print("BPM", layout.panels[4].x + 12, HEADER_HEIGHT + 3)
+        love.graphics.print(tostring(viewModel.bpm), layout.panels[5].x + 12, HEADER_HEIGHT + 3)
     end
 end
 
-function EditorLayout.draw(width, height)
+local function drawTimeline(timeline, viewModel)
+    love.graphics.setColor(0.18, 0.19, 0.21, 1)
+    love.graphics.rectangle("fill", timeline.x, timeline.y, timeline.width, timeline.height)
+
+    local visibleSteps = math.ceil(timeline.width / TIMELINE_STEP_WIDTH)
+    for step = 0, visibleSteps do
+        local beat = viewModel.timelineStartBeat + step
+        local x = timeline.x + step * TIMELINE_STEP_WIDTH
+        love.graphics.setColor(
+            step % 2 == 0 and 0.23 or 0.2,
+            step % 2 == 0 and 0.24 or 0.21,
+            step % 2 == 0 and 0.26 or 0.23,
+            1
+        )
+        love.graphics.rectangle("fill", x, timeline.y + 32, TIMELINE_STEP_WIDTH, timeline.height - 32)
+        if beat % 4 == 0 then
+            love.graphics.setColor(0.82, 0.83, 0.86, 1)
+            love.graphics.print(tostring(beat), x + 4, timeline.y + 8)
+        end
+    end
+
+    if viewModel.hasStage then
+        local playheadX = timeline.x
+            + (viewModel.beat - viewModel.timelineStartBeat) * TIMELINE_STEP_WIDTH
+        love.graphics.setColor(1, 0.45, 0.2, 1)
+        love.graphics.rectangle("fill", playheadX, timeline.y, 2, timeline.height)
+    end
+end
+
+function EditorLayout.draw(width, height, viewModel, drawPreview)
     local layout = EditorLayout.getLayout(width, height)
 
     love.graphics.push("all")
     love.graphics.clear(0.08, 0.08, 0.09, 1)
 
-    for _, panel in ipairs(layout.panels) do
-        drawPanel(panel)
+    for index, panel in ipairs(layout.panels) do
+        if not (viewModel.playing and (index == 4 or index == 5)) then
+            drawPanel(panel)
+        end
     end
 
-    drawTimeline(layout.timeline)
+    EditorMenu.draw(layout.panels[1], viewModel.menuItems, viewModel.hoveredAction)
+    drawPanelContent(layout, viewModel)
+    if viewModel.playing then
+        drawPreview(EditorLayout.getPreviewRect(layout))
+    end
+    drawTimeline(layout.timeline, viewModel)
     love.graphics.pop()
+    return layout
 end
 
 return EditorLayout
