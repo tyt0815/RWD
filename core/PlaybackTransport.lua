@@ -37,6 +37,10 @@ function PlaybackTransport.new(options)
 end
 
 function PlaybackTransport:configureMixtape(settings, resolvedMusicPath)
+    if self.playing then
+        return nil, "Cannot configure mixtape while playback is running."
+    end
+
     self.mixtape = settings or DEFAULT_MIXTAPE
     self.resolvedMusicPath = resolvedMusicPath
     self.musicStarted = false

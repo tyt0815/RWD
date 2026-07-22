@@ -3,6 +3,7 @@ local function newMusicPlayback(state)
 
     return {
         prepare = function(_, path, volume)
+            state.prepareCount = (state.prepareCount or 0) + 1
             state.preparePath = path
             state.prepareVolume = volume
             if state.prepareError then return nil, state.prepareError end
@@ -22,6 +23,7 @@ local function newMusicPlayback(state)
             return true, nil
         end,
         pause = function()
+            state.pauseCount = (state.pauseCount or 0) + 1
             state.paused = true
             return true, nil
         end,
@@ -142,6 +144,35 @@ return {
             test.assertEqual(#state.playPositions, 2)
             test.assertNear(state.playPositions[2].position, 2, 0.000001)
             test.assertEqual(state.playPositions[2].rate, 1)
+        end,
+    },
+    {
+        name = "PlaybackTransport rejects mixtape configuration while playing without changing state",
+        run = function(test)
+            local state = {}
+            local transport = newTransport(state)
+            local oldSettings = { volume = 0.5, beat0Offset = 0.25 }
+            local newSettings = { volume = 1, beat0Offset = -0.5 }
+            test.assertTrue(transport:configureMixtape(oldSettings, "old.wav"))
+            test.assertTrue(transport:play())
+
+            local prepareCount = state.prepareCount
+            local playCount = #state.playPositions
+            local configured, errorMessage = transport:configureMixtape(newSettings, "new.wav")
+            test.assertEqual(configured, nil)
+            test.assertEqual(errorMessage, "Cannot configure mixtape while playback is running.")
+            test.assertEqual(transport.mixtape, oldSettings)
+            test.assertEqual(transport.resolvedMusicPath, "old.wav")
+            test.assertEqual(transport.musicStarted, true)
+            test.assertEqual(transport:isPlaying(), true)
+            test.assertEqual(state.prepareCount, prepareCount)
+            test.assertEqual(#state.playPositions, playCount)
+            test.assertEqual(state.pauseCount, nil)
+
+            test.assertTrue(transport:pause())
+            test.assertTrue(transport:configureMixtape(newSettings, "new.wav"))
+            test.assertEqual(transport.mixtape, newSettings)
+            test.assertEqual(transport.resolvedMusicPath, "new.wav")
         end,
     },
     {
