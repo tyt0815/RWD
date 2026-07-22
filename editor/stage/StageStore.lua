@@ -86,14 +86,14 @@ function StageStore:load(projectId, stageId)
 end
 
 function StageStore:save(data, overwrite)
-    local validationError = StageDocument.validate(data)
-    if validationError then return nil, validationError end
+    local document, validationError = StageDocument.fromTable(data)
+    if not document then return nil, validationError end
     local path = stagePath(data.projectId, data.stageId)
     if self.fileSystem:exists(path) and not overwrite then
         return nil, "Stage already exists: " .. data.stageId, StageStore.ERROR_STAGE_EXISTS
     end
     local encoded, encodeError
-    local succeeded, valueOrError = pcall(self.json.encode, data, {
+    local succeeded, valueOrError = pcall(self.json.encode, document:toTable(), {
         indent = true,
         keyorder = JSON_KEY_ORDER,
     })

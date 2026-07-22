@@ -89,6 +89,17 @@ local function deepCopy(value, seen)
     return setmetatable(copy, getmetatable(value))
 end
 
+local function normalizeEmptyPatternParams(data)
+    for _, event in ipairs(data.events) do
+        if event.type == "pattern"
+            and event.params ~= nil
+            and next(event.params) == nil
+            and getmetatable(event.params) == nil then
+            setmetatable(event.params, { __jsontype = "object" })
+        end
+    end
+end
+
 function StageDocument.isSafeId(value)
     return type(value) == "string"
         and value:match(SAFE_ID_PATTERN) ~= nil
@@ -176,7 +187,9 @@ local function newDocument(data, dirty)
     if validationError then
         return nil, validationError
     end
-    return setmetatable({ data = deepCopy(data), dirty = dirty }, StageDocument), nil
+    local documentData = deepCopy(data)
+    normalizeEmptyPatternParams(documentData)
+    return setmetatable({ data = documentData, dirty = dirty }, StageDocument), nil
 end
 
 function StageDocument.create(projectId, stageId, name, bpm)

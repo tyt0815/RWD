@@ -12,7 +12,7 @@ Project Canvas는 표시하지만 Stage Event는 실행하지 않는다. Event �
 - 프로젝트 매니페스트와 Core API 버전 호환 검사
 - 독립 Sample Project 화면과 빈 Tutorial Stage JSON 생성
 - `Menu | Categories | Events | Properties | Values` 에디터 패널과 하단 타임라인 렌더링
-- 외부 프레임워크 없는 89개 자동 테스트 작성
+- 외부 프레임워크 없는 90개 자동 테스트 작성
 - 아키텍처, 제작 흐름, Stage 형식과 로드맵 문서 작성
 - 고정 BPM 재생 시계와 Stage 버전 1 문서 검증
 - 주입 가능한 프로젝트 카탈로그와 프로젝트 게임 생성 경계
@@ -32,7 +32,7 @@ Project Canvas는 표시하지만 Stage Event는 실행하지 않는다. Event �
 
 - sourceRoot·null·JSON 종류 focused 테스트: `PASS: 13 focused tests`, `PASS: 14 focused tests` 확인
 - `C:\Program Files\LOVE\lovec.exe --version`: `LOVE 11.5 (Mysterious Mysteries)` 확인
-- `C:\Program Files\LOVE\lovec.exe . --test`: `PASS: 89 tests` 확인
+- `C:\Program Files\LOVE\lovec.exe . --test`: `PASS: 90 tests` 확인
 - `projects` 아래 JSON 1개: PowerShell `ConvertFrom-Json` 통과
 - 실제 source Stage 왕복: `PASS: native Stage save/open round trip`, 실행 전후 `projects/sample/stages/editor-menu-smoke.json` 부재 확인
 - production Launcher GUI 하네스: `PASS: editor menu GUI smoke`, `launcher → editor → new → save → open → play → pause → launcher` 확인

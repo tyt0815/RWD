@@ -346,6 +346,34 @@ return {
         end,
     },
     {
+        name = "코드 생성 빈 pattern params는 객체로 저장하고 다시 읽는다",
+        run = function(test)
+            local json = require("vendor.dkjson")
+            local StageStore = require("editor.stage.StageStore")
+            local fileSystem = newFakeFileSystem()
+            local data = validStage("empty-params")
+            data.events = {
+                {
+                    id = "event-1",
+                    type = "pattern",
+                    patternId = "empty",
+                    startBeat = 0,
+                    params = {},
+                },
+            }
+            local originalParams = data.events[1].params
+            local store = StageStore.new(fileSystem, json)
+            assert(store:save(data, false))
+
+            local loaded, loadError = store:load("sample", "empty-params")
+            test.assertTrue(loaded ~= nil, loadError)
+            local encoded = fileSystem.files["projects/sample/stages/empty-params.json"]
+            local saved = assert(json.decode(encoded, 1, json.null))
+            test.assertEqual(getmetatable(saved.events[1].params).__jsontype, "object")
+            test.assertEqual(getmetatable(originalParams), nil)
+        end,
+    },
+    {
         name = "overwrite가 false면 기존 Stage를 바꾸지 않는다",
         run = function(test)
             local StageStore = require("editor.stage.StageStore")
