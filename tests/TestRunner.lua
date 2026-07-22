@@ -15,6 +15,7 @@ local TEST_MODULES = {
     "tests.StageStoreTest",
     "tests.ProjectLoaderTest",
     "tests.ProjectCatalogTest",
+    "tests.MusicCatalogTest",
     "tests.SampleGameTest",
     "tests.TestPlayerTest",
     "tests.EditorSessionTest",

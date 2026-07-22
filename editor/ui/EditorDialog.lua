@@ -90,6 +90,36 @@ function EditorDialog.openStage(projects, stageIds)
     })
 end
 
+function EditorDialog.music(files, currentMusic)
+    local options = {
+        { value = "", label = "None" },
+    }
+    local selectedIndex = 1
+    for _, file in ipairs(files) do
+        table.insert(options, { value = file, label = file })
+        if file == currentMusic then
+            selectedIndex = #options
+        end
+    end
+
+    return newDialog({
+        kind = "music",
+        title = "Select Music",
+        selectors = {
+            {
+                id = "music",
+                label = "Music",
+                options = options,
+                selectedIndex = selectedIndex,
+            },
+        },
+        buttons = {
+            { id = "confirm", label = "Apply", default = true },
+            { id = "cancel", label = "Cancel", cancel = true },
+        },
+    })
+end
+
 function EditorDialog.saveAs(stageId, name)
     return newDialog({
         kind = "saveAs",

@@ -147,6 +147,45 @@ return {
         end,
     },
     {
+        name = "Music 모달은 None과 파일 목록을 순서대로 표시하고 현재 값을 선택한다",
+        run = function(test)
+            local EditorDialog = require("editor.ui.EditorDialog")
+            local dialog = EditorDialog.music({
+                "assets/audio/a.ogg",
+                "assets/audio/b.wav",
+            }, "assets/audio/b.wav")
+
+            test.assertEqual(dialog:getKind(), "music")
+            test.assertEqual(dialog.title, "Select Music")
+            test.assertEqual(dialog.selectors[1].id, "music")
+            test.assertEqual(dialog.selectors[1].options[1].value, "")
+            test.assertEqual(dialog.selectors[1].options[1].label, "None")
+            test.assertEqual(dialog.selectors[1].options[2].value, "assets/audio/a.ogg")
+            test.assertEqual(dialog.selectors[1].options[2].label, "assets/audio/a.ogg")
+            test.assertEqual(dialog.selectors[1].options[3].value, "assets/audio/b.wav")
+            test.assertEqual(dialog.selectors[1].options[3].label, "assets/audio/b.wav")
+            test.assertEqual(dialog:getSelection("music"), "assets/audio/b.wav")
+        end,
+    },
+    {
+        name = "Music 모달은 Apply 선택을 반환하고 Escape는 취소한다",
+        run = function(test)
+            local EditorDialog = require("editor.ui.EditorDialog")
+            local dialog = EditorDialog.music({ "assets/audio/a.ogg" }, nil)
+            test.assertEqual(dialog:getSelection("music"), "")
+            test.assertTrue(dialog:select("music", "assets/audio/a.ogg"))
+
+            dialog:keypressed("return")
+            local result = dialog:consumeResult()
+            test.assertEqual(result.buttonId, "confirm")
+            test.assertEqual(result.selections.music, "assets/audio/a.ogg")
+
+            local cancelDialog = EditorDialog.music({}, nil)
+            cancelDialog:keypressed("escape")
+            test.assertEqual(cancelDialog:consumeResult().buttonId, "cancel")
+        end,
+    },
+    {
         name = "Enter는 기본 버튼 결과를 만들고 Escape는 cancel 또는 OK 결과를 만든다",
         run = function(test)
             local EditorDialog = require("editor.ui.EditorDialog")

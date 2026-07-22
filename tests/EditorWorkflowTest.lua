@@ -1,6 +1,11 @@
 local function newFixture(config)
     config = config or {}
-    local state = { saved = {}, quitCount = 0, previewPlaying = false }
+    local state = {
+        saved = {},
+        quitCount = 0,
+        previewPlaying = false,
+        musicListProjectId = nil,
+    }
     local project = { id = "sample", title = "Sample", entryModule = "sample.game" }
     local catalog = {
         listProjects = function() return { project }, nil end,
@@ -40,9 +45,20 @@ local function newFixture(config)
         end,
         draw = function() return true, nil end,
     }
+    local musicCatalog = {
+        list = function(_, projectId)
+            state.musicListProjectId = projectId
+            if config.musicError then return nil, config.musicError end
+            return config.musicFiles or {
+                "assets/audio/a.ogg",
+                "assets/audio/b.wav",
+            }, nil
+        end,
+    }
     local EditorApp = require("editor.EditorApp")
     local app = EditorApp.new({
         projectCatalog = catalog,
+        musicCatalog = musicCatalog,
         stageStore = store,
         testPlayer = testPlayer,
         onQuit = function() state.quitCount = state.quitCount + 1 end,
@@ -174,10 +190,10 @@ return {
         end,
     },
     {
-        name = "Music Property 클릭은 값을 바꾸거나 모달을 열지 않는다",
+        name = "Music Property 클릭은 현재 Project 파일 목록으로 선택 모달을 연다",
         run = function(test)
             local EditorLayout = require("editor.ui.EditorLayout")
-            local app = newFixture()
+            local app, state = newFixture()
             createStageThroughDialog(app, "music-property")
             app:executeAction("save")
 
@@ -186,12 +202,99 @@ return {
             local musicRect = EditorLayout.getPropertyValueRect(app.layout, 1)
             app:mousepressed(musicRect.x + 8, musicRect.y + 8, 1)
 
+            test.assertEqual(state.musicListProjectId, "sample")
+            test.assertEqual(app:getViewModel().valueEdit, nil)
+            test.assertEqual(app:getDialog():getKind(), "music")
+            test.assertEqual(app:getDialog():getSelection("music"), "")
+            test.assertEqual(app:getSession():isDirty(), false)
+        end,
+    },
+    {
+        name = "Music Apply는 선택 파일을 설정하고 None Apply는 nil로 지운다",
+        run = function(test)
+            local EditorLayout = require("editor.ui.EditorLayout")
+            local app = newFixture()
+            createStageThroughDialog(app, "music-apply")
+            app:executeAction("save")
+
+            local eventRect = EditorLayout.getEventRowRect(app.layout, 2)
+            app:mousepressed(eventRect.x + 8, eventRect.y + 8, 1)
+            local musicRect = EditorLayout.getPropertyValueRect(app.layout, 1)
+            app:mousepressed(musicRect.x + 8, musicRect.y + 8, 1)
+            assert(app:getDialog():select("music", "assets/audio/a.ogg"))
+            app:getDialog():submit("confirm")
+            app:update(0)
+
+            test.assertEqual(
+                app:getSession():getProperty("mixtapeProperties", "music"),
+                "assets/audio/a.ogg"
+            )
+            test.assertEqual(app:getSession():isDirty(), true)
+
+            app:executeAction("save")
+            app:mousepressed(musicRect.x + 8, musicRect.y + 8, 1)
+            test.assertEqual(
+                app:getDialog():getSelection("music"),
+                "assets/audio/a.ogg"
+            )
+            assert(app:getDialog():select("music", ""))
+            app:getDialog():submit("confirm")
+            app:update(0)
+
             test.assertEqual(
                 app:getSession():getProperty("mixtapeProperties", "music"),
                 nil
             )
-            test.assertEqual(app:getViewModel().valueEdit, nil)
-            test.assertEqual(app:getDialog(), nil)
+            test.assertEqual(app:getSession():isDirty(), true)
+        end,
+    },
+    {
+        name = "Music Cancel은 값과 dirty 상태를 바꾸지 않는다",
+        run = function(test)
+            local EditorLayout = require("editor.ui.EditorLayout")
+            local app = newFixture()
+            createStageThroughDialog(app, "music-cancel")
+
+            local eventRect = EditorLayout.getEventRowRect(app.layout, 2)
+            app:mousepressed(eventRect.x + 8, eventRect.y + 8, 1)
+            local musicRect = EditorLayout.getPropertyValueRect(app.layout, 1)
+            app:mousepressed(musicRect.x + 8, musicRect.y + 8, 1)
+            assert(app:getDialog():select("music", "assets/audio/b.wav"))
+            app:getDialog():submit("confirm")
+            app:update(0)
+            app:executeAction("save")
+
+            app:mousepressed(musicRect.x + 8, musicRect.y + 8, 1)
+            assert(app:getDialog():select("music", ""))
+            app:getDialog():submit("cancel")
+            app:update(0)
+
+            test.assertEqual(
+                app:getSession():getProperty("mixtapeProperties", "music"),
+                "assets/audio/b.wav"
+            )
+            test.assertEqual(app:getSession():isDirty(), false)
+        end,
+    },
+    {
+        name = "Music 목록 실패는 Stage를 바꾸지 않고 error 모달을 연다",
+        run = function(test)
+            local EditorLayout = require("editor.ui.EditorLayout")
+            local app = newFixture({ musicError = "music listing failed" })
+            createStageThroughDialog(app, "music-error")
+            app:executeAction("save")
+
+            local eventRect = EditorLayout.getEventRowRect(app.layout, 2)
+            app:mousepressed(eventRect.x + 8, eventRect.y + 8, 1)
+            local musicRect = EditorLayout.getPropertyValueRect(app.layout, 1)
+            app:mousepressed(musicRect.x + 8, musicRect.y + 8, 1)
+
+            test.assertEqual(app:getDialog():getKind(), "error")
+            test.assertContains(app:getDialog().message, "music listing failed")
+            test.assertEqual(
+                app:getSession():getProperty("mixtapeProperties", "music"),
+                nil
+            )
             test.assertEqual(app:getSession():isDirty(), false)
         end,
     },

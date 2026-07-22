@@ -2,6 +2,7 @@ local EditorSession = require("editor.EditorSession")
 local EditorDialog = require("editor.ui.EditorDialog")
 local EditorLayout = require("editor.ui.EditorLayout")
 local EditorMenu = require("editor.menu.EditorMenu")
+local MusicCatalog = require("editor.project.MusicCatalog")
 local ProjectCatalog = require("editor.project.ProjectCatalog")
 local PropertyCatalog = require("editor.properties.PropertyCatalog")
 local StageStore = require("editor.stage.StageStore")
@@ -15,6 +16,7 @@ function EditorApp.new(options)
     local projectCatalog = options.projectCatalog or ProjectCatalog.new({
         createGame = options.createGame,
     })
+    local musicCatalog = options.musicCatalog or MusicCatalog.new()
     local stageStore = options.stageStore or StageStore.new()
     local testPlayer = options.testPlayer or TestPlayer.new({
         createGame = function(project)
@@ -29,6 +31,7 @@ function EditorApp.new(options)
 
     return setmetatable({
         session = session,
+        musicCatalog = musicCatalog,
         onQuit = options.onQuit or function() end,
         dialog = nil,
         selectedEventId = "editorProperties",
@@ -133,6 +136,18 @@ function EditorApp:openOpenDialog()
     self.dialog = EditorDialog.openStage(projects, stageIds)
 end
 
+function EditorApp:openMusicDialog()
+    local project = self.session:getProject()
+    local files, errorMessage = self.musicCatalog:list(project.id)
+    if not files then
+        self:showError(errorMessage)
+        return
+    end
+
+    local currentMusic = self.session:getProperty("mixtapeProperties", "music")
+    self.dialog = EditorDialog.music(files, currentMusic)
+end
+
 function EditorApp:continueAction(action)
     if action == "new" then
         self:openNewDialog()
@@ -223,6 +238,16 @@ function EditorApp:processDialogResult()
         )
         self.dialog = nil
         if not saved then self:showError(errorMessage) end
+    elseif kind == "music" and result.buttonId == "confirm" then
+        local value = result.selections.music
+        if value == "" then value = nil end
+        local changed, errorMessage = self.session:setProperty(
+            "mixtapeProperties",
+            "music",
+            value
+        )
+        self.dialog = nil
+        if not changed then self:showError(errorMessage) end
     elseif kind == "unsaved" then
         local pendingAction = result.context.pendingAction
         if result.buttonId == "discard" then
@@ -336,6 +361,8 @@ function EditorApp:mousepressed(x, y, button)
                 not currentValue
             )
             if not changed then self:showError(errorMessage) end
+        elseif property.kind == "music" then
+            self:openMusicDialog()
         end
         return true
     end
