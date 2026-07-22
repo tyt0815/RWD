@@ -145,6 +145,32 @@ return {
             local Launcher = require("launcher.Launcher")
             local launcher = Launcher.new()
             launcher:openEditor()
+            local moved, pressed, entered
+            launcher.activeApp.mousemoved = function(_, x, y, deltaX, deltaY, isTouch)
+                moved = { x, y, deltaX, deltaY, isTouch }
+            end
+            launcher.activeApp.mousepressed = function(_, x, y, button, isTouch, presses)
+                pressed = { x, y, button, isTouch, presses }
+            end
+            launcher.activeApp.textinput = function(_, text)
+                entered = text
+            end
+
+            launcher:mousemoved(10, 20, 3, 4, true)
+            launcher:mousepressed(30, 40, 1, false, 2)
+            launcher:textinput("stage")
+
+            test.assertEqual(moved[1], 10)
+            test.assertEqual(moved[2], 20)
+            test.assertEqual(moved[3], 3)
+            test.assertEqual(moved[4], 4)
+            test.assertEqual(moved[5], true)
+            test.assertEqual(pressed[1], 30)
+            test.assertEqual(pressed[2], 40)
+            test.assertEqual(pressed[3], 1)
+            test.assertEqual(pressed[4], false)
+            test.assertEqual(pressed[5], 2)
+            test.assertEqual(entered, "stage")
 
             launcher:keypressed("escape")
 

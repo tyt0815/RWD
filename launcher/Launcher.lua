@@ -69,6 +69,24 @@ function Launcher:update(deltaTime)
     end
 end
 
+function Launcher:mousemoved(x, y, deltaX, deltaY, isTouch)
+    if self.activeApp and self.activeApp.mousemoved then
+        self.activeApp:mousemoved(x, y, deltaX, deltaY, isTouch)
+    end
+end
+
+function Launcher:mousepressed(x, y, button, isTouch, presses)
+    if self.activeApp and self.activeApp.mousepressed then
+        self.activeApp:mousepressed(x, y, button, isTouch, presses)
+    end
+end
+
+function Launcher:textinput(text)
+    if self.activeApp and self.activeApp.textinput then
+        self.activeApp:textinput(text)
+    end
+end
+
 local function drawMenu(errorMessage)
     local width, height = love.graphics.getDimensions()
 
