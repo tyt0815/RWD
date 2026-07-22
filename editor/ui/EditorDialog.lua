@@ -10,6 +10,7 @@ local LABEL_WIDTH = 120
 local ROW_HEIGHT = 32
 local OPTION_HEIGHT = 28
 local ROW_GAP = 8
+local MUSIC_VISIBLE_OPTIONS = 8
 
 local function projectOptions(projects)
     local options = {}
@@ -111,6 +112,8 @@ function EditorDialog.music(files, currentMusic)
                 label = "Music",
                 options = options,
                 selectedIndex = selectedIndex,
+                maxVisibleOptions = MUSIC_VISIBLE_OPTIONS,
+                scrollOffset = math.max(0, selectedIndex - MUSIC_VISIBLE_OPTIONS),
             },
         },
         buttons = {
@@ -261,7 +264,23 @@ function EditorDialog:submit(buttonId)
 end
 
 function EditorDialog:keypressed(key)
-    if key == "backspace" and self.focusedFieldIndex then
+    if (key == "up" or key == "down") and #self.selectors == 1 then
+        local selector = self.selectors[1]
+        if selector.maxVisibleOptions and #selector.options > 0 then
+            local direction = key == "up" and -1 or 1
+            selector.selectedIndex = math.max(
+                1,
+                math.min(#selector.options, selector.selectedIndex + direction)
+            )
+            if selector.selectedIndex <= selector.scrollOffset then
+                selector.scrollOffset = selector.selectedIndex - 1
+            elseif selector.selectedIndex
+                > selector.scrollOffset + selector.maxVisibleOptions then
+                selector.scrollOffset = selector.selectedIndex - selector.maxVisibleOptions
+            end
+            return true
+        end
+    elseif key == "backspace" and self.focusedFieldIndex then
         local field = self.fields[self.focusedFieldIndex]
         local offset = utf8.offset(field.value, -1)
         if offset then
@@ -326,7 +345,22 @@ function EditorDialog:getLayout(width, height)
             label = selector.label,
         })
         cursorY = cursorY + 20
-        for optionIndex, option in ipairs(selector.options) do
+        local firstOptionIndex = 1
+        local lastOptionIndex = #selector.options
+        if selector.maxVisibleOptions then
+            local maximumOffset = math.max(0, #selector.options - selector.maxVisibleOptions)
+            selector.scrollOffset = math.max(
+                0,
+                math.min(selector.scrollOffset or 0, maximumOffset)
+            )
+            firstOptionIndex = selector.scrollOffset + 1
+            lastOptionIndex = math.min(
+                #selector.options,
+                selector.scrollOffset + selector.maxVisibleOptions
+            )
+        end
+        for optionIndex = firstOptionIndex, lastOptionIndex do
+            local option = selector.options[optionIndex]
             table.insert(layout.selectorOptions, {
                 x = contentX + LABEL_WIDTH,
                 y = cursorY,

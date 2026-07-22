@@ -186,6 +186,32 @@ return {
         end,
     },
     {
+        name = "긴 Music 목록은 버튼과 겹치지 않고 키보드로 끝까지 이동한다",
+        run = function(test)
+            local EditorDialog = require("editor.ui.EditorDialog")
+            local files = {}
+            for index = 1, 9 do
+                files[index] = "assets/audio/" .. index .. ".ogg"
+            end
+            local dialog = EditorDialog.music(files, nil)
+            local layout = dialog:getLayout(1000, 700)
+
+            test.assertEqual(#layout.selectorOptions, 8)
+            for _ = 1, 9 do
+                dialog:keypressed("down")
+            end
+            test.assertEqual(dialog:getSelection("music"), files[9])
+            layout = dialog:getLayout(1000, 700)
+            test.assertEqual(layout.selectorOptions[8].optionIndex, 10)
+
+            local confirm = findRect(layout.buttons, "buttonId", "confirm")
+            test.assertEqual(clickCenter(dialog, confirm), true)
+            local result = dialog:consumeResult()
+            test.assertEqual(result.buttonId, "confirm")
+            test.assertEqual(result.selections.music, files[9])
+        end,
+    },
+    {
         name = "Enter는 기본 버튼 결과를 만들고 Escape는 cancel 또는 OK 결과를 만든다",
         run = function(test)
             local EditorDialog = require("editor.ui.EditorDialog")
