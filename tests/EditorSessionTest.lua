@@ -144,6 +144,9 @@ local function newFixture(options)
                 if transportState.playing then
                     return nil, "Cannot seek while playback is running."
                 end
+                if transportState.seekError then
+                    return nil, transportState.seekError
+                end
                 transportState.beat = beat
                 return true, nil
             end,
@@ -538,6 +541,29 @@ return {
             test.assertNear(session:getBeat(), previousBeat, 0.000001)
             test.assertEqual(state.transportState.seekCount, 1)
             test.assertNear(state.transportState.seekBeat, previousBeat, 0.000001)
+            test.assertEqual(state.transportState.playing, false)
+            test.assertEqual(state.metronomeState.playing, false)
+            test.assertEqual(testPlayer.playing, false)
+        end,
+    },
+    {
+        name = "EditorSession은 TestPlayer와 beat rollback 오류를 모두 보존한다",
+        run = function(test)
+            local session, testPlayer, state = newSession({ stored = VALID_STAGE })
+            assert(session:openStage("sample", "tutorial"))
+            assert(session:getDocument():setEditorSetting("metronome", true))
+            assert(session:play())
+            state.updateError = "preview update failed"
+            state.transportState.seekError = "seek rollback failed"
+
+            local updated, errorMessage = session:update(0.25, 16)
+
+            test.assertEqual(updated, nil)
+            test.assertEqual(
+                errorMessage,
+                "preview update failed Rollback failed: seek rollback failed"
+            )
+            test.assertEqual(state.transportState.seekCount, 1)
             test.assertEqual(state.transportState.playing, false)
             test.assertEqual(state.metronomeState.playing, false)
             test.assertEqual(testPlayer.playing, false)

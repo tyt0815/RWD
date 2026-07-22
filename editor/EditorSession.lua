@@ -246,7 +246,11 @@ function EditorSession:update(deltaTime, visibleBeatCount)
     local updated, errorMessage = self.testPlayer:update(deltaTime * playbackRate)
     if not updated then
         self:pause()
-        self.transport:seekBeat(previousBeat)
+        local rolledBack, rollbackError = self.transport:seekBeat(previousBeat)
+        if not rolledBack then
+            return nil, tostring(errorMessage)
+                .. " Rollback failed: " .. tostring(rollbackError)
+        end
         return nil, errorMessage
     end
 
