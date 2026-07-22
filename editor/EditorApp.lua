@@ -162,8 +162,13 @@ function EditorApp:executeAction(action)
         local document = self.session:getDocument()
         self.dialog = EditorDialog.saveAs(document:getStageId(), document:getName())
     elseif action == "play" then
+        if self.valueEdit then
+            local committed, commitError = self:commitValueEdit()
+            if not committed then return nil, commitError end
+        end
         local started, errorMessage = self.session:play()
         if not started then self:showError(errorMessage) end
+        return started, errorMessage
     elseif action == "pause" then
         self.session:pause()
     end
@@ -310,11 +315,13 @@ function EditorApp:mousepressed(x, y, button)
         return true
     end
 
-    local propertyEvents = PropertyCatalog.getEvents()
-    local eventRow = EditorLayout.hitTestEvent(self.layout, #propertyEvents, x, y)
-    if eventRow then
-        self.selectedEventId = propertyEvents[eventRow].id
-        return true
+    if self.session:hasStage() then
+        local propertyEvents = PropertyCatalog.getEvents()
+        local eventRow = EditorLayout.hitTestEvent(self.layout, #propertyEvents, x, y)
+        if eventRow then
+            self.selectedEventId = propertyEvents[eventRow].id
+            return true
+        end
     end
 
     if self.session:hasStage() and not self.session:isPlaying() and propertyRow then
@@ -338,7 +345,7 @@ end
 function EditorApp:textinput(text)
     if self.dialog then
         self.dialog:textinput(text)
-    elseif self.valueEdit then
+    elseif self.valueEdit and not self.session:isPlaying() then
         local numericText = text:gsub("[^%d%.%-]", "")
         if numericText ~= "" then
             if self.valueEdit.replaceOnInput then
@@ -356,7 +363,7 @@ end
 function EditorApp:keypressed(key)
     if self.dialog then
         self.dialog:keypressed(key)
-    elseif self.valueEdit then
+    elseif self.valueEdit and not self.session:isPlaying() then
         if key == "backspace" then
             self.valueEdit.text = self.valueEdit.text:sub(1, -2)
             self.valueEdit.replaceOnInput = false

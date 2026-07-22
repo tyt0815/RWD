@@ -63,6 +63,20 @@ end
 
 return {
     {
+        name = "Stage가 없으면 보이지 않는 Event 행 클릭을 무시한다",
+        run = function(test)
+            local EditorLayout = require("editor.ui.EditorLayout")
+            local app = newFixture()
+            local eventRect = EditorLayout.getEventRowRect(app.layout, 2)
+
+            app:mousepressed(eventRect.x + 8, eventRect.y + 8, 1)
+            test.assertEqual(app:getViewModel().selectedEventId, "editorProperties")
+
+            createStageThroughDialog(app, "default-property-event")
+            test.assertEqual(app:getViewModel().selectedEventId, "editorProperties")
+        end,
+    },
+    {
         name = "Property Events는 Editor Properties를 기본 선택하고 선택만으로 dirty가 되지 않는다",
         run = function(test)
             local EditorLayout = require("editor.ui.EditorLayout")
@@ -283,6 +297,77 @@ return {
             app:executeAction("pause")
             test.assertEqual(app:getViewModel().playing, false)
             test.assertEqual(state.previewPlaying, false)
+        end,
+    },
+    {
+        name = "Play는 유효한 active value edit를 확정하고 정리한 뒤 시작한다",
+        run = function(test)
+            local EditorLayout = require("editor.ui.EditorLayout")
+            local app = newFixture()
+            createStageThroughDialog(app, "play-valid-edit")
+
+            local eventRect = EditorLayout.getEventRowRect(app.layout, 2)
+            app:mousepressed(eventRect.x + 8, eventRect.y + 8, 1)
+            local offsetRect = EditorLayout.getPropertyValueRect(app.layout, 3)
+            app:mousepressed(offsetRect.x + 8, offsetRect.y + 8, 1)
+            app:textinput("-0.5")
+
+            local started, errorMessage = app:executeAction("play")
+
+            test.assertEqual(started, true)
+            test.assertEqual(errorMessage, nil)
+            test.assertEqual(
+                app:getSession():getProperty("mixtapeProperties", "beat0Offset"),
+                -0.5
+            )
+            test.assertEqual(app:getViewModel().valueEdit, nil)
+            test.assertEqual(app:getSession():isPlaying(), true)
+        end,
+    },
+    {
+        name = "Play는 invalid active value edit를 유지하고 시작하지 않는다",
+        run = function(test)
+            local EditorLayout = require("editor.ui.EditorLayout")
+            local app = newFixture()
+            createStageThroughDialog(app, "play-invalid-edit")
+
+            local eventRect = EditorLayout.getEventRowRect(app.layout, 2)
+            app:mousepressed(eventRect.x + 8, eventRect.y + 8, 1)
+            local volumeRect = EditorLayout.getPropertyValueRect(app.layout, 2)
+            app:mousepressed(volumeRect.x + 8, volumeRect.y + 8, 1)
+            app:textinput("2")
+
+            local started, errorMessage = app:executeAction("play")
+
+            test.assertEqual(started, nil)
+            test.assertContains(errorMessage, "volume")
+            test.assertEqual(app:getViewModel().valueEdit.propertyId, "volume")
+            test.assertEqual(app:getViewModel().valueEdit.invalid, true)
+            test.assertEqual(
+                app:getSession():getProperty("mixtapeProperties", "volume"),
+                1
+            )
+            test.assertEqual(app:getSession():isPlaying(), false)
+            test.assertEqual(app:getDialog(), nil)
+        end,
+    },
+    {
+        name = "Play 중 text와 key 입력은 stale value edit를 변경하지 않는다",
+        run = function(test)
+            local app = newFixture()
+            createStageThroughDialog(app, "playing-value-input")
+            app:executeAction("play")
+            app:beginValueEdit("editorProperties", "scale")
+            local valueEdit = app:getViewModel().valueEdit
+
+            app:textinput("2")
+            app:keypressed("backspace")
+            app:keypressed("escape")
+
+            test.assertEqual(app:getViewModel().valueEdit, valueEdit)
+            test.assertEqual(valueEdit.text, "1")
+            test.assertEqual(valueEdit.replaceOnInput, true)
+            test.assertEqual(valueEdit.invalid, false)
         end,
     },
     {
