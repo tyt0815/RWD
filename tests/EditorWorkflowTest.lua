@@ -499,6 +499,30 @@ return {
         end,
     },
     {
+        name = "최소 너비와 최대 Scale의 auto-follow는 playhead를 timeline 안에 둔다",
+        run = function(test)
+            local EditorLayout = require("editor.ui.EditorLayout")
+            local app = newFixture()
+            createStageThroughDialog(app, "narrow-auto-follow")
+            app.layout = EditorLayout.getLayout(800, 600)
+            assert(app:getSession():setProperty("editorProperties", "scale", 8))
+            assert(app:executeAction("play"))
+
+            app:update(2)
+
+            local viewModel = app:getViewModel()
+            local pixelsPerBeat = EditorLayout.getPixelsPerBeat(viewModel.scale)
+            local playheadX = (viewModel.beat - viewModel.timelineStartBeat)
+                * pixelsPerBeat
+            test.assertEqual(
+                EditorLayout.getVisibleBeatCount(app.layout, viewModel.scale),
+                3
+            )
+            test.assertTrue(playheadX >= 0)
+            test.assertTrue(playheadX < app.layout.timeline.width)
+        end,
+    },
+    {
         name = "Values에서 Scale 직접 편집은 timeline 시작 beat를 바꾸지 않는다",
         run = function(test)
             local EditorLayout = require("editor.ui.EditorLayout")

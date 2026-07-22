@@ -268,7 +268,8 @@ function EditorSession:update(deltaTime, visibleBeatCount)
     end
 
     if visibleBeatCount and self:getBeat() >= self.timelineStartBeat + visibleBeatCount then
-        local requiredStart = self:getBeat() - visibleBeatCount + 4
+        local followMargin = math.min(4, visibleBeatCount)
+        local requiredStart = self:getBeat() - visibleBeatCount + followMargin
         self.timelineStartBeat = math.max(0, requiredStart)
     end
 
