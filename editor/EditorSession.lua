@@ -1,8 +1,21 @@
 local Core = require("core")
 local StageDocument = require("editor.stage.StageDocument")
+local MetronomePlayback = require("editor.playback.MetronomePlayback")
 
 local EditorSession = {}
 EditorSession.__index = EditorSession
+
+local function defaultTransportFactory(bpm)
+    return Core.PlaybackTransport.new({
+        bpm = bpm,
+        musicPlayback = Core.MusicPlayback.new(),
+    })
+end
+
+local function resolveProjectMusicPath(project, music)
+    if not music then return nil end
+    return "projects/" .. project.id .. "/" .. music
+end
 
 function EditorSession.new(options)
     assert(options and options.projectCatalog, "projectCatalog is required")
@@ -13,10 +26,11 @@ function EditorSession.new(options)
         projectCatalog = options.projectCatalog,
         stageStore = options.stageStore,
         testPlayer = options.testPlayer,
-        clockFactory = options.clockFactory or Core.PlaybackClock.new,
+        transportFactory = options.transportFactory or defaultTransportFactory,
+        metronome = options.metronome or MetronomePlayback.new(),
         project = nil,
         document = nil,
-        clock = nil,
+        transport = nil,
         timelineStartBeat = 0,
     }, EditorSession)
 end
@@ -30,7 +44,7 @@ function EditorSession:isDirty()
 end
 
 function EditorSession:isPlaying()
-    return self.clock ~= nil and self.clock:isPlaying()
+    return self.transport ~= nil and self.transport:isPlaying()
 end
 
 function EditorSession:getProject()
@@ -46,7 +60,7 @@ function EditorSession:getBpm()
 end
 
 function EditorSession:getBeat()
-    return self.clock and self.clock:getBeat() or 0
+    return self.transport and self.transport:getBeat() or 0
 end
 
 function EditorSession:getTimelineStartBeat()
@@ -62,13 +76,13 @@ function EditorSession:listStages(projectId)
 end
 
 function EditorSession:replaceStage(project, document)
-    local clock, clockError = self.clockFactory(document:getBpm())
-    if not clock then return nil, clockError end
+    local transport, transportError = self.transportFactory(document:getBpm())
+    if not transport then return nil, transportError end
 
-    self.testPlayer:stop()
+    self:pause()
     self.project = project
     self.document = document
-    self.clock = clock
+    self.transport = transport
     self.timelineStartBeat = 0
     return true, nil
 end
@@ -136,34 +150,98 @@ function EditorSession:setBpm(bpm)
     local validationError = StageDocument.validate(candidate)
     if validationError then return nil, validationError end
 
-    local clockChanged, clockError = self.clock:setBpm(bpm)
-    if not clockChanged then return nil, clockError end
+    local transportChanged, transportError = self.transport:setBpm(bpm)
+    if not transportChanged then return nil, transportError end
     return self.document:setBpm(bpm)
+end
+
+function EditorSession:getProperty(groupId, propertyId)
+    if not self.document then return nil, "No Stage is open." end
+
+    if groupId == "editorProperties" then
+        return self.document:getEditorSettings()[propertyId]
+    end
+    if groupId == "mixtapeProperties" then
+        if propertyId == "bpm" then return self.document:getBpm() end
+        return self.document:getMixtape()[propertyId]
+    end
+    return nil, "Unknown property group: " .. tostring(groupId)
+end
+
+function EditorSession:setProperty(groupId, propertyId, value)
+    if not self.document then return nil, "No Stage is open." end
+
+    if groupId == "editorProperties" then
+        return self.document:setEditorSetting(propertyId, value)
+    end
+    if groupId == "mixtapeProperties" then
+        if propertyId == "bpm" then return self:setBpm(value) end
+        return self.document:setMixtapeValue(propertyId, value)
+    end
+    return nil, "Unknown property group: " .. tostring(groupId)
 end
 
 function EditorSession:play()
     if not self.document then return nil, "No Stage is open." end
 
-    local started, errorMessage = self.testPlayer:start(self.project)
-    if not started then
+    local mixtape = self.document:getMixtape()
+    local editorSettings = self.document:getEditorSettings()
+    local configured, configureError = self.transport:configureMixtape(
+        mixtape,
+        resolveProjectMusicPath(self.project, mixtape.music)
+    )
+    if not configured then
         self:pause()
-        return nil, errorMessage
+        return nil, configureError
     end
 
-    self.clock:play()
+    local gameStarted, gameError = self.testPlayer:start(self.project)
+    if not gameStarted then
+        self:pause()
+        return nil, gameError
+    end
+
+    local transportStarted, transportError = self.transport:play(
+        editorSettings.playbackRate
+    )
+    if not transportStarted then
+        self:pause()
+        return nil, transportError
+    end
+
+    if editorSettings.metronome then
+        local metronomeStarted, metronomeError = self.metronome:play(
+            self.document:getBpm(),
+            editorSettings.metronomePeriod,
+            self.transport:getBeat(),
+            editorSettings.playbackRate
+        )
+        if not metronomeStarted then
+            self:pause()
+            return nil, metronomeError
+        end
+    end
+
     return true, nil
 end
 
 function EditorSession:pause()
-    if self.clock then self.clock:pause() end
+    if self.transport then self.transport:pause() end
+    self.metronome:pause()
     self.testPlayer:stop()
 end
 
 function EditorSession:update(deltaTime, visibleBeatCount)
     if not self:isPlaying() then return true, nil end
 
-    self.clock:update(deltaTime)
-    local updated, errorMessage = self.testPlayer:update(deltaTime)
+    local transportUpdated, transportError = self.transport:update(deltaTime)
+    if not transportUpdated then
+        self:pause()
+        return nil, transportError
+    end
+
+    local playbackRate = self.document:getEditorSettings().playbackRate
+    local updated, errorMessage = self.testPlayer:update(deltaTime * playbackRate)
     if not updated then
         self:pause()
         return nil, errorMessage

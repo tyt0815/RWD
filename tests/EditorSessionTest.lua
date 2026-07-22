@@ -18,6 +18,7 @@ local OTHER_STAGE = {
 
 local function newFixture(options)
     options = options or {}
+    local customTransportFactory = options.transportFactory
     local stored = options.stored
     local project = { id = "sample", title = "Sample", entryModule = "sample.game" }
     local otherProject = { id = "other", title = "Other", entryModule = "other.game" }
@@ -55,25 +56,105 @@ local function newFixture(options)
             return true, nil
         end,
     }
+    local testPlayerState = { stopCount = 0 }
+    options.testPlayerState = testPlayerState
     local testPlayer = {
         playing = false,
         start = function(self)
             if options.previewError then return nil, options.previewError end
             options.startCount = (options.startCount or 0) + 1
+            testPlayerState.startCount = (testPlayerState.startCount or 0) + 1
             self.game = { instance = options.startCount }
             self.playing = true
             return true, nil
         end,
         stop = function(self)
+            testPlayerState.stopCount = testPlayerState.stopCount + 1
             self.game = nil
             self.playing = false
         end,
-        update = function()
+        update = function(_, deltaTime)
+            testPlayerState.lastDeltaTime = deltaTime
             if options.updateError then return nil, options.updateError end
             return true, nil
         end,
         draw = function()
             if options.drawError then return nil, options.drawError end
+            return true, nil
+        end,
+    }
+    local transportState = {
+        beat = 0,
+        bpm = nil,
+        pauseCount = 0,
+        playing = false,
+    }
+    options.transportState = transportState
+    options.transportFactory = customTransportFactory or function(bpm)
+        transportState.bpm = bpm
+        transportState.creationCount = (transportState.creationCount or 0) + 1
+        local transport = {
+            configureMixtape = function(_, mixtape, resolvedMusicPath)
+                transportState.mixtape = mixtape
+                transportState.resolvedMusicPath = resolvedMusicPath
+                if transportState.configureError then
+                    return nil, transportState.configureError
+                end
+                return true, nil
+            end,
+            play = function(_, playbackRate)
+                transportState.playbackRate = playbackRate or 1
+                if transportState.playError then return nil, transportState.playError end
+                transportState.playing = true
+                return true, nil
+            end,
+            pause = function()
+                transportState.pauseCount = transportState.pauseCount + 1
+                transportState.playing = false
+                return true, nil
+            end,
+            update = function(_, deltaTime)
+                transportState.lastDeltaTime = deltaTime
+                if transportState.updateError then return nil, transportState.updateError end
+                if transportState.playing then
+                    transportState.beat = transportState.beat
+                        + deltaTime * transportState.playbackRate * transportState.bpm / 60
+                end
+                return true, nil
+            end,
+            getBeat = function()
+                return transportState.beat
+            end,
+            isPlaying = function()
+                return transportState.playing
+            end,
+            setBpm = function(_, bpmValue)
+                transportState.candidateBpm = bpmValue
+                if transportState.setBpmError then
+                    return nil, transportState.setBpmError
+                end
+                transportState.bpm = bpmValue
+                return true, nil
+            end,
+        }
+        transportState.transport = transport
+        return transport, nil
+    end
+    local metronomeState = { pauseCount = 0, playing = false }
+    options.metronomeState = metronomeState
+    options.metronome = options.metronome or {
+        play = function(_, bpm, period, beat, playbackRate)
+            metronomeState.bpm = bpm
+            metronomeState.period = period
+            metronomeState.beat = beat
+            metronomeState.playbackRate = playbackRate
+            if metronomeState.playError then return nil, metronomeState.playError end
+            metronomeState.playing = true
+            return true, nil
+        end,
+        pause = function()
+            metronomeState.pauseCount = metronomeState.pauseCount + 1
+            metronomeState.playing = false
             return true, nil
         end,
     }
@@ -87,7 +168,8 @@ local function newSession(options)
         projectCatalog = catalog,
         stageStore = store,
         testPlayer = testPlayer,
-        clockFactory = state.clockFactory,
+        transportFactory = state.transportFactory,
+        metronome = state.metronome,
     }), testPlayer, state
 end
 
@@ -150,18 +232,42 @@ return {
             test.assertEqual(testPlayer.playing, true)
             test.assertEqual(testPlayer.game, currentGame)
 
-            local Core = require("core")
-            local clockCreationCount = 0
-            local function failingReplacementClockFactory(bpm)
-                clockCreationCount = clockCreationCount + 1
-                if clockCreationCount == 2 then
-                    return nil, "replacement clock failed"
+            local transportCreationCount = 0
+            local currentTransportState = { beat = 0, playing = false }
+            local function failingReplacementTransportFactory(bpm)
+                transportCreationCount = transportCreationCount + 1
+                if transportCreationCount == 2 then
+                    return nil, "replacement transport failed"
                 end
-                return Core.PlaybackClock.new(bpm)
+                currentTransportState.bpm = bpm
+                return {
+                    configureMixtape = function() return true, nil end,
+                    play = function()
+                        currentTransportState.playing = true
+                        return true, nil
+                    end,
+                    pause = function()
+                        currentTransportState.playing = false
+                        return true, nil
+                    end,
+                    update = function(_, deltaTime)
+                        if currentTransportState.playing then
+                            currentTransportState.beat = currentTransportState.beat
+                                + deltaTime * currentTransportState.bpm / 60
+                        end
+                        return true, nil
+                    end,
+                    getBeat = function() return currentTransportState.beat end,
+                    isPlaying = function() return currentTransportState.playing end,
+                    setBpm = function(_, value)
+                        currentTransportState.bpm = value
+                        return true, nil
+                    end,
+                }, nil
             end
             local clockSession, clockTestPlayer = newSession({
                 stored = OTHER_STAGE,
-                clockFactory = failingReplacementClockFactory,
+                transportFactory = failingReplacementTransportFactory,
             })
             assert(clockSession:createStage("sample", "current", "Current", 120))
             assert(clockSession:play())
@@ -175,8 +281,8 @@ return {
                 "replacement"
             )
             test.assertEqual(replaced, nil)
-            test.assertContains(replacementError, "replacement clock failed")
-            test.assertEqual(clockCreationCount, 2)
+            test.assertContains(replacementError, "replacement transport failed")
+            test.assertEqual(transportCreationCount, 2)
             test.assertEqual(clockSession:getProject(), clockProject)
             test.assertEqual(clockSession:getDocument(), clockDocument)
             test.assertEqual(clockSession:isDirty(), true)
@@ -237,7 +343,7 @@ return {
         end,
     },
     {
-        name = "BPM 변경은 Document와 Clock을 함께 변경한다",
+        name = "BPM 변경은 Document와 Transport를 함께 변경한다",
         run = function(test)
             local session = newSession()
             assert(session:createStage("sample", "tempo", "Tempo", 120))
@@ -253,31 +359,14 @@ return {
             test.assertEqual(sameSession:getBpm(), 120)
             test.assertEqual(sameSession:isDirty(), false)
 
-            local clockState = {}
-            local function failingClockFactory(bpm)
-                clockState.bpm = bpm
-                return {
-                    isPlaying = function() return false end,
-                    getBeat = function() return 0 end,
-                    play = function() end,
-                    pause = function() end,
-                    update = function() end,
-                    setBpm = function(_, candidateBpm)
-                        clockState.candidateBpm = candidateBpm
-                        return nil, "clock BPM failed"
-                    end,
-                }, nil
-            end
-            local failingSession = newSession({
-                stored = VALID_STAGE,
-                clockFactory = failingClockFactory,
-            })
+            local failingSession, _, failingState = newSession({ stored = VALID_STAGE })
             assert(failingSession:openStage("sample", "tutorial"))
+            failingState.transportState.setBpmError = "transport BPM failed"
             local changed, errorMessage = failingSession:setBpm(90)
             test.assertEqual(changed, nil)
-            test.assertContains(errorMessage, "clock BPM failed")
-            test.assertEqual(clockState.candidateBpm, 90)
-            test.assertEqual(clockState.bpm, 120)
+            test.assertContains(errorMessage, "transport BPM failed")
+            test.assertEqual(failingState.transportState.candidateBpm, 90)
+            test.assertEqual(failingState.transportState.bpm, 120)
             test.assertEqual(failingSession:getBpm(), 120)
             test.assertEqual(failingSession:isDirty(), false)
         end,
@@ -343,6 +432,118 @@ return {
             assert(session:update(7, 12))
             test.assertNear(session:getBeat(), 14, 0.000001)
             test.assertEqual(session:getTimelineStartBeat(), 4)
+        end,
+    },
+    {
+        name = "EditorSession은 Project 음악 경로와 resolved Mixtape를 Transport에 전달한다",
+        run = function(test)
+            local stage = {
+                schemaVersion = 2,
+                projectId = "sample",
+                stageId = "music",
+                name = "Music",
+                bpm = 120,
+                mixtape = {
+                    music = "assets/audio/song.ogg",
+                    volume = 0.5,
+                    beat0Offset = -0.25,
+                },
+                events = {},
+            }
+            local session, _, state = newSession({ stored = stage })
+            assert(session:openStage("sample", "music"))
+            assert(session:play())
+
+            test.assertEqual(state.transportState.resolvedMusicPath,
+                "projects/sample/assets/audio/song.ogg")
+            test.assertEqual(state.transportState.mixtape.music, "assets/audio/song.ogg")
+            test.assertEqual(state.transportState.mixtape.volume, 0.5)
+            test.assertEqual(state.transportState.mixtape.beat0Offset, -0.25)
+        end,
+    },
+    {
+        name = "EditorSession property getter와 setter는 StageDocument에 위임한다",
+        run = function(test)
+            local session = newSession({ stored = VALID_STAGE })
+            assert(session:openStage("sample", "tutorial"))
+
+            assert(session:setProperty("editorProperties", "playbackRate", 0.5))
+            assert(session:setProperty("mixtapeProperties", "volume", 0.25))
+            assert(session:setProperty("mixtapeProperties", "bpm", 90))
+
+            test.assertEqual(session:getProperty("editorProperties", "playbackRate"), 0.5)
+            test.assertEqual(session:getProperty("mixtapeProperties", "volume"), 0.25)
+            test.assertEqual(session:getProperty("mixtapeProperties", "bpm"), 90)
+            test.assertEqual(session:isDirty(), true)
+        end,
+    },
+    {
+        name = "EditorSession은 Playback Rate를 Transport와 TestPlayer에 적용한다",
+        run = function(test)
+            local session, _, state = newSession({ stored = VALID_STAGE })
+            assert(session:openStage("sample", "tutorial"))
+            assert(session:getDocument():setEditorSetting("playbackRate", 0.5))
+            assert(session:play())
+            assert(session:update(0.2, 16))
+
+            test.assertNear(state.transportState.lastDeltaTime, 0.2, 0.000001)
+            test.assertNear(state.testPlayerState.lastDeltaTime, 0.1, 0.000001)
+            test.assertEqual(state.transportState.playbackRate, 0.5)
+        end,
+    },
+    {
+        name = "EditorSession은 선택된 Metronome을 현재 설정으로 시작한다",
+        run = function(test)
+            local session, _, state = newSession({ stored = VALID_STAGE })
+            assert(session:openStage("sample", "tutorial"))
+            assert(session:getDocument():setEditorSetting("metronome", true))
+            assert(session:getDocument():setEditorSetting("metronomePeriod", 3))
+            assert(session:getDocument():setEditorSetting("playbackRate", 0.5))
+            assert(session:play())
+
+            test.assertEqual(state.metronomeState.playing, true)
+            test.assertEqual(state.metronomeState.bpm, 120)
+            test.assertEqual(state.metronomeState.period, 3)
+            test.assertEqual(state.metronomeState.beat, 0)
+            test.assertEqual(state.metronomeState.playbackRate, 0.5)
+        end,
+    },
+    {
+        name = "EditorSession 시작 실패는 모든 재생 구성 요소를 정리한다",
+        run = function(test)
+            local cases = {
+                { target = "preview", errorMessage = "preview failed" },
+                { target = "transport", errorMessage = "transport failed" },
+                { target = "metronome", errorMessage = "metronome failed" },
+            }
+
+            for _, case in ipairs(cases) do
+                local options = { stored = VALID_STAGE }
+                if case.target == "preview" then options.previewError = case.errorMessage end
+                local session, testPlayer, state = newSession(options)
+                assert(session:openStage("sample", "tutorial"))
+                assert(session:getDocument():setEditorSetting("metronome", true))
+                if case.target == "transport" then
+                    state.transportState.playError = case.errorMessage
+                elseif case.target == "metronome" then
+                    state.metronomeState.playError = case.errorMessage
+                end
+                state.transportState.pauseCount = 0
+                state.metronomeState.pauseCount = 0
+                state.testPlayerState.stopCount = 0
+
+                local played, errorMessage = session:play()
+
+                test.assertEqual(played, nil)
+                test.assertContains(errorMessage, case.errorMessage)
+                test.assertEqual(state.transportState.pauseCount, 1)
+                test.assertEqual(state.metronomeState.pauseCount, 1)
+                test.assertEqual(state.testPlayerState.stopCount, 1)
+                test.assertEqual(state.transportState.playing, false)
+                test.assertEqual(state.metronomeState.playing, false)
+                test.assertEqual(testPlayer.playing, false)
+                test.assertEqual(session:isPlaying(), false)
+            end
         end,
     },
 }
