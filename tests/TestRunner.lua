@@ -6,6 +6,7 @@ local TEST_MODULES = {
     "tests.CoreTest",
     "tests.MixtapeSettingsTest",
     "tests.PlaybackClockTest",
+    "tests.TempoMapTest",
     "tests.EditorSettingsTest",
     "tests.StageDocumentTest",
     "tests.StageStoreTest",

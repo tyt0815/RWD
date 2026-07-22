@@ -11,5 +11,6 @@ Core.JudgmentResult = {
 
 Core.PlaybackClock = require("core.PlaybackClock")
 Core.MixtapeSettings = require("core.MixtapeSettings")
+Core.TempoMap = require("core.TempoMap")
 
 return Core
