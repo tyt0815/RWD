@@ -8,6 +8,7 @@ local TEST_MODULES = {
     "tests.PlaybackClockTest",
     "tests.MusicPlaybackTest",
     "tests.TempoMapTest",
+    "tests.PlaybackTransportTest",
     "tests.EditorSettingsTest",
     "tests.StageDocumentTest",
     "tests.StageStoreTest",
