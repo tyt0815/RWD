@@ -2,7 +2,7 @@
 
 ## 현재 상태
 
-LÖVE2D 11.5 Launcher에서 Sample Project와 Stage 에디터를 열 수 있다. 에디터 Menu의 `New | Open | Save | Save As | Play | Pause | Quit` 일곱 항목, dirty 상태의 `Save*` 표시와 New/Open/Quit의 Save/Discard/Cancel 보호가 연결되었다. 실제 source 폴더에 Stage JSON을 저장·열고, BPM을 편집하며, 고정 BPM clock과 Project Canvas로 테스트 플레이한 뒤 beat를 보존해 편집 화면으로 돌아올 수 있다.
+LÖVE2D 11.5 Launcher에서 Sample Project와 Stage 에디터를 열 수 있다. 에디터 Menu의 `New | Open | Save | Save As | Play | Pause | Quit` 일곱 항목, dirty 상태의 `Save*` 표시와 New/Open/Quit의 Save/Discard/Cancel 보호가 연결되었다. 실제 source 폴더에 Stage JSON을 저장·열고, Values 셀 안에서 BPM을 인라인 편집하며, 고정 BPM clock과 Project Canvas로 테스트 플레이한 뒤 beat를 보존해 편집 화면으로 돌아올 수 있다.
 
 Project Canvas는 표시하지만 Stage Event는 실행하지 않는다. Event 실행, 오디오 동기화, 리듬 판정과 Project 입력 전달은 아직 구현하지 않았다.
 
@@ -12,7 +12,7 @@ Project Canvas는 표시하지만 Stage Event는 실행하지 않는다. Event �
 - 프로젝트 매니페스트와 Core API 버전 호환 검사
 - 독립 Sample Project 화면과 빈 Tutorial Stage JSON 생성
 - `Menu | Categories | Events | Properties | Values` 에디터 패널과 하단 타임라인 렌더링
-- 외부 프레임워크 없는 90개 자동 테스트 작성
+- 외부 프레임워크 없는 94개 자동 테스트 작성
 - 아키텍처, 제작 흐름, Stage 형식과 로드맵 문서 작성
 - 고정 BPM 재생 시계와 Stage 버전 1 문서 검증
 - 주입 가능한 프로젝트 카탈로그와 프로젝트 게임 생성 경계
@@ -24,7 +24,7 @@ Project Canvas는 표시하지만 Stage Event는 실행하지 않는다. Event �
 - Launcher 창 크기와 TestPlayer Canvas 크기를 구분하는 프로젝트 `draw(width, height)` 계약
 - 공식 dkjson 2.10 원본과 MIT 라이선스 고정
 - Menu 일곱 항목과 마우스 hit test, Stage New/Open/Save/Save As, dirty 확인 모달 연결
-- `Global → Mixtape Properties`의 BPM 표시·편집과 `Save*` 상태 표시
+- `Global → Mixtape Properties`의 BPM 표시, 모달 없는 Values 인라인 편집과 `Save*` 상태 표시
 - Play/Pause의 고정 BPM clock, Project Canvas 전환과 자동 플레이헤드 추적
 - Launcher가 Editor에 `ProjectLoader.createGame`과 `onQuit`을 주입하고 포인터·문자 입력을 전달하는 경계
 
@@ -32,7 +32,9 @@ Project Canvas는 표시하지만 Stage Event는 실행하지 않는다. Event �
 
 - sourceRoot·null·JSON 종류 focused 테스트: `PASS: 13 focused tests`, `PASS: 14 focused tests` 확인
 - `C:\Program Files\LOVE\lovec.exe --version`: `LOVE 11.5 (Mysterious Mysteries)` 확인
-- `C:\Program Files\LOVE\lovec.exe . --test`: `PASS: 90 tests` 확인
+- `C:\Program Files\LOVE\lovec.exe . --test`: `PASS: 94 tests` 확인
+- 숨김 창으로 `love .`를 실행해 `Responding=True`, `HasExited=False` 확인 후 해당 테스트 프로세스 정상 종료
+- UI 기록 테스트로 BPM 편집값이 Values 셀 안에 표시되고, 유효하지 않은 값은 Stage에 적용되지 않으며 별도 모달을 열지 않는 동작 확인
 - `projects` 아래 JSON 1개: PowerShell `ConvertFrom-Json` 통과
 - 실제 source Stage 왕복: `PASS: native Stage save/open round trip`, 실행 전후 `projects/sample/stages/editor-menu-smoke.json` 부재 확인
 - production Launcher GUI 하네스: `PASS: editor menu GUI smoke`, `launcher → editor → new → save → open → play → pause → launcher` 확인

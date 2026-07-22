@@ -322,4 +322,39 @@ return {
             test.assertEqual(EditorLayout.hitTestBpmValue(layout, bpm.x, bpm.y - 1), false)
         end,
     },
+    {
+        name = "BPM 인라인 편집 상태를 Values 셀 안에 표시한다",
+        run = function(test)
+            local EditorMenu = require("editor.menu.EditorMenu")
+            local EditorLayout = require("editor.ui.EditorLayout")
+            local items = EditorMenu.getItems(sessionState({ hasStage = true }))
+
+            withGraphicsRecorder(function(recorder)
+                local layout = EditorLayout.draw(1200, 800, {
+                    hasStage = true,
+                    playing = false,
+                    bpm = 120,
+                    bpmText = "135",
+                    editingBpm = true,
+                    bpmEditInvalid = false,
+                    beat = 0,
+                    timelineStartBeat = 0,
+                    menuItems = items,
+                    hoveredAction = nil,
+                }, function() end)
+                local bpm = EditorLayout.getBpmValueRect(layout)
+                local outline = findRectangle(recorder, {
+                    mode = "line",
+                    x = bpm.x + 4,
+                    y = bpm.y + 2,
+                    width = bpm.width - 8,
+                    height = bpm.height - 4,
+                })
+
+                test.assertEqual(countPrints(recorder, "135"), 1)
+                test.assertEqual(countPrints(recorder, "120"), 0)
+                assertColor(test, outline, { 1, 0.45, 0.2, 1 })
+            end)
+        end,
+    },
 }

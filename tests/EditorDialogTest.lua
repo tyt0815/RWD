@@ -93,15 +93,15 @@ return {
         name = "활성 입력 필드는 textinput과 UTF-8 Backspace를 처리한다",
         run = function(test)
             local EditorDialog = require("editor.ui.EditorDialog")
-            local dialog = EditorDialog.editBpm(120)
+            local dialog = EditorDialog.saveAs("copy", "Copy")
             dialog:textinput("가")
-            test.assertEqual(dialog:getValue("bpm"), "120가")
+            test.assertEqual(dialog:getValue("stageId"), "copy가")
             dialog:keypressed("backspace")
-            test.assertEqual(dialog:getValue("bpm"), "120")
+            test.assertEqual(dialog:getValue("stageId"), "copy")
             dialog:textinput("5")
-            test.assertEqual(dialog:getValue("bpm"), "1205")
+            test.assertEqual(dialog:getValue("stageId"), "copy5")
             dialog:keypressed("backspace")
-            test.assertEqual(dialog:getValue("bpm"), "120")
+            test.assertEqual(dialog:getValue("stageId"), "copy")
         end,
     },
     {
@@ -150,14 +150,14 @@ return {
         name = "Enter는 기본 버튼 결과를 만들고 Escape는 cancel 또는 OK 결과를 만든다",
         run = function(test)
             local EditorDialog = require("editor.ui.EditorDialog")
-            local enterDialog = EditorDialog.editBpm(120)
+            local enterDialog = EditorDialog.saveAs("copy", "Copy")
             enterDialog:keypressed("return")
             local enterResult = enterDialog:consumeResult()
             test.assertEqual(enterResult.buttonId, "confirm")
-            test.assertEqual(enterResult.values.bpm, "120")
+            test.assertEqual(enterResult.values.stageId, "copy")
             test.assertEqual(enterDialog:consumeResult(), nil)
 
-            local escapeDialog = EditorDialog.editBpm(120)
+            local escapeDialog = EditorDialog.saveAs("copy", "Copy")
             escapeDialog:keypressed("escape")
             test.assertEqual(escapeDialog:consumeResult().buttonId, "cancel")
 
@@ -166,13 +166,13 @@ return {
             errorDialog:keypressed("escape")
             test.assertEqual(errorDialog:consumeResult().buttonId, "ok")
 
-            local mouseDialog = EditorDialog.editBpm(135)
+            local mouseDialog = EditorDialog.saveAs("copy", "Copy")
             local layout = mouseDialog:getLayout(1000, 700)
             local confirm = findRect(layout.buttons, "buttonId", "confirm")
             test.assertEqual(clickCenter(mouseDialog, confirm), true)
             local mouseResult = mouseDialog:consumeResult()
             test.assertEqual(mouseResult.buttonId, "confirm")
-            test.assertEqual(mouseResult.values.bpm, "135")
+            test.assertEqual(mouseResult.values.stageId, "copy")
         end,
     },
     {

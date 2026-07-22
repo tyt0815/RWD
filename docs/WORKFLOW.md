@@ -19,11 +19,13 @@ Core가 판정하는 원시 노트 종류는 Tap Note와 Long Note뿐이다. Pat
 현재 Stage 제작 흐름은 다음과 같다.
 
 ```text
-Project 선택 → New/Open → Mixtape Properties에서 BPM 편집
+Project 선택 → New/Open → Mixtape Properties의 Values 셀에서 BPM 인라인 편집
 → Save/Save As → Play로 Project Canvas 확인 → Pause로 편집 복귀
 ```
 
 New는 Project, Stage ID, Name과 BPM으로 `events: []`인 Stage를 만든다. Open, Save와 Save As는 선택한 Project의 `stages` 폴더 경계 안에서만 동작한다. 수정된 Stage의 Menu에는 `Save*`가 보이고 New, Open, Quit은 Save/Discard/Cancel 확인을 거친다.
+
+BPM 값은 별도 창을 열지 않고 Values 셀 안에서 직접 편집한다. 첫 문자 입력은 기존 값을 대체하고 Backspace로 수정한다. Enter 또는 다른 영역 클릭은 유효한 양수 BPM을 확정하며 Escape는 원래 값으로 취소한다. 유효하지 않은 값은 적용하지 않고 셀의 빨간 테두리로 표시한다.
 
 Stage Event를 박자 기반 타임라인에 배치하는 편집 UI는 아직 없다. 이후 구현에서는 Stage JSON에 Pattern이 만든 노트를 펼치지 않고 `patternId`, `startBeat`, `params`를 저장한다.
 

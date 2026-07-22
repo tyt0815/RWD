@@ -29,7 +29,8 @@
 - [x] 프로젝트와 Stage 선택
 - [x] EditorSession의 Stage 생성, 열기와 저장 상태
 - [ ] Categories와 Events 목록
-- [ ] Properties와 Values 편집
+- [x] Mixtape BPM Values 인라인 편집
+- [ ] Project Event의 Properties와 Values 편집
 - [ ] 타임라인 배치, 이동, 삭제
 - [x] JSON 저장과 불러오기
 

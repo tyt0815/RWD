@@ -106,7 +106,21 @@ local function drawPanelContent(layout, viewModel)
     love.graphics.print("> Mixtape Properties", layout.panels[3].x + 12, HEADER_HEIGHT + 3)
     if not viewModel.playing then
         love.graphics.print("BPM", layout.panels[4].x + 12, HEADER_HEIGHT + 3)
-        love.graphics.print(tostring(viewModel.bpm), layout.panels[5].x + 12, HEADER_HEIGHT + 3)
+        if viewModel.editingBpm then
+            local rect = EditorLayout.getBpmValueRect(layout)
+            love.graphics.setColor(0.1, 0.11, 0.12, 1)
+            love.graphics.rectangle("fill", rect.x + 4, rect.y + 2, rect.width - 8, rect.height - 4)
+            if viewModel.bpmEditInvalid then
+                love.graphics.setColor(0.92, 0.3, 0.3, 1)
+            else
+                love.graphics.setColor(1, 0.45, 0.2, 1)
+            end
+            love.graphics.rectangle("line", rect.x + 4, rect.y + 2, rect.width - 8, rect.height - 4)
+            love.graphics.setColor(0.9, 0.91, 0.93, 1)
+            love.graphics.print(viewModel.bpmText, layout.panels[5].x + 12, HEADER_HEIGHT + 3)
+        else
+            love.graphics.print(tostring(viewModel.bpm), layout.panels[5].x + 12, HEADER_HEIGHT + 3)
+        end
     end
 end
 

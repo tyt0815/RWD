@@ -105,20 +105,6 @@ function EditorDialog.saveAs(stageId, name)
     })
 end
 
-function EditorDialog.editBpm(bpm)
-    return newDialog({
-        kind = "editBpm",
-        title = "Edit BPM",
-        fields = {
-            { id = "bpm", label = "BPM", value = tostring(bpm) },
-        },
-        buttons = {
-            { id = "confirm", label = "Apply", default = true },
-            { id = "cancel", label = "Cancel", cancel = true },
-        },
-    })
-end
-
 function EditorDialog.unsaved(pendingAction)
     return newDialog({
         kind = "unsaved",

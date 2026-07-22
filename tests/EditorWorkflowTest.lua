@@ -167,6 +167,71 @@ return {
         end,
     },
     {
+        name = "BPM Value is edited inline without opening a dialog",
+        run = function(test)
+            local EditorLayout = require("editor.ui.EditorLayout")
+            local app = newFixture()
+            createStageThroughDialog(app, "inline-bpm")
+            app:executeAction("save")
+
+            local layout = EditorLayout.getLayout(1200, 800)
+            local bpmRect = EditorLayout.getBpmValueRect(layout)
+            app:mousepressed(bpmRect.x + 12, bpmRect.y + 12, 1)
+
+            test.assertEqual(app:getDialog(), nil)
+            test.assertEqual(app:getViewModel().editingBpm, true)
+            test.assertEqual(app:getViewModel().bpmText, "120")
+
+            app:textinput("135")
+            test.assertEqual(app:getViewModel().bpmText, "135")
+            app:keypressed("return")
+
+            test.assertEqual(app:getViewModel().editingBpm, false)
+            test.assertEqual(app:getSession():getBpm(), 135)
+            test.assertEqual(app:getSession():isDirty(), true)
+        end,
+    },
+    {
+        name = "Invalid inline BPM stays active and Escape cancels the edit",
+        run = function(test)
+            local EditorLayout = require("editor.ui.EditorLayout")
+            local app = newFixture()
+            createStageThroughDialog(app, "invalid-inline-bpm")
+
+            local layout = EditorLayout.getLayout(1200, 800)
+            local bpmRect = EditorLayout.getBpmValueRect(layout)
+            app:mousepressed(bpmRect.x + 12, bpmRect.y + 12, 1)
+            app:textinput("0")
+            app:keypressed("return")
+
+            test.assertEqual(app:getDialog(), nil)
+            test.assertEqual(app:getViewModel().editingBpm, true)
+            test.assertEqual(app:getViewModel().bpmEditInvalid, true)
+            test.assertEqual(app:getSession():getBpm(), 120)
+
+            app:keypressed("escape")
+            test.assertEqual(app:getViewModel().editingBpm, false)
+            test.assertEqual(app:getSession():getBpm(), 120)
+        end,
+    },
+    {
+        name = "Clicking outside the BPM Value commits the inline edit",
+        run = function(test)
+            local EditorLayout = require("editor.ui.EditorLayout")
+            local app = newFixture()
+            createStageThroughDialog(app, "blur-inline-bpm")
+
+            local layout = EditorLayout.getLayout(1200, 800)
+            local bpmRect = EditorLayout.getBpmValueRect(layout)
+            app:mousepressed(bpmRect.x + 12, bpmRect.y + 12, 1)
+            app:textinput("90")
+            app:mousepressed(layout.panels[3].x + 12, 100, 1)
+
+            test.assertEqual(app:getViewModel().editingBpm, false)
+            test.assertEqual(app:getSession():getBpm(), 90)
+        end,
+    },
+    {
         name = "Preview update failure returns to an error dialog",
         run = function(test)
             local app = newFixture({ previewUpdateError = "preview exploded" })

@@ -39,7 +39,7 @@ Launcher에서 `E`를 눌러 에디터를 연다. 에디터 Menu는 마우스로
 - `Pause`: 현재 beat를 보존하고 편집 화면으로 복귀
 - `Quit`: 미저장 변경을 확인한 뒤 Launcher로 복귀
 
-Stage가 수정되면 `Save*`로 표시된다. 에디터 화면에서 Escape는 Menu Quit을 대신하지 않으며, 모달 취소에만 사용한다.
+Stage가 수정되면 `Save*`로 표시된다. `Mixtape Properties`의 BPM 값은 Values 셀을 클릭해 그 자리에서 편집하며, Enter 또는 다른 영역 클릭으로 확정하고 Escape로 취소한다. 에디터 화면에서 Escape는 Menu Quit을 대신하지 않는다.
 
 ## 구조
 

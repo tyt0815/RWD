@@ -211,7 +211,7 @@ Categories        Events                 Properties    Values
 
 `Mixtape Properties`를 선택하면 Properties와 Values가 동시에 채워진다. BPM Property를 별도로 선택해야 값을 표시하는 구조가 아니다.
 
-Values의 BPM 숫자를 클릭하면 숫자 입력 모달을 연다. 유효한 값으로 확정하면 `tempoMap[1].bpm`과 PlaybackClock BPM을 함께 변경하고 Stage를 dirty로 표시한다. 같은 값을 입력하면 dirty 상태를 새로 만들지 않는다.
+Values의 BPM 숫자를 클릭하면 같은 셀 안에서 인라인 편집을 시작한다. 첫 문자 입력은 기존 값을 대체하고 Backspace로 수정한다. Enter 또는 다른 영역 클릭으로 확정하며 Escape로 취소한다. 유효하지 않은 값은 적용하지 않고 셀의 빨간 테두리로 표시한다. 유효한 값으로 확정하면 `tempoMap[1].bpm`과 PlaybackClock BPM을 함께 변경하고 Stage를 dirty로 표시한다. 같은 값을 입력하면 dirty 상태를 새로 만들지 않는다.
 
 ## 8. 모달과 입력
 
@@ -222,7 +222,6 @@ Values의 BPM 숫자를 클릭하면 숫자 입력 모달을 연다. 유효한 �
 - New Stage
 - Open Stage
 - Save As
-- Edit BPM
 - Unsaved Changes
 - Confirm Overwrite
 - Error

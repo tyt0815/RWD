@@ -30,6 +30,7 @@ function EditorApp.new(options)
         session = session,
         onQuit = options.onQuit or function() end,
         dialog = nil,
+        bpmEdit = nil,
         hoveredAction = nil,
         layout = EditorLayout.getLayout(1200, 800),
     }, EditorApp)
@@ -49,6 +50,9 @@ function EditorApp:getViewModel()
         playing = self.session:isPlaying(),
         dirty = self.session:isDirty(),
         bpm = self.session:getBpm(),
+        bpmText = self.bpmEdit and self.bpmEdit.text or nil,
+        editingBpm = self.bpmEdit ~= nil,
+        bpmEditInvalid = self.bpmEdit ~= nil and self.bpmEdit.invalid,
         beat = self.session:getBeat(),
         timelineStartBeat = self.session:getTimelineStartBeat(),
         menuItems = EditorMenu.getItems(self.session),
@@ -58,6 +62,27 @@ end
 
 function EditorApp:showError(message)
     self.dialog = EditorDialog.error(message)
+end
+
+function EditorApp:beginBpmEdit()
+    self.bpmEdit = {
+        text = tostring(self.session:getBpm()),
+        replaceOnInput = true,
+        invalid = false,
+    }
+end
+
+function EditorApp:commitBpmEdit()
+    if not self.bpmEdit then return true end
+
+    local changed, errorMessage = self.session:setBpm(tonumber(self.bpmEdit.text))
+    if not changed then
+        self.bpmEdit.invalid = true
+        return nil, errorMessage
+    end
+
+    self.bpmEdit = nil
+    return true, nil
 end
 
 function EditorApp:openNewDialog()
@@ -168,10 +193,6 @@ function EditorApp:processDialogResult()
         )
         self.dialog = nil
         if not saved then self:showError(errorMessage) end
-    elseif kind == "editBpm" and result.buttonId == "confirm" then
-        local changed, errorMessage = self.session:setBpm(tonumber(result.values.bpm))
-        self.dialog = nil
-        if not changed then self:showError(errorMessage) end
     elseif kind == "unsaved" then
         local pendingAction = result.context.pendingAction
         if result.buttonId == "discard" then
@@ -239,6 +260,13 @@ function EditorApp:mousepressed(x, y, button)
         end
         return true
     end
+    if self.bpmEdit then
+        if EditorLayout.hitTestBpmValue(self.layout, x, y) then
+            return true
+        end
+        local committed = self:commitBpmEdit()
+        if not committed then return true end
+    end
     local items = EditorMenu.getItems(self.session)
     local item = EditorMenu.hitTest(self.layout.panels[1], items, x, y)
     if item and item.enabled then
@@ -247,18 +275,43 @@ function EditorApp:mousepressed(x, y, button)
     end
     if self.session:hasStage() and not self.session:isPlaying()
         and EditorLayout.hitTestBpmValue(self.layout, x, y) then
-        self.dialog = EditorDialog.editBpm(self.session:getBpm())
+        self:beginBpmEdit()
     end
     return true
 end
 
 function EditorApp:textinput(text)
-    if self.dialog then self.dialog:textinput(text) end
+    if self.dialog then
+        self.dialog:textinput(text)
+    elseif self.bpmEdit then
+        local numericText = text:gsub("[^%d%.]", "")
+        if numericText ~= "" then
+            if self.bpmEdit.replaceOnInput then
+                self.bpmEdit.text = numericText
+            else
+                self.bpmEdit.text = self.bpmEdit.text .. numericText
+            end
+            self.bpmEdit.replaceOnInput = false
+            self.bpmEdit.invalid = false
+        end
+    end
     return true
 end
 
 function EditorApp:keypressed(key)
-    if self.dialog then self.dialog:keypressed(key) end
+    if self.dialog then
+        self.dialog:keypressed(key)
+    elseif self.bpmEdit then
+        if key == "backspace" then
+            self.bpmEdit.text = self.bpmEdit.text:sub(1, -2)
+            self.bpmEdit.replaceOnInput = false
+            self.bpmEdit.invalid = false
+        elseif key == "return" or key == "kpenter" then
+            self:commitBpmEdit()
+        elseif key == "escape" then
+            self.bpmEdit = nil
+        end
+    end
     return true
 end
 

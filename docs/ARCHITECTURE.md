@@ -25,7 +25,7 @@ Editor는 `Menu | Categories | Events | Properties | Values` 상단 영역과 �
 
 개발용 네이티브 source에서는 Stage 목록 후보를 실제 `sourceRoot` 파일로 제한하고 읽기·존재 확인·원자 저장도 같은 경로를 사용한다. 따라서 LÖVE save directory의 같은 이름 shadow 파일이나 save-only 파일은 Stage 원본으로 취급하지 않는다. 패키징된 `.love`는 가상 파일시스템으로 읽되 기존처럼 내부 쓰기를 거부한다.
 
-`EditorSession`은 Project, `StageDocument`, `StageStore`, `Core.PlaybackClock`과 `TestPlayer`를 조립한다. Stage 생성·열기·저장·Save As, BPM 편집, 재생·일시정지와 4박자 단위 타임라인 자동 추적 상태를 소유한다. `EditorApp`은 이 상태를 Menu, 모달, Properties/Values와 타임라인에 연결한다.
+`EditorSession`은 Project, `StageDocument`, `StageStore`, `Core.PlaybackClock`과 `TestPlayer`를 조립한다. Stage 생성·열기·저장·Save As, BPM 편집, 재생·일시정지와 4박자 단위 타임라인 자동 추적 상태를 소유한다. `EditorApp`은 이 상태를 Menu, 모달, Properties/Values와 타임라인에 연결하고 Values 셀의 BPM 인라인 편집 상태를 소유한다. 인라인 편집은 모달을 사용하지 않으며 유효한 값을 확정할 때만 `EditorSession:setBpm`을 호출한다.
 
 `TestPlayer`는 Launcher가 주입한 `ProjectLoader.createGame`으로 프로젝트 앱을 만들고, 프로젝트의 `update(deltaTime)`과 `draw(width, height)`를 Properties와 Values 영역을 합친 Canvas 안에서 실행한다. Stage Event와 Project 입력은 아직 TestPlayer에 전달하지 않는다. 파일·preview 오류는 Editor 모달로 바꾸고 재생을 정지해 Launcher 전체를 중단시키지 않는다.
 
