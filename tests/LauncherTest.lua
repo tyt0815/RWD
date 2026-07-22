@@ -32,6 +32,12 @@ end
 
 return {
     {
+        name = "LÖVE wheel callback이 등록된다",
+        run = function(test)
+            test.assertTrue(type(love.wheelmoved) == "function")
+        end,
+    },
+    {
         name = "실행기는 메뉴 모드로 시작한다",
         run = function(test)
             local Launcher = require("launcher.Launcher")
@@ -145,7 +151,7 @@ return {
             local Launcher = require("launcher.Launcher")
             local launcher = Launcher.new()
             launcher:openEditor()
-            local moved, pressed, entered
+            local moved, pressed, entered, wheeled
             launcher.activeApp.mousemoved = function(_, x, y, deltaX, deltaY, isTouch)
                 moved = { x, y, deltaX, deltaY, isTouch }
             end
@@ -155,10 +161,14 @@ return {
             launcher.activeApp.textinput = function(_, text)
                 entered = text
             end
+            launcher.activeApp.wheelmoved = function(_, deltaX, deltaY)
+                wheeled = { deltaX, deltaY }
+            end
 
             launcher:mousemoved(10, 20, 3, 4, true)
             launcher:mousepressed(30, 40, 1, false, 2)
             launcher:textinput("stage")
+            launcher:wheelmoved(-1, 2)
 
             test.assertEqual(moved[1], 10)
             test.assertEqual(moved[2], 20)
@@ -171,11 +181,27 @@ return {
             test.assertEqual(pressed[4], false)
             test.assertEqual(pressed[5], 2)
             test.assertEqual(entered, "stage")
+            test.assertEqual(wheeled[1], -1)
+            test.assertEqual(wheeled[2], 2)
 
             launcher:keypressed("escape")
 
             test.assertEqual(launcher:getMode(), "editor")
             test.assertTrue(launcher.activeApp ~= nil)
+        end,
+    },
+    {
+        name = "wheel 입력은 menu와 wheel handler 없는 Project 동작을 바꾸지 않는다",
+        run = function(test)
+            local Launcher = require("launcher.Launcher")
+            local launcher = Launcher.new()
+
+            launcher:wheelmoved(0, 1)
+            test.assertEqual(launcher:getMode(), "menu")
+
+            assert(launcher:openProject("sample"))
+            launcher:wheelmoved(0, -1)
+            test.assertEqual(launcher:getMode(), "project:sample")
         end,
     },
     {

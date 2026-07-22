@@ -67,6 +67,19 @@ function EditorSession:getTimelineStartBeat()
     return self.timelineStartBeat
 end
 
+function EditorSession:zoomTimeline(cursorOffsetX, wheelY)
+    if not self.document then return nil, "No Stage is open." end
+
+    local oldScale = self.document:getEditorSettings().scale
+    local newScale = math.max(0.25, math.min(8, oldScale * (1.25 ^ wheelY)))
+    local cursorBeat = self.timelineStartBeat + cursorOffsetX / (32 * oldScale)
+    local newStart = cursorBeat - cursorOffsetX / (32 * newScale)
+    local changed, errorMessage = self.document:setEditorSetting("scale", newScale)
+    if not changed then return nil, errorMessage end
+    self.timelineStartBeat = math.max(0, newStart)
+    return true, nil
+end
+
 function EditorSession:listProjects()
     return self.projectCatalog:listProjects()
 end
@@ -256,7 +269,7 @@ function EditorSession:update(deltaTime, visibleBeatCount)
 
     if visibleBeatCount and self:getBeat() >= self.timelineStartBeat + visibleBeatCount then
         local requiredStart = self:getBeat() - visibleBeatCount + 4
-        self.timelineStartBeat = math.max(0, math.floor(requiredStart / 4) * 4)
+        self.timelineStartBeat = math.max(0, requiredStart)
     end
 
     return true, nil

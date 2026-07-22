@@ -57,6 +57,12 @@ function love.mousemoved(x, y, deltaX, deltaY, isTouch)
     end
 end
 
+function love.wheelmoved(deltaX, deltaY)
+    if activeApp and activeApp.wheelmoved then
+        activeApp:wheelmoved(deltaX, deltaY)
+    end
+end
+
 function love.mousepressed(x, y, button, isTouch, presses)
     if activeApp and activeApp.mousepressed then
         activeApp:mousepressed(x, y, button, isTouch, presses)

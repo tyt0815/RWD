@@ -258,6 +258,7 @@ return {
                     valueEdit = nil,
                     beat = 2.5,
                     timelineStartBeat = 0,
+                    scale = 1,
                     menuItems = items,
                     hoveredAction = nil,
                 }, function()
@@ -313,6 +314,7 @@ return {
                     valueEdit = nil,
                     beat = 6,
                     timelineStartBeat = 4,
+                    scale = 1,
                     menuItems = playing,
                     hoveredAction = nil,
                 }, function(rect)
@@ -370,7 +372,12 @@ return {
             test.assertEqual(value.y, 104)
             test.assertEqual(value.width, layout.panels[5].width)
             test.assertEqual(value.height, 24)
-            test.assertEqual(EditorLayout.getVisibleBeatCount(layout), 37)
+            test.assertEqual(EditorLayout.getPixelsPerBeat(0.25), 8)
+            test.assertEqual(EditorLayout.getPixelsPerBeat(1), 32)
+            test.assertEqual(EditorLayout.getPixelsPerBeat(8), 256)
+            test.assertEqual(EditorLayout.getVisibleBeatCount(layout, 1), 37)
+            test.assertEqual(EditorLayout.getVisibleBeatCount(layout, 2), 18)
+            test.assertEqual(EditorLayout.getVisibleBeatCount(layout, 0.25), 150)
             test.assertEqual(EditorLayout.hitTestEvent(layout, 2, event.x, event.y), 2)
             test.assertEqual(EditorLayout.hitTestEvent(layout, 1, event.x, event.y), nil)
             test.assertEqual(EditorLayout.hitTestEvent(layout, 2, event.x + event.width, event.y), nil)
@@ -382,6 +389,51 @@ return {
                 value.x,
                 value.y + value.height
             ), nil)
+        end,
+    },
+    {
+        name = "타임라인은 Scale과 fractional 시작 beat로 label stripe playhead를 그린다",
+        run = function(test)
+            local EditorMenu = require("editor.menu.EditorMenu")
+            local EditorLayout = require("editor.ui.EditorLayout")
+            local items = EditorMenu.getItems(sessionState({ hasStage = true }))
+
+            withGraphicsRecorder(function(recorder)
+                local layout = EditorLayout.draw(288, 200, {
+                    hasStage = true,
+                    playing = false,
+                    propertyEvents = {},
+                    selectedEventId = "editorProperties",
+                    properties = {},
+                    valueEdit = nil,
+                    beat = 2.5,
+                    timelineStartBeat = 0.5,
+                    scale = 2,
+                    menuItems = items,
+                    hoveredAction = nil,
+                }, function() end)
+
+                local firstStripe = findRectangle(recorder, {
+                    mode = "fill",
+                    x = -32,
+                    y = layout.timeline.y + 32,
+                    width = 64,
+                    height = layout.timeline.height - 32,
+                })
+                assertColor(test, firstStripe, { 0.23, 0.24, 0.26, 1 })
+                test.assertEqual(
+                    countPrints(recorder, "4", layout.timeline.y + 8),
+                    1
+                )
+                local timelineLabel
+                for _, call in ipairs(recorder.prints) do
+                    if call.text == "4" and call.y == layout.timeline.y + 8 then
+                        timelineLabel = call
+                    end
+                end
+                test.assertEqual(timelineLabel.x, 228)
+                assertPlayhead(test, recorder, layout, 128)
+            end)
         end,
     },
     {
@@ -415,6 +467,7 @@ return {
                     },
                     beat = 0,
                     timelineStartBeat = 0,
+                    scale = 1,
                     menuItems = items,
                     hoveredAction = nil,
                 }, function() end)
@@ -455,6 +508,7 @@ return {
                     },
                     beat = 0,
                     timelineStartBeat = 0,
+                    scale = 1,
                     menuItems = items,
                     hoveredAction = nil,
                 }, function() end)

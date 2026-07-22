@@ -12,7 +12,7 @@ local PANEL_LABELS = {
 
 local PANEL_WEIGHTS = { 1, 1.5, 1.5, 1.25, 1.25 }
 local TOP_HEIGHT_RATIO = 0.46
-local TIMELINE_STEP_WIDTH = 32
+local BASE_BEAT_WIDTH = 32
 local HEADER_HEIGHT = 32
 local PROPERTY_ROW_HEIGHT = 24
 
@@ -84,8 +84,14 @@ function EditorLayout.getPropertyValueRect(layout, rowIndex)
     return getRowRect(layout.panels[5], rowIndex)
 end
 
-function EditorLayout.getVisibleBeatCount(layout)
-    return math.max(1, math.floor(layout.timeline.width / TIMELINE_STEP_WIDTH))
+function EditorLayout.getPixelsPerBeat(scale)
+    return BASE_BEAT_WIDTH * scale
+end
+
+function EditorLayout.getVisibleBeatCount(layout, scale)
+    return math.max(1, math.floor(
+        layout.timeline.width / EditorLayout.getPixelsPerBeat(scale)
+    ))
 end
 
 local function hitTestRows(getRect, layout, rowCount, x, y)
@@ -178,17 +184,27 @@ local function drawTimeline(timeline, viewModel)
     love.graphics.setColor(0.18, 0.19, 0.21, 1)
     love.graphics.rectangle("fill", timeline.x, timeline.y, timeline.width, timeline.height)
 
-    local visibleSteps = math.ceil(timeline.width / TIMELINE_STEP_WIDTH)
-    for step = 0, visibleSteps do
-        local beat = viewModel.timelineStartBeat + step
-        local x = timeline.x + step * TIMELINE_STEP_WIDTH
+    local pixelsPerBeat = EditorLayout.getPixelsPerBeat(viewModel.scale)
+    local firstBeat = math.floor(viewModel.timelineStartBeat)
+    local lastBeat = math.ceil(
+        viewModel.timelineStartBeat + timeline.width / pixelsPerBeat
+    )
+    for beat = firstBeat, lastBeat do
+        local x = timeline.x
+            + (beat - viewModel.timelineStartBeat) * pixelsPerBeat
         love.graphics.setColor(
-            step % 2 == 0 and 0.23 or 0.2,
-            step % 2 == 0 and 0.24 or 0.21,
-            step % 2 == 0 and 0.26 or 0.23,
+            beat % 2 == 0 and 0.23 or 0.2,
+            beat % 2 == 0 and 0.24 or 0.21,
+            beat % 2 == 0 and 0.26 or 0.23,
             1
         )
-        love.graphics.rectangle("fill", x, timeline.y + 32, TIMELINE_STEP_WIDTH, timeline.height - 32)
+        love.graphics.rectangle(
+            "fill",
+            x,
+            timeline.y + 32,
+            pixelsPerBeat,
+            timeline.height - 32
+        )
         if beat % 4 == 0 then
             love.graphics.setColor(0.82, 0.83, 0.86, 1)
             love.graphics.print(tostring(beat), x + 4, timeline.y + 8)
@@ -197,7 +213,7 @@ local function drawTimeline(timeline, viewModel)
 
     if viewModel.hasStage then
         local playheadX = timeline.x
-            + (viewModel.beat - viewModel.timelineStartBeat) * TIMELINE_STEP_WIDTH
+            + (viewModel.beat - viewModel.timelineStartBeat) * pixelsPerBeat
         love.graphics.setColor(1, 0.45, 0.2, 1)
         love.graphics.rectangle("fill", playheadX, timeline.y, 2, timeline.height)
     end

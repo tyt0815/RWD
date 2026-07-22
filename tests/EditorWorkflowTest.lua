@@ -403,6 +403,122 @@ return {
         end,
     },
     {
+        name = "wheel zoom은 마지막 mouse 위치가 timeline 안일 때만 적용된다",
+        run = function(test)
+            local app = newFixture()
+            createStageThroughDialog(app, "wheel-hover")
+            app:executeAction("save")
+            local timeline = app.layout.timeline
+
+            app:wheelmoved(0, 1)
+            test.assertEqual(
+                app:getSession():getProperty("editorProperties", "scale"),
+                1
+            )
+
+            app:mousemoved(timeline.x + 320, timeline.y - 1)
+            test.assertEqual(app.mouseX, timeline.x + 320)
+            test.assertEqual(app.mouseY, timeline.y - 1)
+            app:wheelmoved(0, 1)
+            test.assertEqual(
+                app:getSession():getProperty("editorProperties", "scale"),
+                1
+            )
+
+            app:mousemoved(timeline.x + timeline.width, timeline.y + 20)
+            app:wheelmoved(0, 1)
+            test.assertEqual(
+                app:getSession():getProperty("editorProperties", "scale"),
+                1
+            )
+
+            app:mousemoved(timeline.x + 320, timeline.y + 20)
+            app:wheelmoved(0, 1)
+            test.assertNear(
+                app:getSession():getProperty("editorProperties", "scale"),
+                1.25,
+                0.000001
+            )
+            test.assertNear(app:getSession():getTimelineStartBeat(), 2, 0.000001)
+            test.assertEqual(app:getSession():isDirty(), true)
+
+            app:executeAction("new")
+            test.assertEqual(app:getDialog():getKind(), "unsaved")
+            app:mousemoved(timeline.x + 320, timeline.y + 20)
+            app:wheelmoved(0, 1)
+            test.assertNear(
+                app:getSession():getProperty("editorProperties", "scale"),
+                1.25,
+                0.000001
+            )
+        end,
+    },
+    {
+        name = "wheel zoom은 Play 중 허용되고 no Stage 오류를 modal로 표시한다",
+        run = function(test)
+            local noStageApp = newFixture()
+            local noStageTimeline = noStageApp.layout.timeline
+            noStageApp:mousemoved(
+                noStageTimeline.x + 20,
+                noStageTimeline.y + 20
+            )
+            noStageApp:wheelmoved(0, 1)
+            test.assertEqual(noStageApp:getDialog():getKind(), "error")
+
+            local app = newFixture()
+            createStageThroughDialog(app, "playing-wheel")
+            assert(app:executeAction("play"))
+            local timeline = app.layout.timeline
+            app:mousemoved(timeline.x + 64, timeline.y + 20)
+            app:wheelmoved(0, -1)
+
+            test.assertNear(
+                app:getSession():getProperty("editorProperties", "scale"),
+                0.8,
+                0.000001
+            )
+            test.assertEqual(app:getSession():isPlaying(), true)
+        end,
+    },
+    {
+        name = "Scale 기반 visible count가 Play auto-follow에 반영된다",
+        run = function(test)
+            local app = newFixture()
+            createStageThroughDialog(app, "scaled-auto-follow")
+            assert(app:getSession():setProperty("editorProperties", "scale", 2))
+            assert(app:executeAction("play"))
+
+            app:update(10)
+
+            test.assertNear(app:getSession():getBeat(), 20, 0.000001)
+            test.assertNear(
+                app:getSession():getTimelineStartBeat(),
+                6,
+                0.000001
+            )
+        end,
+    },
+    {
+        name = "Values에서 Scale 직접 편집은 timeline 시작 beat를 바꾸지 않는다",
+        run = function(test)
+            local EditorLayout = require("editor.ui.EditorLayout")
+            local app = newFixture()
+            createStageThroughDialog(app, "direct-scale-edit")
+            app:getSession().timelineStartBeat = 4.5
+
+            local scaleRect = EditorLayout.getPropertyValueRect(app.layout, 1)
+            app:mousepressed(scaleRect.x + 8, scaleRect.y + 8, 1)
+            app:textinput("2")
+            app:keypressed("return")
+
+            test.assertEqual(
+                app:getSession():getProperty("editorProperties", "scale"),
+                2
+            )
+            test.assertEqual(app:getSession():getTimelineStartBeat(), 4.5)
+        end,
+    },
+    {
         name = "Play는 유효한 active value edit를 확정하고 정리한 뒤 시작한다",
         run = function(test)
             local EditorLayout = require("editor.ui.EditorLayout")

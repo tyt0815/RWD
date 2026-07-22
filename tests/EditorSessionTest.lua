@@ -242,7 +242,7 @@ return {
             test.assertEqual(session:getDocument():getStageId(), "current")
             test.assertEqual(session:isDirty(), true)
             test.assertNear(session:getBeat(), 14, 0.000001)
-            test.assertEqual(session:getTimelineStartBeat(), 4)
+            test.assertEqual(session:getTimelineStartBeat(), 6)
             test.assertEqual(session:isPlaying(), true)
             test.assertEqual(testPlayer.playing, true)
             test.assertEqual(testPlayer.game, currentGame)
@@ -302,7 +302,7 @@ return {
             test.assertEqual(clockSession:getDocument(), clockDocument)
             test.assertEqual(clockSession:isDirty(), true)
             test.assertNear(clockSession:getBeat(), 14, 0.000001)
-            test.assertEqual(clockSession:getTimelineStartBeat(), 4)
+            test.assertEqual(clockSession:getTimelineStartBeat(), 6)
             test.assertEqual(clockSession:isPlaying(), true)
             test.assertEqual(clockTestPlayer.playing, true)
             test.assertEqual(clockTestPlayer.game, clockGame)
@@ -439,14 +439,120 @@ return {
         end,
     },
     {
-        name = "타임라인은 플레이헤드를 4박자 단위로 자동 추적한다",
+        name = "타임라인 auto-follow는 fractional 시작 beat를 유지한다",
         run = function(test)
             local session = newSession()
             assert(session:createStage("sample", "follow", "Follow", 120))
             assert(session:play())
-            assert(session:update(7, 12))
-            test.assertNear(session:getBeat(), 14, 0.000001)
-            test.assertEqual(session:getTimelineStartBeat(), 4)
+            assert(session:update(7.25, 12))
+            test.assertNear(session:getBeat(), 14.5, 0.000001)
+            test.assertNear(session:getTimelineStartBeat(), 6.5, 0.000001)
+        end,
+    },
+    {
+        name = "타임라인 zoom은 Scale 경계와 cursor anchor를 보존한다",
+        run = function(test)
+            local noStageSession = newSession()
+            local noStageChanged, noStageError = noStageSession:zoomTimeline(100, 1)
+            test.assertEqual(noStageChanged, nil)
+            test.assertContains(noStageError, "No Stage")
+
+            local zoomInSession = newSession({ stored = VALID_STAGE })
+            assert(zoomInSession:openStage("sample", "tutorial"))
+            assert(zoomInSession:zoomTimeline(0, 1))
+            test.assertNear(
+                zoomInSession:getProperty("editorProperties", "scale"),
+                1.25,
+                0.000001
+            )
+            test.assertEqual(zoomInSession:isDirty(), true)
+            test.assertNear(
+                zoomInSession:getDocument():toTable().editorSettings.scale,
+                1.25,
+                0.000001
+            )
+            assert(zoomInSession:zoomTimeline(0, -1))
+            test.assertNear(
+                zoomInSession:getProperty("editorProperties", "scale"),
+                1,
+                0.000001
+            )
+            test.assertEqual(zoomInSession:getDocument():toTable().editorSettings, nil)
+
+            local zoomOutSession = newSession({ stored = VALID_STAGE })
+            assert(zoomOutSession:openStage("sample", "tutorial"))
+            assert(zoomOutSession:zoomTimeline(0, -1))
+            test.assertNear(
+                zoomOutSession:getProperty("editorProperties", "scale"),
+                0.8,
+                0.000001
+            )
+
+            local anchorSession = newSession({ stored = VALID_STAGE })
+            assert(anchorSession:openStage("sample", "tutorial"))
+            anchorSession.timelineStartBeat = 4
+            local cursorOffsetX = 320
+            local oldCursorBeat = 4 + cursorOffsetX / 32
+            assert(anchorSession:zoomTimeline(cursorOffsetX, 1))
+            local newScale = anchorSession:getProperty("editorProperties", "scale")
+            local newCursorBeat = anchorSession:getTimelineStartBeat()
+                + cursorOffsetX / (32 * newScale)
+            test.assertNear(newScale, 1.25, 0.000001)
+            test.assertNear(newCursorBeat, oldCursorBeat, 0.000001)
+
+            local clampedStartSession = newSession({ stored = VALID_STAGE })
+            assert(clampedStartSession:openStage("sample", "tutorial"))
+            assert(clampedStartSession:zoomTimeline(320, -1))
+            test.assertEqual(clampedStartSession:getTimelineStartBeat(), 0)
+
+            local maximumSession = newSession({
+                stored = {
+                    schemaVersion = 2,
+                    projectId = "sample",
+                    stageId = "maximum-scale",
+                    name = "Maximum Scale",
+                    bpm = 120,
+                    editorSettings = { scale = 8 },
+                    events = {},
+                },
+            })
+            assert(maximumSession:openStage("sample", "maximum-scale"))
+            assert(maximumSession:zoomTimeline(100, 1))
+            test.assertEqual(maximumSession:getProperty("editorProperties", "scale"), 8)
+
+            local minimumSession = newSession({
+                stored = {
+                    schemaVersion = 2,
+                    projectId = "sample",
+                    stageId = "minimum-scale",
+                    name = "Minimum Scale",
+                    bpm = 120,
+                    editorSettings = { scale = 0.25 },
+                    events = {},
+                },
+            })
+            assert(minimumSession:openStage("sample", "minimum-scale"))
+            assert(minimumSession:zoomTimeline(100, -1))
+            test.assertEqual(minimumSession:getProperty("editorProperties", "scale"), 0.25)
+        end,
+    },
+    {
+        name = "Play 중 wheel zoom과 직접 Scale 편집은 timeline 시작 위치 계약을 지킨다",
+        run = function(test)
+            local session = newSession({ stored = VALID_STAGE })
+            assert(session:openStage("sample", "tutorial"))
+            session.timelineStartBeat = 4.5
+            assert(session:setProperty("editorProperties", "scale", 2))
+            test.assertEqual(session:getTimelineStartBeat(), 4.5)
+
+            assert(session:play())
+            assert(session:zoomTimeline(64, 1))
+            test.assertNear(
+                session:getProperty("editorProperties", "scale"),
+                2.5,
+                0.000001
+            )
+            test.assertEqual(session:isPlaying(), true)
         end,
     },
     {

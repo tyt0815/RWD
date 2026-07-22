@@ -75,6 +75,12 @@ function Launcher:mousemoved(x, y, deltaX, deltaY, isTouch)
     end
 end
 
+function Launcher:wheelmoved(deltaX, deltaY)
+    if self.activeApp and self.activeApp.wheelmoved then
+        self.activeApp:wheelmoved(deltaX, deltaY)
+    end
+end
+
 function Launcher:mousepressed(x, y, button, isTouch, presses)
     if self.activeApp and self.activeApp.mousepressed then
         self.activeApp:mousepressed(x, y, button, isTouch, presses)

@@ -51,6 +51,10 @@ end
 
 function EditorApp:getViewModel()
     local properties = {}
+    local scale = 1
+    if self.session:hasStage() then
+        scale = self.session:getProperty("editorProperties", "scale")
+    end
     local selectedEvent = PropertyCatalog.getEvent(self.selectedEventId)
     if selectedEvent then
         for _, property in ipairs(selectedEvent.properties) do
@@ -77,6 +81,7 @@ function EditorApp:getViewModel()
         valueEdit = self.valueEdit,
         beat = self.session:getBeat(),
         timelineStartBeat = self.session:getTimelineStartBeat(),
+        scale = scale,
         menuItems = EditorMenu.getItems(self.session),
         hoveredAction = self.hoveredAction,
     }
@@ -270,7 +275,10 @@ end
 function EditorApp:update(deltaTime)
     self:processDialogResult()
     if self.dialog then return end
-    local visibleBeatCount = EditorLayout.getVisibleBeatCount(self.layout)
+    local scale = self.session:hasStage()
+        and self.session:getProperty("editorProperties", "scale")
+        or 1
+    local visibleBeatCount = EditorLayout.getVisibleBeatCount(self.layout, scale)
     local updated, errorMessage = self.session:update(deltaTime, visibleBeatCount)
     if not updated then self:showError(errorMessage) end
 end
@@ -288,10 +296,29 @@ function EditorApp:draw(width, height)
 end
 
 function EditorApp:mousemoved(x, y)
+    self.mouseX = x
+    self.mouseY = y
     if self.dialog then return true end
     local items = EditorMenu.getItems(self.session)
     local item = EditorMenu.hitTest(self.layout.panels[1], items, x, y)
     self.hoveredAction = item and item.enabled and item.action or nil
+    return true
+end
+
+function EditorApp:wheelmoved(_, deltaY)
+    if self.dialog or self.mouseX == nil or self.mouseY == nil then return true end
+
+    local timeline = self.layout.timeline
+    if self.mouseX >= timeline.x
+        and self.mouseX < timeline.x + timeline.width
+        and self.mouseY >= timeline.y
+        and self.mouseY < timeline.y + timeline.height then
+        local changed, errorMessage = self.session:zoomTimeline(
+            self.mouseX - timeline.x,
+            deltaY
+        )
+        if not changed then self:showError(errorMessage) end
+    end
     return true
 end
 
