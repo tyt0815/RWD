@@ -1,0 +1,11 @@
+{
+  "schemaVersion":1,
+  "projectId":"sample",
+  "stageId":"test_stage",
+  "name":"Test Stage",
+  "tempoMap":[{
+      "startBeat":0,
+      "bpm":120
+    }],
+  "events":[]
+}
