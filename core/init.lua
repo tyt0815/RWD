@@ -10,5 +10,6 @@ Core.JudgmentResult = {
 }
 
 Core.PlaybackClock = require("core.PlaybackClock")
+Core.MixtapeSettings = require("core.MixtapeSettings")
 
 return Core
