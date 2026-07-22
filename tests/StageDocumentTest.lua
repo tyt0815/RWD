@@ -1,10 +1,10 @@
 local function validStage()
     return {
-        schemaVersion = 1,
+        schemaVersion = 2,
         projectId = "sample",
         stageId = "tutorial",
         name = "Tutorial",
-        tempoMap = { { startBeat = 0, bpm = 120 } },
+        bpm = 120,
         events = {},
     }
 end
@@ -17,9 +17,8 @@ return {
             local document = assert(StageDocument.create("sample", "new-stage", "New Stage", 120))
             local data = document:toTable()
 
-            test.assertEqual(data.schemaVersion, 1)
-            test.assertEqual(data.tempoMap[1].startBeat, 0)
-            test.assertEqual(data.tempoMap[1].bpm, 120)
+            test.assertEqual(data.schemaVersion, 2)
+            test.assertEqual(data.bpm, 120)
             test.assertEqual(#data.events, 0)
             test.assertEqual(document:isDirty(), true)
         end,
@@ -52,9 +51,9 @@ return {
             local zeroDocument, zeroError = StageDocument.create("sample", "zero", "Zero", 0)
             local nanDocument, nanError = StageDocument.create("sample", "nan", "NaN", 0 / 0)
             test.assertEqual(zeroDocument, nil)
-            test.assertContains(zeroError, "$.tempoMap[1].bpm")
+            test.assertContains(zeroError, "$.bpm")
             test.assertEqual(nanDocument, nil)
-            test.assertContains(nanError, "$.tempoMap[1].bpm")
+            test.assertContains(nanError, "$.bpm")
         end,
     },
     {
@@ -82,9 +81,8 @@ return {
         run = function(test)
             local StageDocument = require("editor.stage.StageDocument")
             local data = validStage()
-            data.schemaVersion = 2
-            local errorMessage = StageDocument.validate(data)
-            test.assertContains(errorMessage, "$.schemaVersion")
+            data.schemaVersion = 1
+            test.assertEqual(StageDocument.validate(data), "$.schemaVersion must be 2.")
         end,
     },
     {
@@ -106,11 +104,11 @@ return {
             local StageDocument = require("editor.stage.StageDocument")
             local data = assert(json.decode([[
                 {
-                    "schemaVersion": 1,
+                    "schemaVersion": 2,
                     "projectId": "sample",
                     "stageId": "tutorial",
                     "name": "Tutorial",
-                    "tempoMap": [{"startBeat": 0, "bpm": 120}],
+                    "bpm": 120,
                     "events": {}
                 }
             ]]))
@@ -124,11 +122,11 @@ return {
             local StageDocument = require("editor.stage.StageDocument")
             local data = assert(json.decode([[
                 {
-                    "schemaVersion": 1,
+                    "schemaVersion": 2,
                     "projectId": "sample",
                     "stageId": "tutorial",
                     "name": "Tutorial",
-                    "tempoMap": [{"startBeat": 0, "bpm": 120}],
+                    "bpm": 120,
                     "events": [{
                         "id": "event-1",
                         "type": "pattern",
@@ -156,13 +154,12 @@ return {
     {
         name = "decoded tempo 배열 항목은 객체 오류로 거부한다",
         run = function(test)
-            local json = require("vendor.dkjson")
             local StageDocument = require("editor.stage.StageDocument")
             local data = validStage()
-            data.tempoMap[1] = assert(json.decode("[]"))
+            data.tempoMap = {}
             test.assertEqual(
                 StageDocument.validate(data),
-                "$.tempoMap[1] must be an object."
+                "$.tempoMap is not supported in schemaVersion 2."
             )
         end,
     },
@@ -183,11 +180,11 @@ return {
             local StageDocument = require("editor.stage.StageDocument")
             local decoded = assert(json.decode([[
                 {
-                    "schemaVersion": 1,
+                    "schemaVersion": 2,
                     "projectId": "sample",
                     "stageId": "tutorial",
                     "name": "Tutorial",
-                    "tempoMap": [{"startBeat": 0, "bpm": 120}],
+                    "bpm": 120,
                     "events": [{
                         "id": "event-1",
                         "type": "pattern",
@@ -222,6 +219,61 @@ return {
             test.assertEqual(copy:getStageId(), "tutorial-copy")
             test.assertEqual(copy:getName(), "Tutorial Copy")
             test.assertEqual(copy:isDirty(), true)
+        end,
+    },
+    {
+        name = "최소 Stage는 해석된 설정 기본값을 제공하고 변경값만 저장한다",
+        run = function(test)
+            local StageDocument = require("editor.stage.StageDocument")
+            local minimum = {
+                schemaVersion = 2,
+                projectId = "sample",
+                stageId = "stage-one",
+                name = "Stage One",
+                bpm = 120,
+                events = {},
+            }
+            local document = assert(StageDocument.fromTable(minimum))
+            test.assertEqual(document:getMixtape().volume, 1)
+            test.assertEqual(document:getMixtape().beat0Offset, 0)
+            test.assertEqual(document:getEditorSettings().metronomePeriod, 4)
+            assert(document:setMixtapeValue("volume", 0.8))
+            assert(document:setEditorSetting("scale", 2))
+            local changed = document:toTable()
+            test.assertEqual(changed.mixtape.volume, 0.8)
+            test.assertEqual(changed.editorSettings.scale, 2)
+            test.assertEqual(document:isDirty(), true)
+            assert(document:setMixtapeValue("volume", 1))
+            assert(document:setEditorSetting("scale", 1))
+            local reverted = document:toTable()
+            test.assertEqual(reverted.mixtape, nil)
+            test.assertEqual(reverted.editorSettings, nil)
+        end,
+    },
+    {
+        name = "선택 설정의 동일한 해석값은 clean Stage를 dirty로 바꾸지 않는다",
+        run = function(test)
+            local StageDocument = require("editor.stage.StageDocument")
+            local document = assert(StageDocument.fromTable(validStage()))
+            assert(document:setMixtapeValue("volume", 1))
+            assert(document:setEditorSetting("scale", 1))
+            test.assertEqual(document:isDirty(), false)
+        end,
+    },
+    {
+        name = "선택 설정은 객체만 허용한다",
+        run = function(test)
+            local json = require("vendor.dkjson")
+            local StageDocument = require("editor.stage.StageDocument")
+            local mixtape = validStage()
+            mixtape.mixtape = assert(json.decode("[]"))
+            test.assertEqual(StageDocument.validate(mixtape), "$.mixtape must be an object.")
+            local editorSettings = validStage()
+            editorSettings.editorSettings = "invalid"
+            test.assertEqual(
+                StageDocument.validate(editorSettings),
+                "$.editorSettings must be an object."
+            )
         end,
     },
 }

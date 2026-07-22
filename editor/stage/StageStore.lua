@@ -7,9 +7,11 @@ StageStore.__index = StageStore
 StageStore.ERROR_STAGE_EXISTS = "STAGE_EXISTS"
 
 local JSON_KEY_ORDER = {
-    "schemaVersion", "projectId", "stageId", "name",
-    "tempoMap", "events", "startBeat", "bpm", "id",
-    "type", "patternId", "params", "durationBeats",
+    "schemaVersion", "projectId", "stageId", "name", "bpm",
+    "mixtape", "editorSettings", "events",
+    "music", "volume", "beat0Offset",
+    "metronome", "metronomePeriod", "scale", "playbackRate",
+    "id", "startBeat", "type", "patternId", "params", "durationBeats",
 }
 
 local function validateId(value, fieldName)

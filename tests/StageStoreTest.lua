@@ -1,10 +1,10 @@
 local function validStage(stageId)
     return {
-        schemaVersion = 1,
+        schemaVersion = 2,
         projectId = "sample",
         stageId = stageId or "tutorial",
         name = "Tutorial",
-        tempoMap = { { startBeat = 0, bpm = 120 } },
+        bpm = 120,
         events = {},
     }
 end
@@ -208,7 +208,7 @@ return {
             local store = StageStore.new(fileSystem, json)
             local data = assert(store:load("sample", "tutorial"))
             test.assertEqual(data.stageId, "tutorial")
-            test.assertEqual(data.tempoMap[1].bpm, 120)
+            test.assertEqual(data.bpm, 120)
         end,
     },
     {
@@ -221,11 +221,11 @@ return {
             local path = "projects/sample/stages/tutorial.json"
             fileSystem.files[path] = [[
                 {
-                    "schemaVersion": 1,
+                    "schemaVersion": 2,
                     "projectId": "sample",
                     "stageId": "tutorial",
                     "name": "Tutorial",
-                    "tempoMap": [{"startBeat": 0, "bpm": 120}],
+                    "bpm": 120,
                     "events": [{
                         "id": "event-1",
                         "type": "pattern",
@@ -253,11 +253,11 @@ return {
             local fileSystem = newFakeFileSystem()
             fileSystem.files["projects/sample/stages/tutorial.json"] = [[
                 {
-                    "schemaVersion": 1,
+                    "schemaVersion": 2,
                     "projectId": "sample",
                     "stageId": "tutorial",
                     "name": "Tutorial",
-                    "tempoMap": [{"startBeat": 0, "bpm": 120}],
+                    "bpm": 120,
                     "events": [null]
                 }
             ]]
@@ -273,11 +273,11 @@ return {
             local fileSystem = newFakeFileSystem()
             fileSystem.files["projects/sample/stages/tutorial.json"] = [[
                 {
-                    "schemaVersion": 1,
+                    "schemaVersion": 2,
                     "projectId": "sample",
                     "stageId": "tutorial",
                     "name": "Tutorial",
-                    "tempoMap": [{"startBeat": 0, "bpm": 120}],
+                    "bpm": 120,
                     "events": [{
                         "id": "event-1",
                         "type": "pattern",
@@ -325,7 +325,7 @@ return {
             test.assertContains(mismatchError, "$.stageId")
 
             local invalidSchema = validStage("invalid")
-            invalidSchema.schemaVersion = 2
+            invalidSchema.schemaVersion = 1
             fileSystem.files["projects/sample/stages/invalid.json"] = json.encode(invalidSchema)
             local invalid, invalidError = store:load("sample", "invalid")
             test.assertEqual(invalid, nil)

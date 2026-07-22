@@ -1,6 +1,9 @@
 local StageDocument = {}
 StageDocument.__index = StageDocument
 
+local Core = require("core")
+local EditorSettings = require("editor.stage.EditorSettings")
+
 local SAFE_ID_PATTERN = "^[a-z0-9][a-z0-9_-]*$"
 
 local function isWindowsReservedBasename(value)
@@ -140,8 +143,8 @@ function StageDocument.validate(data)
     if not isObject(data) then
         return "$ must be an object."
     end
-    if data.schemaVersion ~= 1 then
-        return "$.schemaVersion must be 1."
+    if data.schemaVersion ~= 2 then
+        return "$.schemaVersion must be 2."
     end
     if not StageDocument.isSafeId(data.projectId) then
         return "$.projectId must be a safe identifier."
@@ -152,18 +155,25 @@ function StageDocument.validate(data)
     if type(data.name) ~= "string" or data.name == "" then
         return "$.name must be a non-empty string."
     end
-    if not isArray(data.tempoMap) or #data.tempoMap ~= 1 then
-        return "$.tempoMap must contain exactly one item."
+    if data.tempoMap ~= nil then
+        return "$.tempoMap is not supported in schemaVersion 2."
     end
-    local tempo = data.tempoMap[1]
-    if not isObject(tempo) then
-        return "$.tempoMap[1] must be an object."
+    if not isFiniteNumber(data.bpm) or data.bpm <= 0 then
+        return "$.bpm must be a positive finite number."
     end
-    if tempo.startBeat ~= 0 then
-        return "$.tempoMap[1].startBeat must be 0."
+    if data.mixtape ~= nil and not isObject(data.mixtape) then
+        return "$.mixtape must be an object."
     end
-    if not isFiniteNumber(tempo.bpm) or tempo.bpm <= 0 then
-        return "$.tempoMap[1].bpm must be a positive finite number."
+    local mixtapeError = Core.MixtapeSettings.validate(data.mixtape)
+    if mixtapeError then
+        return mixtapeError
+    end
+    if data.editorSettings ~= nil and not isObject(data.editorSettings) then
+        return "$.editorSettings must be an object."
+    end
+    local editorError = EditorSettings.validate(data.editorSettings)
+    if editorError then
+        return editorError
     end
     if not isArray(data.events) then
         return "$.events must be an array."
@@ -188,17 +198,19 @@ local function newDocument(data, dirty)
         return nil, validationError
     end
     local documentData = deepCopy(data)
+    documentData.mixtape = Core.MixtapeSettings.compact(documentData.mixtape)
+    documentData.editorSettings = EditorSettings.compact(documentData.editorSettings)
     normalizeEmptyPatternParams(documentData)
     return setmetatable({ data = documentData, dirty = dirty }, StageDocument), nil
 end
 
 function StageDocument.create(projectId, stageId, name, bpm)
     return newDocument({
-        schemaVersion = 1,
+        schemaVersion = 2,
         projectId = projectId,
         stageId = stageId,
         name = name,
-        tempoMap = { { startBeat = 0, bpm = bpm } },
+        bpm = bpm,
         events = {},
     }, true)
 end
@@ -224,7 +236,15 @@ function StageDocument:getName()
 end
 
 function StageDocument:getBpm()
-    return self.data.tempoMap[1].bpm
+    return self.data.bpm
+end
+
+function StageDocument:getMixtape()
+    return Core.MixtapeSettings.resolve(self.data.mixtape)
+end
+
+function StageDocument:getEditorSettings()
+    return EditorSettings.resolve(self.data.editorSettings)
 end
 
 function StageDocument:isDirty()
@@ -237,13 +257,40 @@ end
 
 function StageDocument:setBpm(bpm)
     if not isFiniteNumber(bpm) or bpm <= 0 then
-        return nil, "$.tempoMap[1].bpm must be a positive finite number."
+        return nil, "$.bpm must be a positive finite number."
     end
-    if self.data.tempoMap[1].bpm ~= bpm then
-        self.data.tempoMap[1].bpm = bpm
+    if self.data.bpm ~= bpm then
+        self.data.bpm = bpm
         self.dirty = true
     end
     return true, nil
+end
+
+local function setSparseValue(document, sectionName, key, value, settingsModule)
+    local current = settingsModule.resolve(document.data[sectionName])
+    local candidate = {}
+    for name, item in pairs(current) do
+        candidate[name] = item
+    end
+    candidate[key] = value
+    local validationError = settingsModule.validate(candidate)
+    if validationError then
+        return nil, validationError
+    end
+    local resolved = settingsModule.resolve(candidate)
+    if current[key] ~= resolved[key] then
+        document.data[sectionName] = settingsModule.compact(resolved)
+        document.dirty = true
+    end
+    return true, nil
+end
+
+function StageDocument:setMixtapeValue(key, value)
+    return setSparseValue(self, "mixtape", key, value, Core.MixtapeSettings)
+end
+
+function StageDocument:setEditorSetting(key, value)
+    return setSparseValue(self, "editorSettings", key, value, EditorSettings)
 end
 
 function StageDocument:cloneAs(stageId, name)

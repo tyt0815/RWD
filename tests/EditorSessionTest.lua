@@ -1,18 +1,18 @@
 local VALID_STAGE = {
-    schemaVersion = 1,
+    schemaVersion = 2,
     projectId = "sample",
     stageId = "tutorial",
     name = "Tutorial",
-    tempoMap = { { startBeat = 0, bpm = 120 } },
+    bpm = 120,
     events = {},
 }
 
 local OTHER_STAGE = {
-    schemaVersion = 1,
+    schemaVersion = 2,
     projectId = "other",
     stageId = "replacement",
     name = "Replacement",
-    tempoMap = { { startBeat = 0, bpm = 100 } },
+    bpm = 100,
     events = {},
 }
 

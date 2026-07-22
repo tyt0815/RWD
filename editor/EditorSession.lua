@@ -132,7 +132,7 @@ function EditorSession:setBpm(bpm)
     if not self.document then return nil, "No Stage is open." end
 
     local candidate = self.document:toTable()
-    candidate.tempoMap[1].bpm = bpm
+    candidate.bpm = bpm
     local validationError = StageDocument.validate(candidate)
     if validationError then return nil, validationError end
 
