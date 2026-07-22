@@ -51,10 +51,27 @@ end
 local function newFakeNativeOperations()
     local operations = {
         files = {},
+        directoryItems = {},
         renameErrors = {},
         copyError = nil,
         mutationCount = 0,
     }
+
+    function operations:list(relativePath)
+        return self.directoryItems[relativePath] or {}, nil
+    end
+
+    function operations:read(path)
+        local contents = self.files[path]
+        if contents == nil then
+            return nil, "file not found: " .. path
+        end
+        return contents, nil
+    end
+
+    function operations:isFile(path)
+        return self.files[path] ~= nil
+    end
 
     function operations:write(path, contents)
         self.mutationCount = self.mutationCount + 1
@@ -127,6 +144,39 @@ return {
         end,
     },
     {
+        name = "네이티브 Stage 입출력은 sourceRoot 경계를 함께 사용한다",
+        run = function(test)
+            local json = require("vendor.dkjson")
+            local NativeFileSystem = require("editor.stage.NativeFileSystem")
+            local StageStore = require("editor.stage.StageStore")
+            local operations = newFakeNativeOperations()
+            local directory = "projects/sample/stages"
+            local sourcePath = "C:/project/" .. directory .. "/tutorial.json"
+            local shadowPath = directory .. "/tutorial.json"
+            operations.directoryItems[directory] = { "save-only.json", "tutorial.json" }
+            local sourceStage = validStage()
+            sourceStage.name = "Source Tutorial"
+            local shadowStage = validStage()
+            shadowStage.name = "Shadow Tutorial"
+            operations.files[sourcePath] = json.encode(sourceStage)
+            operations.files[shadowPath] = json.encode(shadowStage)
+
+            local store = StageStore.new(NativeFileSystem.new("C:/project", operations), json)
+            local stages = assert(store:listStages("sample"))
+            test.assertEqual(#stages, 1)
+            test.assertEqual(stages[1], "tutorial")
+            local saveOnlyExists, existsError = store:stageExists("sample", "save-only")
+            test.assertEqual(existsError, nil)
+            test.assertEqual(saveOnlyExists, false)
+
+            local loaded = assert(store:load("sample", "tutorial"))
+            test.assertEqual(loaded.name, "Source Tutorial")
+            assert(store:save(validStage(), true))
+            test.assertTrue(operations.files[sourcePath] ~= nil)
+            test.assertEqual(operations.files[shadowPath], json.encode(shadowStage))
+        end,
+    },
+    {
         name = "StageStore는 경로 탈출 식별자를 거부한다",
         run = function(test)
             local StageStore = require("editor.stage.StageStore")
@@ -159,6 +209,87 @@ return {
             local data = assert(store:load("sample", "tutorial"))
             test.assertEqual(data.stageId, "tutorial")
             test.assertEqual(data.tempoMap[1].bpm, 120)
+        end,
+    },
+    {
+        name = "pattern params 내부 JSON null은 문서 왕복 뒤에도 보존된다",
+        run = function(test)
+            local json = require("vendor.dkjson")
+            local StageDocument = require("editor.stage.StageDocument")
+            local StageStore = require("editor.stage.StageStore")
+            local fileSystem = newFakeFileSystem()
+            local path = "projects/sample/stages/tutorial.json"
+            fileSystem.files[path] = [[
+                {
+                    "schemaVersion": 1,
+                    "projectId": "sample",
+                    "stageId": "tutorial",
+                    "name": "Tutorial",
+                    "tempoMap": [{"startBeat": 0, "bpm": 120}],
+                    "events": [{
+                        "id": "event-1",
+                        "type": "pattern",
+                        "patternId": "nullable",
+                        "startBeat": 0,
+                        "params": {"optional": null}
+                    }]
+                }
+            ]]
+            local store = StageStore.new(fileSystem, json)
+            local loaded = assert(store:load("sample", "tutorial"))
+            local document = assert(StageDocument.fromTable(loaded))
+            local documentData = document:toTable()
+            test.assertEqual(documentData.events[1].params.optional, json.null)
+            assert(store:save(documentData, true))
+
+            local roundTrip = assert(json.decode(fileSystem.files[path], 1, json.null))
+            test.assertEqual(roundTrip.events[1].params.optional, json.null)
+        end,
+    },
+    {
+        name = "events 배열의 JSON null은 Event 경로 오류로 거부한다",
+        run = function(test)
+            local StageStore = require("editor.stage.StageStore")
+            local fileSystem = newFakeFileSystem()
+            fileSystem.files["projects/sample/stages/tutorial.json"] = [[
+                {
+                    "schemaVersion": 1,
+                    "projectId": "sample",
+                    "stageId": "tutorial",
+                    "name": "Tutorial",
+                    "tempoMap": [{"startBeat": 0, "bpm": 120}],
+                    "events": [null]
+                }
+            ]]
+            local loaded, errorMessage = StageStore.new(fileSystem):load("sample", "tutorial")
+            test.assertEqual(loaded, nil)
+            test.assertContains(errorMessage, "$.events[1]")
+        end,
+    },
+    {
+        name = "pattern params의 JSON null은 객체 오류로 거부한다",
+        run = function(test)
+            local StageStore = require("editor.stage.StageStore")
+            local fileSystem = newFakeFileSystem()
+            fileSystem.files["projects/sample/stages/tutorial.json"] = [[
+                {
+                    "schemaVersion": 1,
+                    "projectId": "sample",
+                    "stageId": "tutorial",
+                    "name": "Tutorial",
+                    "tempoMap": [{"startBeat": 0, "bpm": 120}],
+                    "events": [{
+                        "id": "event-1",
+                        "type": "pattern",
+                        "patternId": "nullable",
+                        "startBeat": 0,
+                        "params": null
+                    }]
+                }
+            ]]
+            local loaded, errorMessage = StageStore.new(fileSystem):load("sample", "tutorial")
+            test.assertEqual(loaded, nil)
+            test.assertContains(errorMessage, "$.events[1].params must be an object")
         end,
     },
     {

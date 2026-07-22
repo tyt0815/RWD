@@ -21,7 +21,9 @@ Core는 Editor와 Project를 알지 못한다. Project는 Editor를 알지 못�
 
 Editor는 `Menu | Categories | Events | Properties | Values` 상단 영역과 하단 타임라인을 가진다. 테스트 플레이 중에는 Properties와 Values 영역을 프로젝트의 실시간 `TestPlayer` Canvas가 대체한다.
 
-`StageDocument`는 Stage 버전 1의 ID, 단일 BPM과 Event 구조를 검증하고 dirty 상태를 소유한다. `StageStore`는 검증된 식별자로 `projects/<projectId>/stages/<stageId>.json` 경로만 읽고 쓰며, 선택한 Project·파일 ID와 JSON 내부 ID가 일치하는지 확인한다. 네이티브 파일 저장은 원자 교체를 사용하고 패키징된 `.love` 소스에는 쓰지 않는다.
+`StageDocument`는 Stage 버전 1의 ID, 단일 BPM과 Event 구조를 검증하고 dirty 상태를 소유한다. JSON에서 decode된 table은 객체·배열 메타정보와 key shape를 문맥에 맞게 검사하며, `pattern.params` 내부의 JSON null sentinel은 문서 복제 중에도 보존한다. `StageStore`는 검증된 식별자로 `projects/<projectId>/stages/<stageId>.json` 경로만 읽고 쓰며, 선택한 Project·파일 ID와 JSON 내부 ID가 일치하는지 확인한다.
+
+개발용 네이티브 source에서는 Stage 목록 후보를 실제 `sourceRoot` 파일로 제한하고 읽기·존재 확인·원자 저장도 같은 경로를 사용한다. 따라서 LÖVE save directory의 같은 이름 shadow 파일이나 save-only 파일은 Stage 원본으로 취급하지 않는다. 패키징된 `.love`는 가상 파일시스템으로 읽되 기존처럼 내부 쓰기를 거부한다.
 
 `EditorSession`은 Project, `StageDocument`, `StageStore`, `Core.PlaybackClock`과 `TestPlayer`를 조립한다. Stage 생성·열기·저장·Save As, BPM 편집, 재생·일시정지와 4박자 단위 타임라인 자동 추적 상태를 소유한다. `EditorApp`은 이 상태를 Menu, 모달, Properties/Values와 타임라인에 연결한다.
 

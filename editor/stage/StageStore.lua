@@ -69,7 +69,7 @@ function StageStore:load(projectId, stageId)
     if not exists then return nil, "Stage file does not exist: " .. stageId end
     local contents, readError = self.fileSystem:read(stagePath(projectId, stageId))
     if not contents then return nil, "Failed to read Stage: " .. tostring(readError) end
-    local data, position, decodeError = self.json.decode(contents, 1, nil)
+    local data, position, decodeError = self.json.decode(contents, 1, self.json.null)
     if decodeError then return nil, "Invalid JSON: " .. decodeError end
     if contents:sub(position):match("^%s*$") == nil then
         return nil, "Invalid JSON: trailing content."

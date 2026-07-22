@@ -100,6 +100,119 @@ return {
         end,
     },
     {
+        name = "decoded events 객체는 배열 오류로 거부한다",
+        run = function(test)
+            local json = require("vendor.dkjson")
+            local StageDocument = require("editor.stage.StageDocument")
+            local data = assert(json.decode([[
+                {
+                    "schemaVersion": 1,
+                    "projectId": "sample",
+                    "stageId": "tutorial",
+                    "name": "Tutorial",
+                    "tempoMap": [{"startBeat": 0, "bpm": 120}],
+                    "events": {}
+                }
+            ]]))
+            test.assertEqual(StageDocument.validate(data), "$.events must be an array.")
+        end,
+    },
+    {
+        name = "decoded pattern params 배열은 객체 오류로 거부한다",
+        run = function(test)
+            local json = require("vendor.dkjson")
+            local StageDocument = require("editor.stage.StageDocument")
+            local data = assert(json.decode([[
+                {
+                    "schemaVersion": 1,
+                    "projectId": "sample",
+                    "stageId": "tutorial",
+                    "name": "Tutorial",
+                    "tempoMap": [{"startBeat": 0, "bpm": 120}],
+                    "events": [{
+                        "id": "event-1",
+                        "type": "pattern",
+                        "patternId": "empty",
+                        "startBeat": 0,
+                        "params": []
+                    }]
+                }
+            ]]))
+            test.assertEqual(
+                StageDocument.validate(data),
+                "$.events[1].params must be an object."
+            )
+        end,
+    },
+    {
+        name = "decoded top-level 배열은 Stage 객체 오류로 거부한다",
+        run = function(test)
+            local json = require("vendor.dkjson")
+            local StageDocument = require("editor.stage.StageDocument")
+            local data = assert(json.decode("[]"))
+            test.assertEqual(StageDocument.validate(data), "$ must be an object.")
+        end,
+    },
+    {
+        name = "decoded tempo 배열 항목은 객체 오류로 거부한다",
+        run = function(test)
+            local json = require("vendor.dkjson")
+            local StageDocument = require("editor.stage.StageDocument")
+            local data = validStage()
+            data.tempoMap[1] = assert(json.decode("[]"))
+            test.assertEqual(
+                StageDocument.validate(data),
+                "$.tempoMap[1] must be an object."
+            )
+        end,
+    },
+    {
+        name = "decoded Event 배열은 객체 오류로 거부한다",
+        run = function(test)
+            local json = require("vendor.dkjson")
+            local StageDocument = require("editor.stage.StageDocument")
+            local data = validStage()
+            data.events[1] = assert(json.decode("[]"))
+            test.assertEqual(StageDocument.validate(data), "$.events[1] must be an object.")
+        end,
+    },
+    {
+        name = "빈 배열과 객체는 decoded 메타정보와 코드 문맥에서 승인한다",
+        run = function(test)
+            local json = require("vendor.dkjson")
+            local StageDocument = require("editor.stage.StageDocument")
+            local decoded = assert(json.decode([[
+                {
+                    "schemaVersion": 1,
+                    "projectId": "sample",
+                    "stageId": "tutorial",
+                    "name": "Tutorial",
+                    "tempoMap": [{"startBeat": 0, "bpm": 120}],
+                    "events": [{
+                        "id": "event-1",
+                        "type": "pattern",
+                        "patternId": "empty",
+                        "startBeat": 0,
+                        "params": {}
+                    }]
+                }
+            ]]))
+            test.assertEqual(StageDocument.validate(decoded), nil)
+
+            local constructed = validStage()
+            constructed.events = {
+                {
+                    id = "event-1",
+                    type = "pattern",
+                    patternId = "empty",
+                    startBeat = 0,
+                    params = {},
+                },
+            }
+            test.assertEqual(StageDocument.validate(constructed), nil)
+        end,
+    },
+    {
         name = "Save As 복제는 원본을 바꾸지 않고 새 ID와 이름을 사용한다",
         run = function(test)
             local StageDocument = require("editor.stage.StageDocument")

@@ -19,8 +19,26 @@ local function isFiniteNumber(value)
         and value > -math.huge
 end
 
+local function jsonTableKind(value)
+    local valueMetatable = type(value) == "table" and getmetatable(value)
+    if type(valueMetatable) ~= "table" then
+        return nil
+    end
+    if valueMetatable.__tojson ~= nil then
+        return "custom"
+    end
+    if valueMetatable.__jsontype == "array" or valueMetatable.__jsontype == "object" then
+        return valueMetatable.__jsontype
+    end
+    return nil
+end
+
 local function isArray(value)
     if type(value) ~= "table" then
+        return false
+    end
+    local tableKind = jsonTableKind(value)
+    if tableKind == "custom" or tableKind == "object" then
         return false
     end
 
@@ -36,8 +54,25 @@ local function isArray(value)
     return maximum == count
 end
 
+local function isObject(value)
+    if type(value) ~= "table" then
+        return false
+    end
+    local tableKind = jsonTableKind(value)
+    if tableKind == "custom" or tableKind == "array" then
+        return false
+    end
+    if tableKind == "object" or next(value) == nil then
+        return true
+    end
+    return not isArray(value)
+end
+
 local function deepCopy(value, seen)
     if type(value) ~= "table" then
+        return value
+    end
+    if jsonTableKind(value) == "custom" then
         return value
     end
 
@@ -62,7 +97,7 @@ end
 
 local function validateEvent(event, index)
     local path = "$.events[" .. index .. "]"
-    if type(event) ~= "table" then
+    if not isObject(event) then
         return path .. " must be an object."
     end
     if type(event.id) ~= "string" or event.id == "" then
@@ -75,7 +110,7 @@ local function validateEvent(event, index)
         if type(event.patternId) ~= "string" or event.patternId == "" then
             return path .. ".patternId must be a non-empty string."
         end
-        if event.params ~= nil and type(event.params) ~= "table" then
+        if event.params ~= nil and not isObject(event.params) then
             return path .. ".params must be an object."
         end
     elseif event.type == "tapNote" then
@@ -91,7 +126,7 @@ local function validateEvent(event, index)
 end
 
 function StageDocument.validate(data)
-    if type(data) ~= "table" then
+    if not isObject(data) then
         return "$ must be an object."
     end
     if data.schemaVersion ~= 1 then
@@ -110,7 +145,10 @@ function StageDocument.validate(data)
         return "$.tempoMap must contain exactly one item."
     end
     local tempo = data.tempoMap[1]
-    if type(tempo) ~= "table" or tempo.startBeat ~= 0 then
+    if not isObject(tempo) then
+        return "$.tempoMap[1] must be an object."
+    end
+    if tempo.startBeat ~= 0 then
         return "$.tempoMap[1].startBeat must be 0."
     end
     if not isFiniteNumber(tempo.bpm) or tempo.bpm <= 0 then

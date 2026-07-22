@@ -52,7 +52,7 @@
 - `type`: `pattern`, `tapNote`, `longNote` 중 하나다.
 - `startBeat`: 0 이상의 박자 위치다.
 
-`pattern`은 프로젝트 코드에 등록된 `patternId`와 JSON 객체인 `params`를 사용한다. `params`를 생략하면 빈 객체로 취급한다. `longNote`는 0보다 큰 `durationBeats`를 사용한다.
+`pattern`은 프로젝트 코드에 등록된 `patternId`와 JSON 객체인 `params`를 사용한다. `params`를 생략하면 빈 객체로 취급하며, 객체 내부 값의 JSON `null`은 로드와 저장 왕복에서 보존한다. `params` 자체의 `null`이나 배열은 허용하지 않는다. `longNote`는 0보다 큰 `durationBeats`를 사용한다.
 
 ## 변경 규칙
 
@@ -67,6 +67,7 @@ Stage 파일 이름은 `<stageId>.json`이며 실제 경로는 `projects/<projec
 - `schemaVersion`이 정수 `1`이고 Project·Stage ID와 Name이 유효하다.
 - `tempoMap`이 `startBeat: 0`과 0보다 큰 유한 BPM을 가진 단일 항목이다.
 - `events`가 배열이고 각 Event ID가 비어 있지 않으며 Stage 안에서 고유하다.
+- JSON 객체와 배열 종류를 구분하며 Stage, tempo 항목, Event와 `params`는 객체여야 한다.
 - 모든 Event의 `startBeat`가 0 이상의 유한 수이고 type별 필수 필드가 유효하다.
 - `pattern`의 `patternId`와 선택적 객체 `params`, `longNote`의 양수 `durationBeats`가 유효하다.
 - JSON의 `projectId`가 선택한 Project와 같고 `stageId`가 파일 이름과 같다.
@@ -78,6 +79,7 @@ Project Event 등록 계약이 아직 없으므로 로더는 `patternId`가 실�
 현재 Stage 로더는 다음 오류 처리 계약을 따른다.
 
 - 지원하지 않는 `schemaVersion`과 잘못된 필드는 JSON 경로를 포함한 오류로 거부한다.
+- `events` 안의 `null` Event와 객체가 아닌 `params`는 해당 Event의 JSON 경로로 거부한다.
 - Project·파일 ID가 JSON과 일치하지 않으면 로드를 거부한다.
 - 로드가 실패하면 현재 편집 중인 Stage와 재생 상태를 변경하지 않는다.
 

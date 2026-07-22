@@ -18,6 +18,19 @@ local function nativeFileExists(path)
     return true
 end
 
+local function readFile(path)
+    local file, openError = io.open(path, "rb")
+    if not file then
+        return nil, tostring(openError)
+    end
+    local contents, readError = file:read("*a")
+    local closed, closeError = file:close()
+    if not contents or not closed then
+        return nil, tostring(readError or closeError)
+    end
+    return contents, nil
+end
+
 local function writeFile(path, contents)
     local file, openError = io.open(path, "wb")
     if not file then
@@ -45,6 +58,22 @@ local function copyFile(sourcePath, targetPath)
 end
 
 local NATIVE_OPERATIONS = {}
+
+function NATIVE_OPERATIONS:list(relativePath)
+    local succeeded, itemsOrError = pcall(love.filesystem.getDirectoryItems, relativePath)
+    if not succeeded then
+        return nil, tostring(itemsOrError)
+    end
+    return itemsOrError, nil
+end
+
+function NATIVE_OPERATIONS:read(path)
+    return readFile(path)
+end
+
+function NATIVE_OPERATIONS:isFile(path)
+    return nativeFileExists(path)
+end
 
 function NATIVE_OPERATIONS:write(path, contents)
     return writeFile(path, contents)
@@ -74,14 +103,26 @@ function NativeFileSystem.new(sourceRoot, operations)
 end
 
 function NativeFileSystem:list(relativePath)
-    local succeeded, itemsOrError = pcall(love.filesystem.getDirectoryItems, relativePath)
-    if not succeeded then
-        return nil, tostring(itemsOrError)
+    local items, listError = self.operations:list(relativePath)
+    if not items then
+        return nil, tostring(listError)
     end
-    return itemsOrError, nil
+    if self.sourceRoot:lower():match("%.love$") then
+        return items, nil
+    end
+    local sourceItems = {}
+    for _, item in ipairs(items) do
+        if self:isFile(relativePath .. "/" .. item) then
+            table.insert(sourceItems, item)
+        end
+    end
+    return sourceItems, nil
 end
 
 function NativeFileSystem:read(relativePath)
+    if not self.sourceRoot:lower():match("%.love$") then
+        return self.operations:read(join(self.sourceRoot, relativePath))
+    end
     local contents, sizeOrError = love.filesystem.read(relativePath)
     if not contents then
         return nil, tostring(sizeOrError)
@@ -90,6 +131,9 @@ function NativeFileSystem:read(relativePath)
 end
 
 function NativeFileSystem:isFile(relativePath)
+    if not self.sourceRoot:lower():match("%.love$") then
+        return self.operations:isFile(join(self.sourceRoot, relativePath))
+    end
     return love.filesystem.getInfo(relativePath, "file") ~= nil
 end
 
