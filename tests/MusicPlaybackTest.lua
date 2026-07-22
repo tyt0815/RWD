@@ -113,6 +113,25 @@ return {
         end,
     },
     {
+        name = "MusicPlayback preserves drift interval remainder after a large update",
+        run = function(test)
+            local state = {}
+            local playback = newPlayback(state)
+
+            test.assertTrue(playback:prepare("projects/sample/assets/audio/a.wav", 0.8))
+            test.assertTrue(playback:play(0, 1))
+            state.position = 0.051
+            local seekCountBeforeLargeUpdate = state.seekCount
+
+            test.assertTrue(playback:update(0, 1, 2.5))
+            test.assertEqual(state.seekCount, seekCountBeforeLargeUpdate + 1)
+
+            state.position = 0.051
+            test.assertTrue(playback:update(0, 1, 0.5))
+            test.assertEqual(state.seekCount, seekCountBeforeLargeUpdate + 2)
+        end,
+    },
+    {
         name = "MusicPlayback reports Source factory failures and remains stopped",
         run = function(test)
             local MusicPlayback = require("core.MusicPlayback")

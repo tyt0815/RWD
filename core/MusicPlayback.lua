@@ -137,7 +137,7 @@ function MusicPlayback:update(expectedSeconds, playbackRate, deltaTime)
         return true, nil
     end
 
-    self.driftElapsed = 0
+    self.driftElapsed = self.driftElapsed % DRIFT_CHECK_INTERVAL_SECONDS
     local told, positionOrError = callSource(self.source, "tell")
     if not told then
         return self:fail(positionOrError)
