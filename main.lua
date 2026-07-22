@@ -50,3 +50,21 @@ function love.keypressed(key, scanCode, isRepeat)
         activeApp:keypressed(key, scanCode, isRepeat)
     end
 end
+
+function love.mousemoved(x, y, deltaX, deltaY, isTouch)
+    if activeApp and activeApp.mousemoved then
+        activeApp:mousemoved(x, y, deltaX, deltaY, isTouch)
+    end
+end
+
+function love.mousepressed(x, y, button, isTouch, presses)
+    if activeApp and activeApp.mousepressed then
+        activeApp:mousepressed(x, y, button, isTouch, presses)
+    end
+end
+
+function love.textinput(text)
+    if activeApp and activeApp.textinput then
+        activeApp:textinput(text)
+    end
+end

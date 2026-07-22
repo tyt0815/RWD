@@ -139,4 +139,30 @@ return {
             end)
         end,
     },
+    {
+        name = "editor handles Escape without leaving launcher editor mode",
+        run = function(test)
+            local Launcher = require("launcher.Launcher")
+            local launcher = Launcher.new()
+            launcher:openEditor()
+
+            launcher:keypressed("escape")
+
+            test.assertEqual(launcher:getMode(), "editor")
+            test.assertTrue(launcher.activeApp ~= nil)
+        end,
+    },
+    {
+        name = "editor menu Quit returns to launcher menu",
+        run = function(test)
+            local Launcher = require("launcher.Launcher")
+            local launcher = Launcher.new()
+            launcher:openEditor()
+
+            launcher.activeApp:executeAction("quit")
+
+            test.assertEqual(launcher:getMode(), "menu")
+            test.assertEqual(launcher.activeApp, nil)
+        end,
+    },
 }

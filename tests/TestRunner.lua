@@ -14,6 +14,7 @@ local TEST_MODULES = {
     "tests.EditorSessionTest",
     "tests.EditorUiTest",
     "tests.EditorDialogTest",
+    "tests.EditorWorkflowTest",
     "tests.EditorTest",
     "tests.LauncherTest",
 }

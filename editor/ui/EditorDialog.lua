@@ -175,6 +175,16 @@ function EditorDialog:getValue(fieldId)
     return nil
 end
 
+function EditorDialog:setValue(fieldId, value)
+    for _, field in ipairs(self.fields) do
+        if field.id == fieldId then
+            field.value = tostring(value)
+            return true
+        end
+    end
+    return false
+end
+
 function EditorDialog:getSelection(selectorId)
     for _, selector in ipairs(self.selectors) do
         if selector.id == selectorId then
@@ -183,6 +193,20 @@ function EditorDialog:getSelection(selectorId)
         end
     end
     return nil
+end
+
+function EditorDialog:select(selectorId, value)
+    for _, selector in ipairs(self.selectors) do
+        if selector.id == selectorId then
+            for index, option in ipairs(selector.options) do
+                if option.value == value then
+                    selector.selectedIndex = index
+                    return true
+                end
+            end
+        end
+    end
+    return false
 end
 
 function EditorDialog:setSelectorOptions(selectorId, options)

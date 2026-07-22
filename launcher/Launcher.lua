@@ -22,7 +22,13 @@ function Launcher:getErrorMessage()
 end
 
 function Launcher:openEditor()
-    self.activeApp = Editor.createApp()
+    local launcher = self
+    self.activeApp = Editor.createApp({
+        createGame = ProjectLoader.createGame,
+        onQuit = function()
+            launcher:returnToMenu()
+        end,
+    })
     self.mode = "editor"
     self.errorMessage = nil
     return true
@@ -91,13 +97,12 @@ end
 
 function Launcher:keypressed(key, scanCode, isRepeat)
     if self.activeApp then
-        if key == "escape" then
-            self:returnToMenu()
+        if self.activeApp.keypressed
+            and self.activeApp:keypressed(key, scanCode, isRepeat) then
             return
         end
-
-        if self.activeApp.keypressed then
-            self.activeApp:keypressed(key, scanCode, isRepeat)
+        if key == "escape" then
+            self:returnToMenu()
         end
         return
     end
