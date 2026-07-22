@@ -13,6 +13,7 @@ local TEST_MODULES = {
     "tests.TestPlayerTest",
     "tests.EditorSessionTest",
     "tests.EditorUiTest",
+    "tests.EditorDialogTest",
     "tests.EditorTest",
     "tests.LauncherTest",
 }
