@@ -26,18 +26,18 @@
 
 ## 3. 에디터 편집 기능
 
-- [ ] 프로젝트와 Stage 선택
+- [x] 프로젝트와 Stage 선택
 - [x] EditorSession의 Stage 생성, 열기와 저장 상태
 - [ ] Categories와 Events 목록
 - [ ] Properties와 Values 편집
 - [ ] 타임라인 배치, 이동, 삭제
-- [ ] JSON 저장과 불러오기
+- [x] JSON 저장과 불러오기
 
 ## 4. TestPlayer
 
-- [x] 프로젝트 실시간 Canvas 렌더링
+- [x] 기본 Project Canvas 렌더링
 - [x] 에디터 타임라인과 공통 재생 시계
-- [ ] 재생, 일시정지와 위치 이동
+- [x] 재생, 일시정지와 자동 플레이헤드 추적
 - [ ] 프로젝트 입력 전달
 
 ## 5. 배포와 엔진 버전 관리

@@ -5,6 +5,7 @@
 ```text
 Launcher → Editor → Core 공개 API
         ↘ Project → Core 공개 API
+        ↘ ProjectLoader.createGame → Editor TestPlayer
 Editor → Project Manifest
 ```
 
@@ -12,7 +13,7 @@ Core는 Editor와 Project를 알지 못한다. Project는 Editor를 알지 못�
 
 ## Core
 
-`core/init.lua`는 유일한 공개 진입점이다. 현재는 `CORE_API_VERSION`, `JudgmentResult` 상수와 고정 BPM `PlaybackClock`을 제공한다. 향후 시간 변환, Pattern 전개, Tap/Long Note 판정을 이 경계 뒤에 추가한다.
+`core/init.lua`는 유일한 공개 진입점이다. 현재는 `CORE_API_VERSION`, `JudgmentResult` 상수와 고정 BPM `Core.PlaybackClock`을 제공한다. `PlaybackClock`은 play, pause, update와 현재 beat를 소유하며 Pause 뒤에도 beat를 보존한다. 향후 시간 변환, Pattern 전개, Tap/Long Note 판정을 이 경계 뒤에 추가한다.
 
 판정 결과는 `GOOD`, `BAD`, `MISS`, `EMPTY_INPUT` 네 가지다. Core는 결과를 만들지만 사운드, UI와 시각 효과는 Project가 처리한다.
 
@@ -20,7 +21,13 @@ Core는 Editor와 Project를 알지 못한다. Project는 Editor를 알지 못�
 
 Editor는 `Menu | Categories | Events | Properties | Values` 상단 영역과 하단 타임라인을 가진다. 테스트 플레이 중에는 Properties와 Values 영역을 프로젝트의 실시간 `TestPlayer` Canvas가 대체한다.
 
-현재 구현은 고정 패널과 타임라인을 렌더링한다. `TestPlayer`는 주입받은 `createGame(project)`로 프로젝트 앱을 만들고, 프로젝트의 `update(deltaTime)`과 `draw(width, height)`를 Canvas 안에서 실행한다. 프로젝트 실행 오류는 호출자에게 반환하며 프로젝트 입력은 전달하지 않는다. `StageDocument`는 Stage 버전 1 데이터를 검증하고, `StageStore`는 검증된 식별자로 `projects/<projectId>/stages/<stageId>.json` 경로만 읽고 쓴다. 네이티브 파일 경계는 원자 교체를 사용하며 패키징된 `.love` 소스에는 쓰지 않는다. `EditorSession`은 Project, Stage 문서, 저장소, 재생 시계와 TestPlayer를 조립해 Stage 생성·열기·저장, BPM, 재생과 4박자 단위 타임라인 추적 상태를 소유한다. EditorSession과 화면의 연결, Event 편집은 현재 범위에 없다.
+`StageDocument`는 Stage 버전 1의 ID, 단일 BPM과 Event 구조를 검증하고 dirty 상태를 소유한다. `StageStore`는 검증된 식별자로 `projects/<projectId>/stages/<stageId>.json` 경로만 읽고 쓰며, 선택한 Project·파일 ID와 JSON 내부 ID가 일치하는지 확인한다. 네이티브 파일 저장은 원자 교체를 사용하고 패키징된 `.love` 소스에는 쓰지 않는다.
+
+`EditorSession`은 Project, `StageDocument`, `StageStore`, `Core.PlaybackClock`과 `TestPlayer`를 조립한다. Stage 생성·열기·저장·Save As, BPM 편집, 재생·일시정지와 4박자 단위 타임라인 자동 추적 상태를 소유한다. `EditorApp`은 이 상태를 Menu, 모달, Properties/Values와 타임라인에 연결한다.
+
+`TestPlayer`는 Launcher가 주입한 `ProjectLoader.createGame`으로 프로젝트 앱을 만들고, 프로젝트의 `update(deltaTime)`과 `draw(width, height)`를 Properties와 Values 영역을 합친 Canvas 안에서 실행한다. Stage Event와 Project 입력은 아직 TestPlayer에 전달하지 않는다. 파일·preview 오류는 Editor 모달로 바꾸고 재생을 정지해 Launcher 전체를 중단시키지 않는다.
+
+Launcher는 Editor를 만들 때 `onQuit` 콜백을 주입한다. Editor의 Menu Quit은 dirty 확인을 마친 뒤 재생을 멈추고 이 콜백을 호출하며, Launcher는 `returnToMenu()`로 복귀한다. 에디터 Escape는 이 경계를 우회하지 않고 모달 취소에만 사용된다.
 
 ## Project
 
@@ -28,7 +35,7 @@ Editor는 `Menu | Categories | Events | Properties | Values` 상단 영역과 �
 
 프로젝트는 Pattern, 게임 화면, UI/UX, 사운드, 연출, 리소스와 Stage를 소유한다. 배포 도구가 추가되면 선택 프로젝트와 Core만 독립 패키지에 포함한다.
 
-프로젝트 앱의 렌더링 계약은 `draw(width, height)`다. Launcher는 전체 창 크기를 전달하고 TestPlayer는 미리보기 Canvas 크기를 전달한다.
+프로젝트 앱의 렌더링 계약은 `draw(width, height)`다. Launcher는 전체 창 크기를 전달하고 TestPlayer는 미리보기 Canvas 크기를 전달한다. 따라서 Project는 전역 창 크기를 직접 가정하지 않는다.
 
 ## 데이터 흐름
 

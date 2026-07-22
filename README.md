@@ -4,7 +4,7 @@ RWD는 LÖVE2D 11.5로 여러 개의 리듬게임을 제작하기 위한 코어,
 
 ## 현재 상태
 
-프로젝트 초기 골격 단계다. 공통 실행기, 에디터 UI 골격, 샘플 프로젝트와 Stage JSON 형식 문서가 있다. 실제 리듬 판정, 타임라인 편집과 테스트 플레이는 아직 구현하지 않았다.
+공통 실행기에서 에디터와 Sample Project를 열 수 있다. 에디터 Menu에서 Stage를 만들고 열고 저장하며, 고정 BPM 시계와 Sample Project Canvas를 사용해 테스트 플레이할 수 있다. Stage Event 실행, 오디오 동기화, 리듬 판정, 타임라인 Event 편집과 Project 입력 전달은 아직 구현하지 않았다.
 
 ## 실행 환경
 
@@ -17,15 +17,29 @@ RWD는 LÖVE2D 11.5로 여러 개의 리듬게임을 제작하기 위한 코어,
 love .
 ```
 
-- `E`: 에디터 UI 골격 열기
+- `E`: 에디터 열기
 - `1`: Sample Project 열기
-- `Esc`: 현재 화면에서 실행기로 돌아가기, 실행기에서는 종료
+- `Esc`: Project 화면에서 실행기로 돌아가기, 실행기에서는 종료
 
 자동 테스트:
 
 ```powershell
 love . --test
 ```
+
+## 에디터 Menu
+
+Launcher에서 `E`를 눌러 에디터를 연다. 에디터 Menu는 마우스로 조작한다.
+
+- `New`: Project, Stage ID, Name과 BPM으로 빈 Stage 생성
+- `Open`: Project의 `stages/*.json` 열기
+- `Save`: 현재 `<stageId>.json` 저장
+- `Save As`: 같은 Project 안에 새 Stage ID로 저장
+- `Play`: 현재 beat부터 Project 화면 미리보기와 플레이헤드 재생
+- `Pause`: 현재 beat를 보존하고 편집 화면으로 복귀
+- `Quit`: 미저장 변경을 확인한 뒤 Launcher로 복귀
+
+Stage가 수정되면 `Save*`로 표시된다. 에디터 화면에서 Escape는 Menu Quit을 대신하지 않으며, 모달 취소에만 사용한다.
 
 ## 구조
 
