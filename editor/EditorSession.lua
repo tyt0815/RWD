@@ -183,6 +183,7 @@ end
 
 function EditorSession:play()
     if not self.document then return nil, "No Stage is open." end
+    if self:isPlaying() then return true, nil end
 
     local mixtape = self.document:getMixtape()
     local editorSettings = self.document:getEditorSettings()
@@ -234,6 +235,7 @@ end
 function EditorSession:update(deltaTime, visibleBeatCount)
     if not self:isPlaying() then return true, nil end
 
+    local previousBeat = self.transport:getBeat()
     local transportUpdated, transportError = self.transport:update(deltaTime)
     if not transportUpdated then
         self:pause()
@@ -244,6 +246,7 @@ function EditorSession:update(deltaTime, visibleBeatCount)
     local updated, errorMessage = self.testPlayer:update(deltaTime * playbackRate)
     if not updated then
         self:pause()
+        self.transport:seekBeat(previousBeat)
         return nil, errorMessage
     end
 

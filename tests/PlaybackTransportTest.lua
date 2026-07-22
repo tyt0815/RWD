@@ -100,6 +100,23 @@ return {
         end,
     },
     {
+        name = "PlaybackTransport restores beat when delayed music play fails",
+        run = function(test)
+            local state = { playError = "delayed play failed" }
+            local transport = newTransport(state)
+            transport:configureMixtape({ volume = 1, beat0Offset = -0.5 }, "song.wav")
+            test.assertTrue(transport:play(2))
+            local previousBeat = transport:getBeat()
+
+            local updated, errorMessage = transport:update(0.25)
+
+            test.assertEqual(updated, nil)
+            test.assertContains(errorMessage, "delayed play failed")
+            test.assertEqual(transport:isPlaying(), false)
+            test.assertNear(transport:getBeat(), previousBeat, 0.000001)
+        end,
+    },
+    {
         name = "PlaybackTransport preserves beat and resumes music from the paused position",
         run = function(test)
             local state = {}
@@ -129,6 +146,47 @@ return {
             test.assertNear(transport:getTimelineSeconds(), 2, 0.000001)
             test.assertTrue(transport:update(1))
             test.assertNear(transport:getBeat(), 3, 0.000001)
+        end,
+    },
+    {
+        name = "PlaybackTransport seeks to a non-negative beat while paused",
+        run = function(test)
+            local transport = newTransport({})
+            test.assertTrue(transport:play())
+            test.assertTrue(transport:update(0.5))
+            test.assertTrue(transport:pause())
+
+            test.assertTrue(transport:seekBeat(3.5))
+
+            test.assertNear(transport:getBeat(), 3.5, 0.000001)
+            test.assertNear(transport:getTimelineSeconds(), 1.75, 0.000001)
+            test.assertEqual(transport.musicStarted, false)
+        end,
+    },
+    {
+        name = "PlaybackTransport rejects seek while playing",
+        run = function(test)
+            local transport = newTransport({})
+            test.assertTrue(transport:play())
+
+            local sought, errorMessage = transport:seekBeat(2)
+
+            test.assertEqual(sought, nil)
+            test.assertEqual(errorMessage, "Cannot seek while playback is running.")
+            test.assertNear(transport:getBeat(), 0, 0.000001)
+            test.assertEqual(transport:isPlaying(), true)
+        end,
+    },
+    {
+        name = "PlaybackTransport rejects an invalid seek beat",
+        run = function(test)
+            local transport = newTransport({})
+
+            local sought, errorMessage = transport:seekBeat(-1)
+
+            test.assertEqual(sought, nil)
+            test.assertContains(errorMessage, "non-negative finite")
+            test.assertNear(transport:getBeat(), 0, 0.000001)
         end,
     },
     {
@@ -215,7 +273,7 @@ return {
             test.assertEqual(updated, nil)
             test.assertContains(errorMessage, "update failed")
             test.assertEqual(transport:isPlaying(), false)
-            test.assertNear(transport:getBeat(), 1, 0.000001)
+            test.assertNear(transport:getBeat(), 0, 0.000001)
         end,
     },
 }

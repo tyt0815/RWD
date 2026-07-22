@@ -95,6 +95,7 @@ local function newFixture(options)
         transportState.creationCount = (transportState.creationCount or 0) + 1
         local transport = {
             configureMixtape = function(_, mixtape, resolvedMusicPath)
+                transportState.configureCount = (transportState.configureCount or 0) + 1
                 transportState.mixtape = mixtape
                 transportState.resolvedMusicPath = resolvedMusicPath
                 if transportState.configureError then
@@ -103,6 +104,7 @@ local function newFixture(options)
                 return true, nil
             end,
             play = function(_, playbackRate)
+                transportState.playCount = (transportState.playCount or 0) + 1
                 transportState.playbackRate = playbackRate or 1
                 if transportState.playError then return nil, transportState.playError end
                 transportState.playing = true
@@ -136,6 +138,15 @@ local function newFixture(options)
                 transportState.bpm = bpmValue
                 return true, nil
             end,
+            seekBeat = function(_, beat)
+                transportState.seekCount = (transportState.seekCount or 0) + 1
+                transportState.seekBeat = beat
+                if transportState.playing then
+                    return nil, "Cannot seek while playback is running."
+                end
+                transportState.beat = beat
+                return true, nil
+            end,
         }
         transportState.transport = transport
         return transport, nil
@@ -144,6 +155,7 @@ local function newFixture(options)
     options.metronomeState = metronomeState
     options.metronome = options.metronome or {
         play = function(_, bpm, period, beat, playbackRate)
+            metronomeState.playCount = (metronomeState.playCount or 0) + 1
             metronomeState.bpm = bpm
             metronomeState.period = period
             metronomeState.beat = beat
@@ -506,6 +518,63 @@ return {
             test.assertEqual(state.metronomeState.period, 3)
             test.assertEqual(state.metronomeState.beat, 0)
             test.assertEqual(state.metronomeState.playbackRate, 0.5)
+        end,
+    },
+    {
+        name = "EditorSession update는 TestPlayer 실패 시 이전 beat로 rollback한다",
+        run = function(test)
+            local session, testPlayer, state = newSession({ stored = VALID_STAGE })
+            assert(session:openStage("sample", "tutorial"))
+            assert(session:getDocument():setEditorSetting("metronome", true))
+            assert(session:play())
+            assert(session:update(0.5, 16))
+            local previousBeat = session:getBeat()
+            state.updateError = "preview update failed"
+
+            local updated, errorMessage = session:update(0.25, 16)
+
+            test.assertEqual(updated, nil)
+            test.assertEqual(errorMessage, "preview update failed")
+            test.assertNear(session:getBeat(), previousBeat, 0.000001)
+            test.assertEqual(state.transportState.seekCount, 1)
+            test.assertNear(state.transportState.seekBeat, previousBeat, 0.000001)
+            test.assertEqual(state.transportState.playing, false)
+            test.assertEqual(state.metronomeState.playing, false)
+            test.assertEqual(testPlayer.playing, false)
+        end,
+    },
+    {
+        name = "EditorSession Play 재진입은 상태를 바꾸지 않는 성공이다",
+        run = function(test)
+            local session, testPlayer, state = newSession({ stored = VALID_STAGE })
+            assert(session:openStage("sample", "tutorial"))
+            assert(session:getDocument():setEditorSetting("metronome", true))
+            assert(session:play())
+            assert(session:update(0.25, 16))
+            local previousBeat = session:getBeat()
+            local previousGame = testPlayer.game
+            local configureCount = state.transportState.configureCount
+            local transportPlayCount = state.transportState.playCount
+            local testPlayerStartCount = state.testPlayerState.startCount
+            local metronomePlayCount = state.metronomeState.playCount
+            local transportPauseCount = state.transportState.pauseCount
+            local metronomePauseCount = state.metronomeState.pauseCount
+            local testPlayerStopCount = state.testPlayerState.stopCount
+
+            local played, errorMessage = session:play()
+
+            test.assertEqual(played, true)
+            test.assertEqual(errorMessage, nil)
+            test.assertNear(session:getBeat(), previousBeat, 0.000001)
+            test.assertEqual(session:isPlaying(), true)
+            test.assertEqual(testPlayer.game, previousGame)
+            test.assertEqual(state.transportState.configureCount, configureCount)
+            test.assertEqual(state.transportState.playCount, transportPlayCount)
+            test.assertEqual(state.testPlayerState.startCount, testPlayerStartCount)
+            test.assertEqual(state.metronomeState.playCount, metronomePlayCount)
+            test.assertEqual(state.transportState.pauseCount, transportPauseCount)
+            test.assertEqual(state.metronomeState.pauseCount, metronomePauseCount)
+            test.assertEqual(state.testPlayerState.stopCount, testPlayerStopCount)
         end,
     },
     {

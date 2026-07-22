@@ -117,15 +117,30 @@ function PlaybackTransport:pause()
     return self.musicPlayback:pause()
 end
 
+function PlaybackTransport:seekBeat(beat)
+    if self.playing then
+        return nil, "Cannot seek while playback is running."
+    end
+
+    local timelineSeconds, errorMessage = self.tempoMap:beatToSeconds(beat)
+    if not timelineSeconds then return nil, errorMessage end
+
+    self.timelineSeconds = timelineSeconds
+    self.musicStarted = false
+    return true, nil
+end
+
 function PlaybackTransport:update(deltaTime)
     if not self.playing then return true, nil end
 
+    local previousTimelineSeconds = self.timelineSeconds
     self.timelineSeconds = self.timelineSeconds + deltaTime * self.playbackRate
     local musicSeconds = self.timelineSeconds + self.mixtape.beat0Offset
 
     if not self.musicStarted and musicSeconds >= 0 then
         local started, startError = self.musicPlayback:play(musicSeconds, self.playbackRate)
         if not started then
+            self.timelineSeconds = previousTimelineSeconds
             self:pause()
             return nil, startError
         end
@@ -137,6 +152,7 @@ function PlaybackTransport:update(deltaTime)
             deltaTime
         )
         if not updated then
+            self.timelineSeconds = previousTimelineSeconds
             self:pause()
             return nil, updateError
         end
