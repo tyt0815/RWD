@@ -15,7 +15,7 @@ local function newFixture(config)
         end,
         createGame = function() return {}, nil end,
     }
-    local store = {
+    local store = config.stageStore or {
         listStages = function() return { "tutorial" }, nil end,
         stageExists = function(_, _, stageId) return state.saved[stageId] ~= nil, nil end,
         load = function(_, _, stageId)
@@ -55,12 +55,21 @@ local function newFixture(config)
             }, nil
         end,
     }
+    local EditorSession = require("editor.EditorSession")
+    local session = EditorSession.new({
+        projectCatalog = catalog,
+        stageStore = store,
+        testPlayer = testPlayer,
+        transportFactory = config.transportFactory,
+        metronome = config.metronome,
+    })
     local EditorApp = require("editor.EditorApp")
     local app = EditorApp.new({
         projectCatalog = catalog,
         musicCatalog = musicCatalog,
         stageStore = store,
         testPlayer = testPlayer,
+        session = session,
         onQuit = function() state.quitCount = state.quitCount + 1 end,
     })
     return app, state
@@ -390,16 +399,157 @@ return {
         end,
     },
     {
-        name = "Play and Pause change TestPlayer preview state",
+        name = "Music 없음에서도 Play와 Pause는 beat와 Project preview를 제어한다",
         run = function(test)
             local app, state = newFixture()
             createStageThroughDialog(app, "preview")
             app:executeAction("play")
             test.assertEqual(app:getViewModel().playing, true)
             test.assertEqual(state.previewPlaying, true)
+            app:update(0.25)
+            test.assertNear(app:getViewModel().beat, 0.5, 0.000001)
             app:executeAction("pause")
             test.assertEqual(app:getViewModel().playing, false)
             test.assertEqual(state.previewPlaying, false)
+            app:update(0.25)
+            test.assertNear(app:getViewModel().beat, 0.5, 0.000001)
+        end,
+    },
+    {
+        name = "Music decode 실패는 preview를 정리하고 view model에 error dialog를 표시한다",
+        run = function(test)
+            local Core = require("core")
+            local transport
+            local metronomeState = { playing = false, pauseCount = 0 }
+            local app, state = newFixture({
+                transportFactory = function(bpm)
+                    transport = assert(Core.PlaybackTransport.new({
+                        bpm = bpm,
+                        musicPlayback = Core.MusicPlayback.new({
+                            sourceFactory = function()
+                                error("Failed to decode Project music.")
+                            end,
+                        }),
+                    }))
+                    return transport, nil
+                end,
+                metronome = {
+                    play = function()
+                        metronomeState.playing = true
+                        return true, nil
+                    end,
+                    pause = function()
+                        metronomeState.pauseCount = metronomeState.pauseCount + 1
+                        metronomeState.playing = false
+                        return true, nil
+                    end,
+                },
+            })
+            createStageThroughDialog(app, "decode-error")
+            assert(app:getSession():setProperty(
+                "mixtapeProperties",
+                "music",
+                "assets/audio/broken.wav"
+            ))
+            assert(app:getSession():setProperty(
+                "editorProperties",
+                "metronome",
+                true
+            ))
+            metronomeState.pauseCount = 0
+
+            local played, playError = app:executeAction("play")
+            local viewModel = app:getViewModel()
+
+            test.assertEqual(played, nil)
+            test.assertContains(playError, "decode")
+            test.assertEqual(viewModel.dialog and viewModel.dialog.kind, "error")
+            test.assertContains(viewModel.dialog.message, "decode")
+            test.assertEqual(state.previewPlaying, false)
+            test.assertEqual(transport:isPlaying(), false)
+            test.assertEqual(metronomeState.playing, false)
+            test.assertEqual(metronomeState.pauseCount, 1)
+        end,
+    },
+    {
+        name = "Music duration 이후에도 view model beat는 계속 증가한다",
+        run = function(test)
+            local Core = require("core")
+            local sourceState = { playing = false, stopped = false }
+            local app = newFixture({
+                transportFactory = function(bpm)
+                    local playback = Core.MusicPlayback.new({
+                        sourceFactory = function()
+                            return {
+                                getDuration = function() return 0.1 end,
+                                setVolume = function() end,
+                                setPitch = function() end,
+                                seek = function() end,
+                                tell = function() return 0 end,
+                                play = function() sourceState.playing = true end,
+                                pause = function() sourceState.playing = false end,
+                                stop = function()
+                                    sourceState.playing = false
+                                    sourceState.stopped = true
+                                end,
+                            }
+                        end,
+                    })
+                    return Core.PlaybackTransport.new({
+                        bpm = bpm,
+                        musicPlayback = playback,
+                    })
+                end,
+            })
+            createStageThroughDialog(app, "music-duration")
+            assert(app:getSession():setProperty(
+                "mixtapeProperties",
+                "music",
+                "assets/audio/short.wav"
+            ))
+            assert(app:executeAction("play"))
+
+            app:update(0.1)
+            local beatAfterDuration = app:getViewModel().beat
+            test.assertEqual(sourceState.stopped, true)
+            test.assertNear(beatAfterDuration, 0.2, 0.000001)
+
+            app:update(0.25)
+            test.assertTrue(app:getViewModel().beat > beatAfterDuration)
+            test.assertNear(app:getViewModel().beat, 0.7, 0.000001)
+            test.assertEqual(app:getViewModel().playing, true)
+        end,
+    },
+    {
+        name = "wheel zoom 뒤 Save한 JSON은 non-default Scale만 희소 저장한다",
+        run = function(test)
+            local json = require("vendor.dkjson")
+            local StageStore = require("editor.stage.StageStore")
+            local fileSystem = { files = {} }
+            function fileSystem:list() return {}, nil end
+            function fileSystem:read(path) return self.files[path], nil end
+            function fileSystem:exists(path) return self.files[path] ~= nil end
+            function fileSystem:isFile(path) return self.files[path] ~= nil end
+            function fileSystem:writeAtomic(path, contents)
+                self.files[path] = contents
+                return true, nil
+            end
+            local app = newFixture({
+                stageStore = StageStore.new(fileSystem, json),
+            })
+            createStageThroughDialog(app, "sparse-scale")
+            local timeline = app.layout.timeline
+            app:mousemoved(timeline.x, timeline.y)
+            app:wheelmoved(0, 1)
+            app:executeAction("save")
+
+            local path = "projects/sample/stages/sparse-scale.json"
+            local decoded = assert(json.decode(fileSystem.files[path]))
+            test.assertNear(decoded.editorSettings.scale, 1.25, 0.000001)
+            test.assertEqual(decoded.editorSettings.metronome, nil)
+            test.assertEqual(decoded.editorSettings.metronomePeriod, nil)
+            test.assertEqual(decoded.editorSettings.playbackRate, nil)
+            test.assertEqual(decoded.mixtape, nil)
         end,
     },
     {

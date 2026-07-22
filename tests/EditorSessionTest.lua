@@ -747,4 +747,58 @@ return {
             end
         end,
     },
+    {
+        name = "Music decode 시작 실패는 Transport Metronome TestPlayer를 한 번씩 정리한다",
+        run = function(test)
+            local session, testPlayer, state = newSession({ stored = VALID_STAGE })
+            assert(session:openStage("sample", "tutorial"))
+            assert(session:getDocument():setEditorSetting("metronome", true))
+            state.transportState.playError = "Failed to decode Project music."
+            state.transportState.pauseCount = 0
+            state.metronomeState.pauseCount = 0
+            state.testPlayerState.stopCount = 0
+
+            local played, playError = session:play()
+
+            test.assertEqual(played, nil)
+            test.assertContains(playError, "decode")
+            test.assertEqual(state.transportState.pauseCount, 1)
+            test.assertEqual(state.metronomeState.pauseCount, 1)
+            test.assertEqual(state.testPlayerState.stopCount, 1)
+            test.assertEqual(state.transportState.playing, false)
+            test.assertEqual(state.metronomeState.playing, false)
+            test.assertEqual(testPlayer.playing, false)
+            test.assertEqual(session:isPlaying(), false)
+        end,
+    },
+    {
+        name = "Metronome false Play는 SoundData와 Source를 만들지 않는다",
+        run = function(test)
+            local state = { soundDataCount = 0, sourceCount = 0 }
+            local metronome = require("editor.playback.MetronomePlayback").new({
+                soundDataFactory = function()
+                    state.soundDataCount = state.soundDataCount + 1
+                    return { setSample = function() end }
+                end,
+                sourceFactory = function()
+                    state.sourceCount = state.sourceCount + 1
+                    return {}
+                end,
+            })
+            local session = newSession({
+                stored = VALID_STAGE,
+                metronome = metronome,
+            })
+            assert(session:openStage("sample", "tutorial"))
+
+            assert(session:play())
+
+            test.assertEqual(
+                session:getProperty("editorProperties", "metronome"),
+                false
+            )
+            test.assertEqual(state.soundDataCount, 0)
+            test.assertEqual(state.sourceCount, 0)
+        end,
+    },
 }

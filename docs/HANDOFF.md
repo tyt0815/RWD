@@ -2,70 +2,95 @@
 
 ## 현재 상태
 
-LÖVE2D 11.5 Launcher에서 Sample Project와 Stage 에디터를 열 수 있다. 에디터 Menu의 `New | Open | Save | Save As | Play | Pause | Quit` 일곱 항목, dirty 상태의 `Save*` 표시와 New/Open/Quit의 Save/Discard/Cancel 보호가 연결되었다. 실제 source 폴더에 Stage JSON을 저장·열고, Values 셀 안에서 BPM을 인라인 편집하며, 고정 BPM clock과 Project Canvas로 테스트 플레이한 뒤 beat를 보존해 편집 화면으로 돌아올 수 있다.
+LÖVE2D 11.5 Launcher에서 Sample Project와 Stage 에디터를 열 수 있다. 에디터는 schemaVersion 2 Stage를 만들고 열고 원자 저장하며, Project 음악을 Core `PlaybackTransport`에 연결해 Project Canvas와 함께 미리 재생한다.
 
-Project Canvas는 표시하지만 Stage Event는 실행하지 않는다. Event 실행, 오디오 동기화, 리듬 판정과 Project 입력 전달은 아직 구현하지 않았다.
+`Editor Properties`는 Scale, Playback Rate, Metronome, Metronome Period를, `Mixtape Properties`는 Music, Volume, Beat 0 Offset, BPM을 순서대로 제공한다. 숫자 직접 편집, boolean 전환, Project Music 선택 모달, cursor anchor wheel zoom, Play/Pause, 재생 오류 정리와 beat rollback이 연결되었다. 기본값은 Stage JSON에서 희소화된다.
 
-## 완료된 작업
+Stage Event 실행, 리듬 판정, Timeline Event 배치·편집과 Project 입력 전달은 아직 구현하지 않았다.
 
-- Core, Editor, Launcher, Project의 공개 경계 생성
-- 프로젝트 매니페스트와 Core API 버전 호환 검사
-- 독립 Sample Project 화면과 빈 Tutorial Stage JSON 생성
-- `Menu | Categories | Events | Properties | Values` 에디터 패널과 하단 타임라인 렌더링
-- 외부 프레임워크 없는 94개 자동 테스트 작성
-- 아키텍처, 제작 흐름, Stage 형식과 로드맵 문서 작성
-- 고정 BPM 재생 시계와 Stage 버전 1 문서 검증
-- 주입 가능한 프로젝트 카탈로그와 프로젝트 게임 생성 경계
-- `projects/<projectId>/stages/<stageId>.json` 전용 Stage 목록, 로드와 원자 저장
-- 네이티브 sourceRoot로 통일한 Stage 목록·읽기·존재 확인·쓰기와 save-only/shadow 제외
-- Stage JSON 객체·배열 종류 검증과 `params` 내부 null 보존, null Event·`params: null` 거부
-- `createGame(project)`로 프로젝트 앱을 생성하고 Canvas 크기로 그리는 TestPlayer
-- Stage 생성·열기·저장, BPM, 재생과 타임라인 추적을 조정하는 EditorSession
-- Launcher 창 크기와 TestPlayer Canvas 크기를 구분하는 프로젝트 `draw(width, height)` 계약
-- 공식 dkjson 2.10 원본과 MIT 라이선스 고정
-- Menu 일곱 항목과 마우스 hit test, Stage New/Open/Save/Save As, dirty 확인 모달 연결
-- `Global → Mixtape Properties`의 BPM 표시, 모달 없는 Values 인라인 편집과 `Save*` 상태 표시
-- Play/Pause의 고정 BPM clock, Project Canvas 전환과 자동 플레이헤드 추적
-- Launcher가 Editor에 `ProjectLoader.createGame`과 `onQuit`을 주입하고 포인터·문자 입력을 전달하는 경계
+## 이번 기능 범위와 커밋
 
-## 최근 검증
+- 기준 커밋: `2d544f1`
+- 완료된 기능 커밋 범위: `2d544f1..035552a`
+- 마지막 커밋: `035552a fix: keep narrow timeline playhead visible`
+- Task 10 통합 테스트·문서와 `EditorApp` 최소 수정은 이 문서를 포함한 현재 HEAD 커밋이다. 전체 기능 범위는 `2d544f1..HEAD`로 확인한다.
 
-- sourceRoot·null·JSON 종류 focused 테스트: `PASS: 13 focused tests`, `PASS: 14 focused tests` 확인
-- `C:\Program Files\LOVE\lovec.exe --version`: `LOVE 11.5 (Mysterious Mysteries)` 확인
-- `C:\Program Files\LOVE\lovec.exe . --test`: `PASS: 94 tests` 확인
-- 숨김 창으로 `love .`를 실행해 `Responding=True`, `HasExited=False` 확인 후 해당 테스트 프로세스 정상 종료
-- UI 기록 테스트로 BPM 편집값이 Values 셀 안에 표시되고, 유효하지 않은 값은 Stage에 적용되지 않으며 별도 모달을 열지 않는 동작 확인
-- `projects` 아래 JSON 1개: PowerShell `ConvertFrom-Json` 통과
-- 실제 source Stage 왕복: `PASS: native Stage save/open round trip`, 실행 전후 `projects/sample/stages/editor-menu-smoke.json` 부재 확인
-- production Launcher GUI 하네스: `PASS: editor menu GUI smoke`, `launcher → editor → new → save → open → play → pause → launcher` 확인
-- GUI 캡처 8개 생성. `launcher.png`와 `launcher-return.png` SHA-256은 모두 `1E94559FAD2141002CCB83260BE39E5A6D95D613715AD192B504325648FFDA9B`
-- `new-dialog.png`, `editor-dirty.png`, `playing.png`, `paused.png`를 직접 확인해 New 필드, `Save*`와 BPM 123, Project Canvas, Pause 뒤 Properties/Values와 BPM 123 복원을 확인
-- `vendor/dkjson.lua`: `dkjson 2.10`과 `Copyright (C) 2010-2026 David Heiko Kolf` 확인
-- dkjson 공식 URL: `https://dkolf.de/dkjson-lua/dkjson-2.10.lua`
-- `vendor/dkjson.lua` SHA-256: `52F30BE905216796CCB1E97DA6135F3F5CFAAF6359544E66046E40F516A36B94`
-- 금지된 내부 Core 의존성과 Project→Editor 의존성 없음
-- `StageDocument`의 `vendor.dkjson` 직접 의존성 없음
-- `love .`: 실제 `RWD` 창의 `Responding=True`와 정상 종료 확인. Windows `PostMessage`의 `E`는 SDL에 전달되지 않아 실제 창에서 Editor 진입은 확인하지 못함
-- `git diff --check`: 출력 없음
+기능 커밋은 Stage 설정·v2 전환, Core Tempo/Music/Transport, Editor 재생 조립, Properties/Music UI와 Scale zoom을 포함한다. 주요 변경 파일은 다음과 같다.
 
-Windows OS 키 주입은 `E`를 SDL에 전달하지 못했으므로 Editor 기능 검증 근거로 사용하지 않았다. Editor 진입과 Menu 화면은 production Launcher를 사용하는 프레임 기반 GUI 하네스로 검증했다.
+- Core: `core/MixtapeSettings.lua`, `core/TempoMap.lua`, `core/MusicPlayback.lua`, `core/PlaybackTransport.lua`, `core/init.lua`
+- Editor: `editor/EditorSession.lua`, `editor/EditorApp.lua`, `editor/stage/*`, `editor/playback/*`, `editor/project/MusicCatalog.lua`, `editor/properties/PropertyCatalog.lua`, `editor/ui/*`
+- 입력·Sample: `main.lua`, `launcher/Launcher.lua`, `projects/sample/assets/audio/README.md`, `projects/sample/stages/*.json`
+- 테스트: Settings, Tempo, Music, Transport, Metronome, Stage, Editor, Launcher 통합 테스트와 `tests/TestRunner.lua`
+- 문서: `README.md`, `docs/ARCHITECTURE.md`, `docs/STAGE_FORMAT.md`, `docs/WORKFLOW.md`, `docs/ROADMAP.md`, 이 문서
+- Task 10 추가 변경: `editor/EditorApp.lua`, `tests/CoreTest.lua`, `tests/EditorSessionTest.lua`, `tests/EditorWorkflowTest.lua`
+
+## 공개 API와 데이터 계약
+
+`require("core")`가 다음 API를 공개한다.
+
+- `Core.MixtapeSettings.validate`, `resolve`, `compact`
+- `Core.TempoMap.new`; `beatToSeconds`, `secondsToBeat`, `getBpm`
+- `Core.MusicPlayback.new`; `prepare`, `play`, `update`, `pause`, `stop`
+- `Core.PlaybackTransport.new`; `configureMixtape`, `setBpm`, `play`, `pause`, `seekBeat`, `update`, `getBeat`, `getTimelineSeconds`, `isPlaying`, `getPlaybackRate`
+
+`PlaybackTransport:play()`의 rate 생략값은 실제 게임용 `1.0`이다. EditorSession만 Stage의 Playback Rate를 명시적으로 전달한다. `PlaybackTransport:seekBeat()`는 pause 상태에서만 허용되며 TestPlayer update 실패 뒤 이전 beat rollback에 사용한다.
+
+Editor 쪽 추가 경계는 `EditorSession:getProperty`, `setProperty`, `zoomTimeline`, `MusicCatalog:list`, `PropertyCatalog.getEvents/getEvent`, `EditorDialog.music`과 `wheelmoved` 입력 전달이다. `EditorApp:getViewModel()`은 오류 통합 경로 검증을 위해 현재 `dialog`도 제공한다.
+
+Stage 계약은 schemaVersion 2, 최상위 `bpm`, 선택적 `mixtape`, 선택적 `editorSettings`, `events`다. 기본값과 빈 선택 객체는 저장하지 않으며 버전 1은 자동 변환하지 않는다.
+
+## Task 10 RED/GREEN
+
+- 기준: `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 177 tests`
+- RED: 통합 테스트 7개를 추가한 뒤 Music decode 오류의 view model dialog가 `expected: error`, `actual: nil`로 실패함을 확인
+- 최소 수정: `EditorApp:getViewModel()`에 기존 `self.dialog`를 추가. 정리 코드는 `EditorSession:pause()`에 그대로 유지
+- GREEN: `PASS: 184 tests`
+
+통합 테스트는 Music 없음 Play/Pause, decode 실패 정리와 오류 dialog, Offset `-0.5`·Rate `2`의 0.25초 지연 시작, Music duration 뒤 beat 진행, Metronome false의 Source 미생성, wheel zoom 뒤 Scale-only JSON 저장, Core Transport 기본 rate `1`을 검증한다.
+
+## 최근 자동 검증
+
+- `C:\Program Files\LOVE\lovec.exe --version` → `LOVE 11.5 (Mysterious Mysteries)`
+- `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 184 tests`
+- `git diff --check` → 출력 없음
+- `projects` 아래 JSON 2개를 PowerShell `ConvertFrom-Json`으로 검사 → 오류 없음
+- `rg -n 'tempoMap|schemaVersion.: 1' projects editor tests docs/STAGE_FORMAT.md` → Stage 파일과 형식 문서에는 잔존 없음. 출력 4건은 v2 로더의 명시적 legacy 필드 거부 2줄과 대응 거부 테스트 2줄
+- `rg -n 'require\("core\.' editor projects` → 출력 없음
+- 임시 실제 WAV smoke → `PASS: actual WAV decode, volume, seek, pitch, pause/resume`
+- 임시 `projects/sample/assets/audio/editor-transport-smoke.wav` 절대 경로 확인 후 삭제 → `Test-Path=False`
+- 숨김 창 `love .`를 2초 실행 → `Responding=True`, `HasExited=False`; 확인 뒤 해당 프로세스 종료
+
+이 문서를 포함한 커밋 뒤 전체 suite를 다시 실행해 `PASS: 184 tests`, `git diff --check` 출력 없음과 `git status --short` 0건을 확인했다.
+
+## 실제 확인과 미확인 사항
+
+실제 LÖVE가 생성한 WAV를 decode하고 stream Source에 Volume `0.25`, seek `0.1`, pitch `0.5/2.0`, play/pause/resume/stop을 적용하는 smoke는 통과했다. 실제 앱 프로세스도 응답 상태를 유지했다.
+
+숨김 GUI 환경에서는 SDL 입력과 청취를 의미 있게 자동화할 수 없었다. 따라서 다음 항목은 자동 통합 테스트로 동작을 검증했지만 사람이 화면과 소리로 확인하지는 못했다.
+
+- Editor 진입부터 New Stage 생성까지의 실제 클릭 화면
+- Properties 표시 순서와 Music 모달의 실제 시각 상태
+- Period 4의 1760Hz 강박과 880Hz 일반박 음색 차이 청취
+- UI에서 Playback Rate `0.5/2.0`, 양수·음수 Offset과 Pause/재개 조작
+- Play 중 wheel zoom의 cursor anchor를 실제 화면에서 확인
+
+실제 오디오 asset은 커밋하지 않았다.
 
 ## 다음 작업
 
-다음 개발 단위는 Project Event 등록 계약을 정의하고 Stage Event를 TestPlayer 실행에 연결하는 작업이다. 등록되지 않은 `patternId`의 오류 보고 기준도 이 계약에 포함한다.
+다음 개발 단위는 Project Event 등록 계약을 정의하고 Stage Event를 TestPlayer 실행에 연결하는 작업이다. 등록되지 않은 `patternId`의 오류 보고 기준과 Project 입력 전달 범위를 함께 결정한다.
 
 ## 현재 범위 밖인 기능
 
 - 실제 리듬 판정
 - Pattern 등록 및 참조 전개
-- Stage Event 실행과 에디터 Event 배치·편집
-- 오디오 동기화
+- Stage Event 실행과 Editor Event 배치·편집
 - TestPlayer의 Project 입력 전달
 - 독립 게임 패키징
 
 ## 세션 재개 순서
 
-1. `README.md`를 읽는다.
-2. `docs/ARCHITECTURE.md`와 `docs/ROADMAP.md`를 확인한다.
+1. `README.md`와 이 문서를 읽는다.
+2. `docs/ARCHITECTURE.md`, `docs/STAGE_FORMAT.md`, `docs/ROADMAP.md`를 확인한다.
 3. `love . --test`를 실행한다.
 4. Project Event 등록 계약과 Stage Event 실행 연결 범위를 확인한다.

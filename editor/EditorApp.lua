@@ -79,6 +79,7 @@ function EditorApp:getViewModel()
         selectedEventId = self.selectedEventId,
         properties = properties,
         valueEdit = self.valueEdit,
+        dialog = self.dialog,
         beat = self.session:getBeat(),
         timelineStartBeat = self.session:getTimelineStartBeat(),
         scale = scale,
