@@ -67,24 +67,44 @@ function EditorLayout.getPreviewRect(layout)
     }
 end
 
-function EditorLayout.getBpmValueRect(layout)
-    local values = layout.panels[5]
+local function getRowRect(panel, rowIndex)
     return {
-        x = values.x,
-        y = values.y + HEADER_HEIGHT,
-        width = values.width,
+        x = panel.x,
+        y = panel.y + HEADER_HEIGHT + (rowIndex - 1) * PROPERTY_ROW_HEIGHT,
+        width = panel.width,
         height = PROPERTY_ROW_HEIGHT,
     }
+end
+
+function EditorLayout.getEventRowRect(layout, rowIndex)
+    return getRowRect(layout.panels[3], rowIndex)
+end
+
+function EditorLayout.getPropertyValueRect(layout, rowIndex)
+    return getRowRect(layout.panels[5], rowIndex)
 end
 
 function EditorLayout.getVisibleBeatCount(layout)
     return math.max(1, math.floor(layout.timeline.width / TIMELINE_STEP_WIDTH))
 end
 
-function EditorLayout.hitTestBpmValue(layout, x, y)
-    local rect = EditorLayout.getBpmValueRect(layout)
-    return x >= rect.x and x < rect.x + rect.width
-        and y >= rect.y and y < rect.y + rect.height
+local function hitTestRows(getRect, layout, rowCount, x, y)
+    for rowIndex = 1, rowCount do
+        local rect = getRect(layout, rowIndex)
+        if x >= rect.x and x < rect.x + rect.width
+            and y >= rect.y and y < rect.y + rect.height then
+            return rowIndex
+        end
+    end
+    return nil
+end
+
+function EditorLayout.hitTestEvent(layout, eventCount, x, y)
+    return hitTestRows(EditorLayout.getEventRowRect, layout, eventCount, x, y)
+end
+
+function EditorLayout.hitTestPropertyValue(layout, propertyCount, x, y)
+    return hitTestRows(EditorLayout.getPropertyValueRect, layout, propertyCount, x, y)
 end
 
 local function drawPanel(panel)
@@ -103,23 +123,53 @@ local function drawPanelContent(layout, viewModel)
 
     love.graphics.setColor(0.9, 0.91, 0.93, 1)
     love.graphics.print("> Global", layout.panels[2].x + 12, HEADER_HEIGHT + 3)
-    love.graphics.print("> Mixtape Properties", layout.panels[3].x + 12, HEADER_HEIGHT + 3)
+    for rowIndex, event in ipairs(viewModel.propertyEvents) do
+        local rect = EditorLayout.getEventRowRect(layout, rowIndex)
+        local prefix = event.id == viewModel.selectedEventId and "> " or "  "
+        love.graphics.print(prefix .. event.label, rect.x + 12, rect.y + 3)
+    end
     if not viewModel.playing then
-        love.graphics.print("BPM", layout.panels[4].x + 12, HEADER_HEIGHT + 3)
-        if viewModel.editingBpm then
-            local rect = EditorLayout.getBpmValueRect(layout)
-            love.graphics.setColor(0.1, 0.11, 0.12, 1)
-            love.graphics.rectangle("fill", rect.x + 4, rect.y + 2, rect.width - 8, rect.height - 4)
-            if viewModel.bpmEditInvalid then
-                love.graphics.setColor(0.92, 0.3, 0.3, 1)
-            else
-                love.graphics.setColor(1, 0.45, 0.2, 1)
-            end
-            love.graphics.rectangle("line", rect.x + 4, rect.y + 2, rect.width - 8, rect.height - 4)
+        for rowIndex, property in ipairs(viewModel.properties) do
+            local rect = EditorLayout.getPropertyValueRect(layout, rowIndex)
             love.graphics.setColor(0.9, 0.91, 0.93, 1)
-            love.graphics.print(viewModel.bpmText, layout.panels[5].x + 12, HEADER_HEIGHT + 3)
-        else
-            love.graphics.print(tostring(viewModel.bpm), layout.panels[5].x + 12, HEADER_HEIGHT + 3)
+            love.graphics.print(property.label, layout.panels[4].x + 12, rect.y + 3)
+
+            local valueText
+            local editing = viewModel.valueEdit
+                and viewModel.valueEdit.groupId == viewModel.selectedEventId
+                and viewModel.valueEdit.propertyId == property.id
+            if editing then
+                valueText = viewModel.valueEdit.text
+            elseif property.kind == "music" and property.value == nil then
+                valueText = "None"
+            else
+                valueText = tostring(property.value)
+            end
+
+            if editing then
+                love.graphics.setColor(0.1, 0.11, 0.12, 1)
+                love.graphics.rectangle(
+                    "fill",
+                    rect.x + 4,
+                    rect.y + 2,
+                    rect.width - 8,
+                    rect.height - 4
+                )
+                if viewModel.valueEdit.invalid then
+                    love.graphics.setColor(0.92, 0.3, 0.3, 1)
+                else
+                    love.graphics.setColor(1, 0.45, 0.2, 1)
+                end
+                love.graphics.rectangle(
+                    "line",
+                    rect.x + 4,
+                    rect.y + 2,
+                    rect.width - 8,
+                    rect.height - 4
+                )
+            end
+            love.graphics.setColor(0.9, 0.91, 0.93, 1)
+            love.graphics.print(valueText, rect.x + 12, rect.y + 3)
         end
     end
 end

@@ -155,6 +155,38 @@ end
 
 return {
     {
+        name = "PropertyCatalog는 Events와 속성을 정해진 순서로 복사해 제공한다",
+        run = function(test)
+            local PropertyCatalog = require("editor.properties.PropertyCatalog")
+            local events = PropertyCatalog.getEvents()
+
+            test.assertEqual(#events, 2)
+            test.assertEqual(events[1].id, "editorProperties")
+            test.assertEqual(events[1].label, "Editor Properties")
+            test.assertEqual(events[2].id, "mixtapeProperties")
+            test.assertEqual(events[2].label, "Mixtape Properties")
+
+            local editorLabels = { "Scale", "Playback Rate", "Metronome", "Metronome Period" }
+            local mixtapeLabels = { "Music", "Volume", "Beat 0 Offset", "BPM" }
+            for index, label in ipairs(editorLabels) do
+                test.assertEqual(events[1].properties[index].label, label)
+            end
+            for index, label in ipairs(mixtapeLabels) do
+                test.assertEqual(events[2].properties[index].label, label)
+            end
+            test.assertEqual(events[1].properties[3].kind, "boolean")
+            test.assertEqual(events[2].properties[1].kind, "music")
+            test.assertEqual(events[2].properties[3].kind, "number")
+
+            events[1].label = "Changed"
+            events[1].properties[1].label = "Changed"
+            local editorEvent = PropertyCatalog.getEvent("editorProperties")
+            test.assertEqual(editorEvent.label, "Editor Properties")
+            test.assertEqual(editorEvent.properties[1].label, "Scale")
+            test.assertEqual(PropertyCatalog.getEvent("missing"), nil)
+        end,
+    },
+    {
         name = "Menu는 요청한 일곱 항목만 순서대로 제공한다",
         run = function(test)
             local EditorMenu = require("editor.menu.EditorMenu")
@@ -212,7 +244,18 @@ return {
                 local layout = EditorLayout.draw(288, 200, {
                     hasStage = true,
                     playing = false,
-                    bpm = 123,
+                    propertyEvents = {
+                        { id = "editorProperties", label = "Editor Properties" },
+                        { id = "mixtapeProperties", label = "Mixtape Properties" },
+                    },
+                    selectedEventId = "editorProperties",
+                    properties = {
+                        { id = "scale", label = "Scale", kind = "number", value = 1 },
+                        { id = "playbackRate", label = "Playback Rate", kind = "number", value = 1 },
+                        { id = "metronome", label = "Metronome", kind = "boolean", value = false },
+                        { id = "metronomePeriod", label = "Metronome Period", kind = "number", value = 4 },
+                    },
+                    valueEdit = nil,
                     beat = 2.5,
                     timelineStartBeat = 0,
                     menuItems = items,
@@ -225,9 +268,15 @@ return {
                     assertHeading(test, recorder, label, true)
                 end
                 test.assertEqual(countPrints(recorder, "> Global"), 1)
-                test.assertEqual(countPrints(recorder, "> Mixtape Properties"), 1)
-                test.assertEqual(countPrints(recorder, "BPM"), 1)
-                test.assertEqual(countPrints(recorder, "123"), 1)
+                test.assertEqual(countPrints(recorder, "> Editor Properties"), 1)
+                test.assertEqual(countPrints(recorder, "  Mixtape Properties"), 1)
+                test.assertEqual(countPrints(recorder, "Scale"), 1)
+                test.assertEqual(countPrints(recorder, "Playback Rate"), 1)
+                test.assertEqual(countPrints(recorder, "Metronome"), 1)
+                test.assertEqual(countPrints(recorder, "Metronome Period"), 1)
+                test.assertEqual(countPrints(recorder, "false"), 1)
+                local periodRect = EditorLayout.getPropertyValueRect(layout, 4)
+                test.assertEqual(countPrints(recorder, "4", periodRect.y + 3), 1)
                 test.assertEqual(previewCount, 0)
                 test.assertEqual(#recorder.pushes, 1)
                 test.assertEqual(recorder.pushes[1], "all")
@@ -255,7 +304,13 @@ return {
                 local layout = EditorLayout.draw(288, 200, {
                     hasStage = true,
                     playing = true,
-                    bpm = 123,
+                    propertyEvents = {
+                        { id = "editorProperties", label = "Editor Properties" },
+                        { id = "mixtapeProperties", label = "Mixtape Properties" },
+                    },
+                    selectedEventId = "editorProperties",
+                    properties = {},
+                    valueEdit = nil,
                     beat = 6,
                     timelineStartBeat = 4,
                     menuItems = playing,
@@ -270,7 +325,8 @@ return {
                 assertHeading(test, recorder, "Properties", false)
                 assertHeading(test, recorder, "Values", false)
                 test.assertEqual(countPrints(recorder, "> Global"), 1)
-                test.assertEqual(countPrints(recorder, "> Mixtape Properties"), 1)
+                test.assertEqual(countPrints(recorder, "> Editor Properties"), 1)
+                test.assertEqual(countPrints(recorder, "  Mixtape Properties"), 1)
                 test.assertEqual(countPrints(recorder, "BPM"), 0)
                 test.assertEqual(countPrints(recorder, "123"), 0)
                 test.assertEqual(#previewCalls, 1)
@@ -295,35 +351,41 @@ return {
         end,
     },
     {
-        name = "Properties와 Values 합친 영역과 BPM Value 영역을 계산한다",
+        name = "Events와 Property Values 동적 행 영역을 계산한다",
         run = function(test)
             local EditorLayout = require("editor.ui.EditorLayout")
             local layout = EditorLayout.getLayout(1200, 800)
             local preview = EditorLayout.getPreviewRect(layout)
-            local bpm = EditorLayout.getBpmValueRect(layout)
+            local event = EditorLayout.getEventRowRect(layout, 2)
+            local value = EditorLayout.getPropertyValueRect(layout, 4)
             test.assertEqual(preview.x, layout.panels[4].x)
             test.assertEqual(preview.y, layout.panels[4].y)
             test.assertEqual(preview.width, layout.panels[4].width + layout.panels[5].width)
             test.assertEqual(preview.height, layout.panels[4].height)
-            test.assertEqual(bpm.x, layout.panels[5].x)
-            test.assertEqual(bpm.y, 32)
-            test.assertEqual(bpm.width, layout.panels[5].width)
-            test.assertEqual(bpm.height, 24)
+            test.assertEqual(event.x, layout.panels[3].x)
+            test.assertEqual(event.y, 56)
+            test.assertEqual(event.width, layout.panels[3].width)
+            test.assertEqual(event.height, 24)
+            test.assertEqual(value.x, layout.panels[5].x)
+            test.assertEqual(value.y, 104)
+            test.assertEqual(value.width, layout.panels[5].width)
+            test.assertEqual(value.height, 24)
             test.assertEqual(EditorLayout.getVisibleBeatCount(layout), 37)
-            test.assertEqual(EditorLayout.hitTestBpmValue(layout, bpm.x, bpm.y), true)
-            test.assertEqual(EditorLayout.hitTestBpmValue(
+            test.assertEqual(EditorLayout.hitTestEvent(layout, 2, event.x, event.y), 2)
+            test.assertEqual(EditorLayout.hitTestEvent(layout, 1, event.x, event.y), nil)
+            test.assertEqual(EditorLayout.hitTestEvent(layout, 2, event.x + event.width, event.y), nil)
+            test.assertEqual(EditorLayout.hitTestPropertyValue(layout, 4, value.x, value.y), 4)
+            test.assertEqual(EditorLayout.hitTestPropertyValue(layout, 3, value.x, value.y), nil)
+            test.assertEqual(EditorLayout.hitTestPropertyValue(
                 layout,
-                bpm.x + bpm.width - 1,
-                bpm.y + bpm.height - 1
-            ), true)
-            test.assertEqual(EditorLayout.hitTestBpmValue(layout, bpm.x + bpm.width, bpm.y), false)
-            test.assertEqual(EditorLayout.hitTestBpmValue(layout, bpm.x, bpm.y + bpm.height), false)
-            test.assertEqual(EditorLayout.hitTestBpmValue(layout, bpm.x - 1, bpm.y), false)
-            test.assertEqual(EditorLayout.hitTestBpmValue(layout, bpm.x, bpm.y - 1), false)
+                4,
+                value.x,
+                value.y + value.height
+            ), nil)
         end,
     },
     {
-        name = "BPM 인라인 편집 상태를 Values 셀 안에 표시한다",
+        name = "숫자 인라인 편집 상태와 invalid를 해당 Values 셀에 표시한다",
         run = function(test)
             local EditorMenu = require("editor.menu.EditorMenu")
             local EditorLayout = require("editor.ui.EditorLayout")
@@ -333,16 +395,30 @@ return {
                 local layout = EditorLayout.draw(1200, 800, {
                     hasStage = true,
                     playing = false,
-                    bpm = 120,
-                    bpmText = "135",
-                    editingBpm = true,
-                    bpmEditInvalid = false,
+                    propertyEvents = {
+                        { id = "editorProperties", label = "Editor Properties" },
+                        { id = "mixtapeProperties", label = "Mixtape Properties" },
+                    },
+                    selectedEventId = "mixtapeProperties",
+                    properties = {
+                        { id = "music", label = "Music", kind = "music", value = nil },
+                        { id = "volume", label = "Volume", kind = "number", value = 1 },
+                        { id = "beat0Offset", label = "Beat 0 Offset", kind = "number", value = 0 },
+                        { id = "bpm", label = "BPM", kind = "number", value = 120 },
+                    },
+                    valueEdit = {
+                        groupId = "mixtapeProperties",
+                        propertyId = "bpm",
+                        text = "135",
+                        replaceOnInput = false,
+                        invalid = false,
+                    },
                     beat = 0,
                     timelineStartBeat = 0,
                     menuItems = items,
                     hoveredAction = nil,
                 }, function() end)
-                local bpm = EditorLayout.getBpmValueRect(layout)
+                local bpm = EditorLayout.getPropertyValueRect(layout, 4)
                 local outline = findRectangle(recorder, {
                     mode = "line",
                     x = bpm.x + 4,
@@ -353,7 +429,47 @@ return {
 
                 test.assertEqual(countPrints(recorder, "135"), 1)
                 test.assertEqual(countPrints(recorder, "120"), 0)
+                test.assertEqual(countPrints(recorder, "None"), 1)
                 assertColor(test, outline, { 1, 0.45, 0.2, 1 })
+            end)
+
+            withGraphicsRecorder(function(recorder)
+                local layout = EditorLayout.draw(1200, 800, {
+                    hasStage = true,
+                    playing = false,
+                    propertyEvents = {
+                        { id = "editorProperties", label = "Editor Properties" },
+                        { id = "mixtapeProperties", label = "Mixtape Properties" },
+                    },
+                    selectedEventId = "mixtapeProperties",
+                    properties = {
+                        { id = "music", label = "Music", kind = "music", value = nil },
+                        { id = "volume", label = "Volume", kind = "number", value = 1 },
+                    },
+                    valueEdit = {
+                        groupId = "mixtapeProperties",
+                        propertyId = "volume",
+                        text = "2",
+                        replaceOnInput = false,
+                        invalid = true,
+                    },
+                    beat = 0,
+                    timelineStartBeat = 0,
+                    menuItems = items,
+                    hoveredAction = nil,
+                }, function() end)
+                local volume = EditorLayout.getPropertyValueRect(layout, 2)
+                local outline = findRectangle(recorder, {
+                    mode = "line",
+                    x = volume.x + 4,
+                    y = volume.y + 2,
+                    width = volume.width - 8,
+                    height = volume.height - 4,
+                })
+
+                test.assertEqual(countPrints(recorder, "2"), 1)
+                test.assertEqual(countPrints(recorder, "1"), 0)
+                assertColor(test, outline, { 0.92, 0.3, 0.3, 1 })
             end)
         end,
     },

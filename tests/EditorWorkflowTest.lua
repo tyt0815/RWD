@@ -63,6 +63,125 @@ end
 
 return {
     {
+        name = "Property Events는 Editor Properties를 기본 선택하고 선택만으로 dirty가 되지 않는다",
+        run = function(test)
+            local EditorLayout = require("editor.ui.EditorLayout")
+            local app = newFixture()
+            createStageThroughDialog(app, "property-events")
+            app:executeAction("save")
+
+            local viewModel = app:getViewModel()
+            test.assertEqual(viewModel.propertyEvents[1].label, "Editor Properties")
+            test.assertEqual(viewModel.propertyEvents[2].label, "Mixtape Properties")
+            test.assertEqual(viewModel.selectedEventId, "editorProperties")
+            test.assertEqual(viewModel.properties[1].label, "Scale")
+            test.assertEqual(viewModel.properties[2].label, "Playback Rate")
+            test.assertEqual(viewModel.properties[3].label, "Metronome")
+            test.assertEqual(viewModel.properties[4].label, "Metronome Period")
+
+            local eventRect = EditorLayout.getEventRowRect(app.layout, 2)
+            app:mousepressed(eventRect.x + 8, eventRect.y + 8, 1)
+            viewModel = app:getViewModel()
+            test.assertEqual(viewModel.selectedEventId, "mixtapeProperties")
+            test.assertEqual(viewModel.properties[1].label, "Music")
+            test.assertEqual(viewModel.properties[2].label, "Volume")
+            test.assertEqual(viewModel.properties[3].label, "Beat 0 Offset")
+            test.assertEqual(viewModel.properties[4].label, "BPM")
+            test.assertEqual(app:getSession():isDirty(), false)
+        end,
+    },
+    {
+        name = "숫자 Property는 음수를 포함해 인라인 편집한다",
+        run = function(test)
+            local EditorLayout = require("editor.ui.EditorLayout")
+            local app = newFixture()
+            createStageThroughDialog(app, "numeric-property")
+
+            local eventRect = EditorLayout.getEventRowRect(app.layout, 2)
+            app:mousepressed(eventRect.x + 8, eventRect.y + 8, 1)
+            local offsetRect = EditorLayout.getPropertyValueRect(app.layout, 3)
+            app:mousepressed(offsetRect.x + 8, offsetRect.y + 8, 1)
+            app:textinput("-0.5")
+            app:keypressed("return")
+
+            test.assertEqual(
+                app:getSession():getProperty("mixtapeProperties", "beat0Offset"),
+                -0.5
+            )
+            test.assertEqual(app:getViewModel().valueEdit, nil)
+            test.assertEqual(app:getDialog(), nil)
+        end,
+    },
+    {
+        name = "boolean Property는 클릭 즉시 전환한다",
+        run = function(test)
+            local EditorLayout = require("editor.ui.EditorLayout")
+            local app = newFixture()
+            createStageThroughDialog(app, "boolean-property")
+            app:executeAction("save")
+
+            test.assertEqual(
+                app:getSession():getProperty("editorProperties", "metronome"),
+                false
+            )
+            local metronomeRect = EditorLayout.getPropertyValueRect(app.layout, 3)
+            app:mousepressed(metronomeRect.x + 8, metronomeRect.y + 8, 1)
+
+            test.assertEqual(
+                app:getSession():getProperty("editorProperties", "metronome"),
+                true
+            )
+            test.assertEqual(app:getViewModel().valueEdit, nil)
+            test.assertEqual(app:getSession():isDirty(), true)
+        end,
+    },
+    {
+        name = "invalid 숫자 Property는 편집 상태를 유지하고 값을 적용하지 않는다",
+        run = function(test)
+            local EditorLayout = require("editor.ui.EditorLayout")
+            local app = newFixture()
+            createStageThroughDialog(app, "invalid-property")
+
+            local eventRect = EditorLayout.getEventRowRect(app.layout, 2)
+            app:mousepressed(eventRect.x + 8, eventRect.y + 8, 1)
+            local volumeRect = EditorLayout.getPropertyValueRect(app.layout, 2)
+            app:mousepressed(volumeRect.x + 8, volumeRect.y + 8, 1)
+            app:textinput("2")
+            app:keypressed("return")
+
+            local valueEdit = app:getViewModel().valueEdit
+            test.assertEqual(valueEdit.propertyId, "volume")
+            test.assertEqual(valueEdit.invalid, true)
+            test.assertEqual(
+                app:getSession():getProperty("mixtapeProperties", "volume"),
+                1
+            )
+            test.assertEqual(app:getDialog(), nil)
+        end,
+    },
+    {
+        name = "Music Property 클릭은 값을 바꾸거나 모달을 열지 않는다",
+        run = function(test)
+            local EditorLayout = require("editor.ui.EditorLayout")
+            local app = newFixture()
+            createStageThroughDialog(app, "music-property")
+            app:executeAction("save")
+
+            local eventRect = EditorLayout.getEventRowRect(app.layout, 2)
+            app:mousepressed(eventRect.x + 8, eventRect.y + 8, 1)
+            local musicRect = EditorLayout.getPropertyValueRect(app.layout, 1)
+            app:mousepressed(musicRect.x + 8, musicRect.y + 8, 1)
+
+            test.assertEqual(
+                app:getSession():getProperty("mixtapeProperties", "music"),
+                nil
+            )
+            test.assertEqual(app:getViewModel().valueEdit, nil)
+            test.assertEqual(app:getDialog(), nil)
+            test.assertEqual(app:getSession():isDirty(), false)
+        end,
+    },
+    {
         name = "New dialog creates a dirty Stage",
         run = function(test)
             local app = newFixture()
@@ -167,68 +286,88 @@ return {
         end,
     },
     {
-        name = "BPM Value is edited inline without opening a dialog",
+        name = "BPM Value is edited through the general Property row without opening a dialog",
         run = function(test)
             local EditorLayout = require("editor.ui.EditorLayout")
             local app = newFixture()
             createStageThroughDialog(app, "inline-bpm")
             app:executeAction("save")
 
-            local layout = EditorLayout.getLayout(1200, 800)
-            local bpmRect = EditorLayout.getBpmValueRect(layout)
+            local eventRect = EditorLayout.getEventRowRect(app.layout, 2)
+            app:mousepressed(eventRect.x + 8, eventRect.y + 8, 1)
+            local bpmRect = EditorLayout.getPropertyValueRect(app.layout, 4)
             app:mousepressed(bpmRect.x + 12, bpmRect.y + 12, 1)
 
             test.assertEqual(app:getDialog(), nil)
-            test.assertEqual(app:getViewModel().editingBpm, true)
-            test.assertEqual(app:getViewModel().bpmText, "120")
+            test.assertEqual(app:getViewModel().valueEdit.propertyId, "bpm")
+            test.assertEqual(app:getViewModel().valueEdit.text, "120")
 
             app:textinput("135")
-            test.assertEqual(app:getViewModel().bpmText, "135")
+            test.assertEqual(app:getViewModel().valueEdit.text, "135")
             app:keypressed("return")
 
-            test.assertEqual(app:getViewModel().editingBpm, false)
+            test.assertEqual(app:getViewModel().valueEdit, nil)
             test.assertEqual(app:getSession():getBpm(), 135)
             test.assertEqual(app:getSession():isDirty(), true)
         end,
     },
     {
-        name = "Invalid inline BPM stays active and Escape cancels the edit",
+        name = "Invalid inline BPM stays active and Escape cancels the general value edit",
         run = function(test)
             local EditorLayout = require("editor.ui.EditorLayout")
             local app = newFixture()
             createStageThroughDialog(app, "invalid-inline-bpm")
 
-            local layout = EditorLayout.getLayout(1200, 800)
-            local bpmRect = EditorLayout.getBpmValueRect(layout)
+            local eventRect = EditorLayout.getEventRowRect(app.layout, 2)
+            app:mousepressed(eventRect.x + 8, eventRect.y + 8, 1)
+            local bpmRect = EditorLayout.getPropertyValueRect(app.layout, 4)
             app:mousepressed(bpmRect.x + 12, bpmRect.y + 12, 1)
             app:textinput("0")
             app:keypressed("return")
 
             test.assertEqual(app:getDialog(), nil)
-            test.assertEqual(app:getViewModel().editingBpm, true)
-            test.assertEqual(app:getViewModel().bpmEditInvalid, true)
+            test.assertEqual(app:getViewModel().valueEdit.invalid, true)
             test.assertEqual(app:getSession():getBpm(), 120)
 
             app:keypressed("escape")
-            test.assertEqual(app:getViewModel().editingBpm, false)
+            test.assertEqual(app:getViewModel().valueEdit, nil)
             test.assertEqual(app:getSession():getBpm(), 120)
         end,
     },
     {
-        name = "Clicking outside the BPM Value commits the inline edit",
+        name = "Clicking outside a Property Value commits the inline edit",
         run = function(test)
             local EditorLayout = require("editor.ui.EditorLayout")
             local app = newFixture()
             createStageThroughDialog(app, "blur-inline-bpm")
 
-            local layout = EditorLayout.getLayout(1200, 800)
-            local bpmRect = EditorLayout.getBpmValueRect(layout)
+            local eventRect = EditorLayout.getEventRowRect(app.layout, 2)
+            app:mousepressed(eventRect.x + 8, eventRect.y + 8, 1)
+            local bpmRect = EditorLayout.getPropertyValueRect(app.layout, 4)
             app:mousepressed(bpmRect.x + 12, bpmRect.y + 12, 1)
             app:textinput("90")
-            app:mousepressed(layout.panels[3].x + 12, 100, 1)
+            app:mousepressed(app.layout.panels[2].x + 12, 100, 1)
 
-            test.assertEqual(app:getViewModel().editingBpm, false)
+            test.assertEqual(app:getViewModel().valueEdit, nil)
             test.assertEqual(app:getSession():getBpm(), 90)
+        end,
+    },
+    {
+        name = "Play 중에는 숨겨진 Property Values를 편집하지 않는다",
+        run = function(test)
+            local EditorLayout = require("editor.ui.EditorLayout")
+            local app = newFixture()
+            createStageThroughDialog(app, "playing-properties")
+            app:executeAction("play")
+
+            local valueRect = EditorLayout.getPropertyValueRect(app.layout, 1)
+            app:mousepressed(valueRect.x + 8, valueRect.y + 8, 1)
+
+            test.assertEqual(app:getViewModel().valueEdit, nil)
+            test.assertEqual(
+                app:getSession():getProperty("editorProperties", "scale"),
+                1
+            )
         end,
     },
     {

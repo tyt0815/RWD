@@ -3,6 +3,7 @@ local EditorDialog = require("editor.ui.EditorDialog")
 local EditorLayout = require("editor.ui.EditorLayout")
 local EditorMenu = require("editor.menu.EditorMenu")
 local ProjectCatalog = require("editor.project.ProjectCatalog")
+local PropertyCatalog = require("editor.properties.PropertyCatalog")
 local StageStore = require("editor.stage.StageStore")
 local TestPlayer = require("editor.playback.TestPlayer")
 
@@ -30,7 +31,8 @@ function EditorApp.new(options)
         session = session,
         onQuit = options.onQuit or function() end,
         dialog = nil,
-        bpmEdit = nil,
+        selectedEventId = "editorProperties",
+        valueEdit = nil,
         hoveredAction = nil,
         layout = EditorLayout.getLayout(1200, 800),
     }, EditorApp)
@@ -45,14 +47,31 @@ function EditorApp:getDialog()
 end
 
 function EditorApp:getViewModel()
+    local properties = {}
+    local selectedEvent = PropertyCatalog.getEvent(self.selectedEventId)
+    if selectedEvent then
+        for _, property in ipairs(selectedEvent.properties) do
+            local value
+            if self.session:hasStage() then
+                value = self.session:getProperty(selectedEvent.id, property.id)
+            end
+            table.insert(properties, {
+                id = property.id,
+                label = property.label,
+                kind = property.kind,
+                value = value,
+            })
+        end
+    end
+
     return {
         hasStage = self.session:hasStage(),
         playing = self.session:isPlaying(),
         dirty = self.session:isDirty(),
-        bpm = self.session:getBpm(),
-        bpmText = self.bpmEdit and self.bpmEdit.text or nil,
-        editingBpm = self.bpmEdit ~= nil,
-        bpmEditInvalid = self.bpmEdit ~= nil and self.bpmEdit.invalid,
+        propertyEvents = PropertyCatalog.getEvents(),
+        selectedEventId = self.selectedEventId,
+        properties = properties,
+        valueEdit = self.valueEdit,
         beat = self.session:getBeat(),
         timelineStartBeat = self.session:getTimelineStartBeat(),
         menuItems = EditorMenu.getItems(self.session),
@@ -64,24 +83,30 @@ function EditorApp:showError(message)
     self.dialog = EditorDialog.error(message)
 end
 
-function EditorApp:beginBpmEdit()
-    self.bpmEdit = {
-        text = tostring(self.session:getBpm()),
+function EditorApp:beginValueEdit(groupId, propertyId)
+    self.valueEdit = {
+        groupId = groupId,
+        propertyId = propertyId,
+        text = tostring(self.session:getProperty(groupId, propertyId)),
         replaceOnInput = true,
         invalid = false,
     }
 end
 
-function EditorApp:commitBpmEdit()
-    if not self.bpmEdit then return true end
+function EditorApp:commitValueEdit()
+    if not self.valueEdit then return true end
 
-    local changed, errorMessage = self.session:setBpm(tonumber(self.bpmEdit.text))
+    local changed, errorMessage = self.session:setProperty(
+        self.valueEdit.groupId,
+        self.valueEdit.propertyId,
+        tonumber(self.valueEdit.text)
+    )
     if not changed then
-        self.bpmEdit.invalid = true
+        self.valueEdit.invalid = true
         return nil, errorMessage
     end
 
-    self.bpmEdit = nil
+    self.valueEdit = nil
     return true, nil
 end
 
@@ -260,11 +285,22 @@ function EditorApp:mousepressed(x, y, button)
         end
         return true
     end
-    if self.bpmEdit then
-        if EditorLayout.hitTestBpmValue(self.layout, x, y) then
+    local selectedEvent = PropertyCatalog.getEvent(self.selectedEventId)
+    local propertyCount = selectedEvent and #selectedEvent.properties or 0
+    local propertyRow = EditorLayout.hitTestPropertyValue(
+        self.layout,
+        propertyCount,
+        x,
+        y
+    )
+    if self.valueEdit then
+        local clickedProperty = propertyRow and selectedEvent.properties[propertyRow] or nil
+        if clickedProperty
+            and self.valueEdit.groupId == selectedEvent.id
+            and self.valueEdit.propertyId == clickedProperty.id then
             return true
         end
-        local committed = self:commitBpmEdit()
+        local committed = self:commitValueEdit()
         if not committed then return true end
     end
     local items = EditorMenu.getItems(self.session)
@@ -273,9 +309,28 @@ function EditorApp:mousepressed(x, y, button)
         self:executeAction(item.action)
         return true
     end
-    if self.session:hasStage() and not self.session:isPlaying()
-        and EditorLayout.hitTestBpmValue(self.layout, x, y) then
-        self:beginBpmEdit()
+
+    local propertyEvents = PropertyCatalog.getEvents()
+    local eventRow = EditorLayout.hitTestEvent(self.layout, #propertyEvents, x, y)
+    if eventRow then
+        self.selectedEventId = propertyEvents[eventRow].id
+        return true
+    end
+
+    if self.session:hasStage() and not self.session:isPlaying() and propertyRow then
+        local property = selectedEvent.properties[propertyRow]
+        if property.kind == "number" then
+            self:beginValueEdit(selectedEvent.id, property.id)
+        elseif property.kind == "boolean" then
+            local currentValue = self.session:getProperty(selectedEvent.id, property.id)
+            local changed, errorMessage = self.session:setProperty(
+                selectedEvent.id,
+                property.id,
+                not currentValue
+            )
+            if not changed then self:showError(errorMessage) end
+        end
+        return true
     end
     return true
 end
@@ -283,16 +338,16 @@ end
 function EditorApp:textinput(text)
     if self.dialog then
         self.dialog:textinput(text)
-    elseif self.bpmEdit then
-        local numericText = text:gsub("[^%d%.]", "")
+    elseif self.valueEdit then
+        local numericText = text:gsub("[^%d%.%-]", "")
         if numericText ~= "" then
-            if self.bpmEdit.replaceOnInput then
-                self.bpmEdit.text = numericText
+            if self.valueEdit.replaceOnInput then
+                self.valueEdit.text = numericText
             else
-                self.bpmEdit.text = self.bpmEdit.text .. numericText
+                self.valueEdit.text = self.valueEdit.text .. numericText
             end
-            self.bpmEdit.replaceOnInput = false
-            self.bpmEdit.invalid = false
+            self.valueEdit.replaceOnInput = false
+            self.valueEdit.invalid = false
         end
     end
     return true
@@ -301,15 +356,15 @@ end
 function EditorApp:keypressed(key)
     if self.dialog then
         self.dialog:keypressed(key)
-    elseif self.bpmEdit then
+    elseif self.valueEdit then
         if key == "backspace" then
-            self.bpmEdit.text = self.bpmEdit.text:sub(1, -2)
-            self.bpmEdit.replaceOnInput = false
-            self.bpmEdit.invalid = false
+            self.valueEdit.text = self.valueEdit.text:sub(1, -2)
+            self.valueEdit.replaceOnInput = false
+            self.valueEdit.invalid = false
         elseif key == "return" or key == "kpenter" then
-            self:commitBpmEdit()
+            self:commitValueEdit()
         elseif key == "escape" then
-            self.bpmEdit = nil
+            self.valueEdit = nil
         end
     end
     return true
