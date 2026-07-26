@@ -17,6 +17,7 @@ local function newMetronome(options)
         soundData = {},
         sources = {},
         clicks = {},
+        operations = {},
     }
 
     local function soundDataFactory(sampleCount, sampleRate)
@@ -43,6 +44,7 @@ local function newMetronome(options)
         local source = {
             kind = kind,
             sourceType = sourceType,
+            playing = false,
             pauseCount = 0,
             stopCount = 0,
             setLooping = function(self, looping) self.looping = looping end,
@@ -51,10 +53,21 @@ local function newMetronome(options)
                 if options.playErrorKind == self.kind then
                     error(self.kind .. " play failed")
                 end
-                table.insert(state.clicks, self.kind)
+                if not self.playing then
+                    self.playing = true
+                    table.insert(state.clicks, self.kind)
+                    table.insert(state.operations, "play:" .. self.kind)
+                end
             end,
-            pause = function(self) self.pauseCount = self.pauseCount + 1 end,
-            stop = function(self) self.stopCount = self.stopCount + 1 end,
+            pause = function(self)
+                self.pauseCount = self.pauseCount + 1
+                self.playing = false
+            end,
+            stop = function(self)
+                self.stopCount = self.stopCount + 1
+                self.playing = false
+                table.insert(state.operations, "stop:" .. self.kind)
+            end,
         }
         table.insert(state.sources, source)
         return source
@@ -71,6 +84,13 @@ local function assertClicks(test, state, expected)
     test.assertEqual(#state.clicks, #expected)
     for index, kind in ipairs(expected) do
         test.assertEqual(state.clicks[index], kind)
+    end
+end
+
+local function assertOperations(test, state, expected)
+    test.assertEqual(#state.operations, #expected)
+    for index, operation in ipairs(expected) do
+        test.assertEqual(state.operations[index], operation)
     end
 end
 
@@ -117,7 +137,7 @@ return {
         run = function(test)
             local metronome, state = newMetronome()
             assert(metronome:play(120, 4, 0, 1))
-            assert(metronome:update(4))
+            for beat = 1, 4 do assert(metronome:update(beat)) end
 
             assertClicks(test, state, {
                 "accent", "normal", "normal", "normal", "accent",
@@ -129,10 +149,24 @@ return {
         run = function(test)
             local metronome, state = newMetronome()
             assert(metronome:play(120, 5, 0, 1))
-            assert(metronome:update(5))
+            for beat = 1, 5 do assert(metronome:update(beat)) end
 
             assertClicks(test, state, {
                 "accent", "normal", "normal", "normal", "normal", "accent",
+            })
+        end,
+    },
+    {
+        name = "Metronome multi-beat catch-up은 마지막 crossed beat 하나만 재생한다",
+        run = function(test)
+            local metronome, state = newMetronome()
+            assert(metronome:play(120, 4, 0.5, 1))
+
+            assert(metronome:update(4.9))
+
+            assertClicks(test, state, { "accent" })
+            assertOperations(test, state, {
+                "stop:accent", "stop:normal", "play:accent",
             })
         end,
     },
@@ -164,6 +198,7 @@ return {
         run = function(test)
             local metronome, state = newMetronome()
             assert(metronome:play(120, 4, 0, 1))
+            for _, source in ipairs(state.sources) do source.stopCount = 0 end
             assert(metronome:pause())
             assert(metronome:stop())
 
@@ -190,6 +225,7 @@ return {
         run = function(test)
             local metronome, state, options = newMetronome()
             assert(metronome:play(120, 4, 0, 1))
+            for _, source in ipairs(state.sources) do source.stopCount = 0 end
             options.playErrorKind = "normal"
 
             local updated, errorMessage = metronome:update(1)
@@ -197,7 +233,7 @@ return {
             test.assertEqual(updated, nil)
             test.assertContains(errorMessage, "normal play failed")
             for _, source in ipairs(state.sources) do
-                test.assertEqual(source.stopCount, 1)
+                test.assertEqual(source.stopCount, 2)
             end
         end,
     },
@@ -235,7 +271,7 @@ return {
             test.assertEqual(state.clicks[2], 2)
             test.assertEqual(state.looping, false)
             test.assertEqual(state.pitch, 1)
-            test.assertEqual(state.stopCount, 2)
+            test.assertEqual(state.stopCount, 6)
         end,
     },
 }

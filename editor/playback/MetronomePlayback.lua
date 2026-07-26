@@ -92,6 +92,9 @@ function MetronomePlayback.new(options)
 end
 
 local function playBeat(metronome, beatIndex)
+    local stopped, stopError = callBoth(metronome, "stop")
+    if not stopped then return fail(metronome, stopError) end
+
     local source = beatIndex % metronome.period == 0
         and metronome.accentSource or metronome.normalSource
     local played, playError = callSource(source, "play")
@@ -142,11 +145,11 @@ function MetronomePlayback:update(beat)
     if not self.accentSource or not self.normalSource then return true, nil end
 
     local currentBeat = math.floor(beat)
-    for beatIndex = self.lastProcessedBeat + 1, currentBeat do
-        local played, playError = playBeat(self, beatIndex)
-        if not played then return nil, playError end
-        self.lastProcessedBeat = beatIndex
-    end
+    if currentBeat <= self.lastProcessedBeat then return true, nil end
+
+    local played, playError = playBeat(self, currentBeat)
+    if not played then return nil, playError end
+    self.lastProcessedBeat = currentBeat
     return true, nil
 end
 
