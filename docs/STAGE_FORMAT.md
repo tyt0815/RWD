@@ -32,6 +32,8 @@ Mixtape와 Editor 설정이 모두 기본값이면 `mixtape`와 `editorSettings`
   "editorSettings": {
     "metronome": true,
     "metronomePeriod": 3,
+    "snap": 4,
+    "onsetThreshold": 0.02,
     "scale": 2,
     "playbackRate": 0.5
   },
@@ -85,10 +87,16 @@ Mixtape와 Editor 설정이 모두 기본값이면 `mixtape`와 `editorSettings`
 | --- | ---: | --- |
 | `metronome` | `false` | boolean |
 | `metronomePeriod` | `4` | 강박 반복 BPM 박자 수, `1~32` 정수 |
+| `snap` | `1` | Timeline 편집 박자 간격, `1~32` 정수 |
+| `onsetThreshold` | `0.01` | Music onset 검출 RMS 기준, `0.0~1.0` 유한 수 |
 | `scale` | `1.0` | `0.25~8.0` 유한 수 |
 | `playbackRate` | `1.0` | `0.25~4.0` 유한 수 |
 
 `metronomePeriod`는 강박을 반복하는 BPM 박자 수다. 값 4는 beat 0, 4, 8, 12에서 강박이 울리고 BPM 클릭 간격 자체는 바뀌지 않는다.
+
+`snap`은 Timeline에서 재생 바와 향후 Event 노드를 배치할 공통 박자 간격이다. 값 1은 한 박, 값 4는 4박 단위의 가장 가까운 위치에 맞춘다.
+
+`onsetThreshold`는 Beat 0 Offset Auto 분석에서 10ms RMS가 이 값보다 큰 연속 구간을 소리로 판정한다. 기본값 `0.01`은 작은 압축 노이즈를 제외하는 일반 권장값이며, `0`을 명시하면 완전한 무음만 제외한다.
 
 기본값과 같은 선택 필드는 저장할 때 제거한다. 그 결과 비어 있는 `mixtape` 또는 `editorSettings`도 제거된다. 예를 들어 wheel zoom으로 Scale만 `1.25`가 되면 `editorSettings`에는 `scale` 하나만 남는다. 이 기본값은 schemaVersion 2 계약이므로 의미를 바꾸려면 새 schemaVersion과 변환 정책이 필요하다.
 

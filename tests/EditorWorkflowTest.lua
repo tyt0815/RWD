@@ -74,6 +74,7 @@ local function newFixture(config)
             detect = function() return 0, nil end,
         },
         onQuit = function() state.quitCount = state.quitCount + 1 end,
+        isControlDown = config.isControlDown,
     })
     return app, state
 end
@@ -122,10 +123,13 @@ return {
             test.assertEqual(viewModel.propertyEvents[1].label, "Editor Properties")
             test.assertEqual(viewModel.propertyEvents[2].label, "Mixtape Properties")
             test.assertEqual(viewModel.selectedEventId, "editorProperties")
-            test.assertEqual(viewModel.properties[1].label, "Scale")
-            test.assertEqual(viewModel.properties[2].label, "Playback Rate")
-            test.assertEqual(viewModel.properties[3].label, "Metronome")
-            test.assertEqual(viewModel.properties[4].label, "Metronome Period")
+            test.assertEqual(viewModel.properties[1].label, "Snap")
+            test.assertEqual(viewModel.properties[1].value, 1)
+            test.assertEqual(viewModel.properties[2].label, "Scale")
+            test.assertEqual(viewModel.properties[3].label, "Playback Rate")
+            test.assertEqual(viewModel.properties[4].label, "Metronome")
+            test.assertEqual(viewModel.properties[5].label, "Metronome Period")
+            test.assertEqual(viewModel.metronomePeriod, 4)
 
             local eventRect = EditorLayout.getEventRowRect(app.layout, 2)
             app:mousepressed(eventRect.x + 8, eventRect.y + 8, 1)
@@ -134,8 +138,24 @@ return {
             test.assertEqual(viewModel.properties[1].label, "Music")
             test.assertEqual(viewModel.properties[2].label, "Volume")
             test.assertEqual(viewModel.properties[3].label, "Beat 0 Offset")
-            test.assertEqual(viewModel.properties[4].label, "BPM")
+            test.assertEqual(viewModel.properties[4].label, "Onset Threshold")
+            test.assertEqual(viewModel.properties[4].value, 0.01)
+            test.assertEqual(viewModel.properties[5].label, "BPM")
             test.assertEqual(app:getSession():isDirty(), false)
+        end,
+    },
+    {
+        name = "Timeline view model은 변경된 Metronome Period를 제공한다",
+        run = function(test)
+            local app = newFixture()
+            createStageThroughDialog(app, "timeline-period")
+
+            assert(app:getSession():setProperty(
+                "editorProperties",
+                "metronomePeriod",
+                5
+            ))
+            test.assertEqual(app:getViewModel().metronomePeriod, 5)
         end,
     },
     {
@@ -162,13 +182,35 @@ return {
         end,
     },
     {
+        name = "Mixtape Properties의 Onset Threshold 행은 Editor 설정을 편집한다",
+        run = function(test)
+            local EditorLayout = require("editor.ui.EditorLayout")
+            local app = newFixture()
+            createStageThroughDialog(app, "onset-threshold-row")
+
+            local eventRect = EditorLayout.getEventRowRect(app.layout, 2)
+            app:mousepressed(eventRect.x + 8, eventRect.y + 8, 1)
+            local thresholdRect = EditorLayout.getPropertyValueRect(app.layout, 4)
+            app:mousepressed(thresholdRect.x + 8, thresholdRect.y + 8, 1)
+            clearValueEdit(app)
+            app:textinput("0.02")
+            app:keypressed("return")
+
+            test.assertEqual(
+                app:getSession():getProperty("editorProperties", "onsetThreshold"),
+                0.02
+            )
+            test.assertEqual(app:getViewModel().valueEdit, nil)
+        end,
+    },
+    {
         name = "숫자 Property는 최초 포커스부터 커서 위치에 이어서 입력한다",
         run = function(test)
             local EditorLayout = require("editor.ui.EditorLayout")
             local app = newFixture()
             createStageThroughDialog(app, "numeric-property-initial-cursor")
 
-            local scaleRect = EditorLayout.getPropertyValueRect(app.layout, 1)
+            local scaleRect = EditorLayout.getPropertyValueRect(app.layout, 2)
             app:mousepressed(scaleRect.x + 8, scaleRect.y + 8, 1)
             app:textinput("2")
 
@@ -185,7 +227,7 @@ return {
 
             local eventRect = EditorLayout.getEventRowRect(app.layout, 2)
             app:mousepressed(eventRect.x + 8, eventRect.y + 8, 1)
-            local bpmRect = EditorLayout.getPropertyValueRect(app.layout, 4)
+            local bpmRect = EditorLayout.getPropertyValueRect(app.layout, 5)
             app:mousepressed(bpmRect.x + 8, bpmRect.y + 8, 1)
             clearValueEdit(app)
             app:textinput("135")
@@ -244,7 +286,7 @@ return {
                 app:getSession():getProperty("editorProperties", "metronome"),
                 false
             )
-            local metronomeRect = EditorLayout.getPropertyValueRect(app.layout, 3)
+            local metronomeRect = EditorLayout.getPropertyValueRect(app.layout, 4)
             app:mousepressed(metronomeRect.x + 8, metronomeRect.y + 8, 1)
 
             test.assertEqual(
@@ -347,15 +389,21 @@ return {
             local detectCount = 0
             local app = newFixture({
                 musicOnsetDetector = {
-                    detect = function(_, projectId, music)
+                    detect = function(_, projectId, music, threshold)
                         detectCount = detectCount + 1
                         test.assertEqual(projectId, "sample")
                         test.assertTrue(music ~= nil)
+                        test.assertEqual(threshold, 0.02)
                         return detectedOffsets[detectCount], nil
                     end,
                 },
             })
             createStageThroughDialog(app, "music-onset")
+            assert(app:getSession():setProperty(
+                "editorProperties",
+                "onsetThreshold",
+                0.02
+            ))
             local eventRect = EditorLayout.getEventRowRect(app.layout, 2)
             app:mousepressed(eventRect.x + 8, eventRect.y + 8, 1)
             local musicRect = EditorLayout.getPropertyValueRect(app.layout, 1)
@@ -753,39 +801,99 @@ return {
         end,
     },
     {
-        name = "playhead 핸들 좌클릭과 중간 버튼 드래그로 timeline을 조작한다",
+        name = "Timeline 숫자 영역 클릭과 drag는 Snap 간격으로 playhead를 옮긴다",
         run = function(test)
             local EditorLayout = require("editor.ui.EditorLayout")
             local app = newFixture()
             createStageThroughDialog(app, "timeline-drag")
+            assert(app:getSession():setProperty("editorProperties", "snap", 4))
             app:executeAction("save")
-            local timeline = app.layout.timeline
-            local handle = EditorLayout.getPlayheadHandle(
-                timeline,
-                app:getViewModel()
+            test.assertEqual(
+                app:getSession():getDocument():toTable().editorSettings.snap,
+                4
             )
+            local timeline = app.layout.timeline
+            local pixelsPerBeat = EditorLayout.getPixelsPerBeat(1)
+            local originX = EditorLayout.getTimelineBeatOriginX(timeline, 1)
 
-            app:mousepressed(handle.x, handle.y + 2, 1)
-            app:mousemoved(timeline.x + 96, timeline.y + 8, 96, 0)
-            test.assertNear(app:getViewModel().beat, 3, 0.000001)
-            app:mousereleased(timeline.x + 96, timeline.y + 8, 1)
-            app:mousemoved(timeline.x + 160, timeline.y + 8, 64, 0)
-            test.assertNear(app:getViewModel().beat, 3, 0.000001)
+            app:mousepressed(originX + 5.9 * pixelsPerBeat, timeline.y + 16, 1)
+            test.assertNear(app:getViewModel().beat, 4, 0.000001)
+            test.assertEqual(app.timelineDrag, "playhead")
+
+            app:mousemoved(originX + 6 * pixelsPerBeat, timeline.y + 16)
+            test.assertNear(app:getViewModel().beat, 8, 0.000001)
+            app:mousereleased(originX + 6 * pixelsPerBeat, timeline.y + 16, 1)
+            app:mousemoved(originX + 2 * pixelsPerBeat, timeline.y + 16)
+            test.assertNear(app:getViewModel().beat, 8, 0.000001)
+
+            app:mousepressed(originX + pixelsPerBeat, timeline.y + 40, 1)
+            test.assertNear(app:getViewModel().beat, 8, 0.000001)
 
             app:mousepressed(timeline.x + 200, timeline.y + 80, 3)
             app:mousemoved(timeline.x + 136, timeline.y + 80, -64, 0)
-            test.assertNear(
-                app:getSession():getTimelineStartBeat(),
-                2,
-                0.000001
-            )
+            test.assertNear(app:getSession():getTimelineStartBeat(), 2, 0.000001)
             app:mousereleased(timeline.x + 136, timeline.y + 80, 3)
-            app:mousemoved(timeline.x + 104, timeline.y + 80, -32, 0)
-            test.assertNear(
-                app:getSession():getTimelineStartBeat(),
-                2,
-                0.000001
-            )
+            test.assertEqual(app:getSession():isDirty(), false)
+        end,
+    },
+    {
+        name = "Playhead edge scroll은 양방향으로 움직이고 마우스와의 거리에 따라 빨라진다",
+        run = function(test)
+            local leftApp = newFixture()
+            createStageThroughDialog(leftApp, "timeline-edge-left")
+            leftApp:getSession().timelineStartBeat = 10
+            local leftTimeline = leftApp.layout.timeline
+            leftApp:mousepressed(leftTimeline.x + 1, leftTimeline.y + 16, 1)
+            leftApp:update(0.25)
+            test.assertTrue(leftApp:getSession():getTimelineStartBeat() < 10)
+
+            local function rightScroll(extraDistance)
+                local app = newFixture()
+                createStageThroughDialog(app, "timeline-edge-right")
+                app:getSession().timelineStartBeat = 10
+                local timeline = app.layout.timeline
+                local edgeX = timeline.x + timeline.width - 1
+                app:mousepressed(edgeX, timeline.y + 16, 1)
+                app:mousemoved(edgeX + extraDistance, timeline.y + 16)
+                local before = app:getSession():getTimelineStartBeat()
+                app:update(0.25)
+                return app:getSession():getTimelineStartBeat() - before
+            end
+
+            local closeDelta = rightScroll(0)
+            local farDelta = rightScroll(320)
+            test.assertTrue(closeDelta > 0)
+            test.assertTrue(farDelta > closeDelta)
+        end,
+    },
+    {
+        name = "F는 Play Pause를 전환하고 R은 beat 0, Ctrl S는 Stage를 저장한다",
+        run = function(test)
+            local controlDown = false
+            local app = newFixture({
+                isControlDown = function() return controlDown end,
+            })
+            createStageThroughDialog(app, "timeline-shortcuts")
+            assert(app:getSession():seekTimeline(4))
+
+            app:keypressed("f")
+            test.assertEqual(app:getSession():isPlaying(), true)
+            app:keypressed("f", nil, true)
+            test.assertEqual(app:getSession():isPlaying(), true)
+            app:keypressed("f")
+            test.assertEqual(app:getSession():isPlaying(), false)
+
+            assert(app:getSession():seekTimeline(4))
+            app:getSession().timelineStartBeat = 10
+            app:keypressed("f")
+            app:keypressed("r")
+            test.assertEqual(app:getSession():isPlaying(), false)
+            test.assertEqual(app:getViewModel().beat, 0)
+            test.assertEqual(app:getSession():getTimelineStartBeat(), 0)
+
+            test.assertEqual(app:getSession():isDirty(), true)
+            controlDown = true
+            app:keypressed("s")
             test.assertEqual(app:getSession():isDirty(), false)
         end,
     },
@@ -880,7 +988,7 @@ return {
             test.assertNear(app:getSession():getBeat(), 20, 0.000001)
             test.assertNear(
                 app:getSession():getTimelineStartBeat(),
-                6,
+                7,
                 0.000001
             )
         end,
@@ -899,11 +1007,13 @@ return {
 
             local viewModel = app:getViewModel()
             local pixelsPerBeat = EditorLayout.getPixelsPerBeat(viewModel.scale)
-            local playheadX = (viewModel.beat - viewModel.timelineStartBeat)
-                * pixelsPerBeat
+            local playheadX = EditorLayout.getTimelineBeatOriginX(
+                app.layout.timeline,
+                viewModel.scale
+            ) + (viewModel.beat - viewModel.timelineStartBeat) * pixelsPerBeat
             test.assertEqual(
                 EditorLayout.getVisibleBeatCount(app.layout, viewModel.scale),
-                3
+                2
             )
             test.assertTrue(playheadX >= 0)
             test.assertTrue(playheadX < app.layout.timeline.width)
@@ -917,7 +1027,7 @@ return {
             createStageThroughDialog(app, "direct-scale-edit")
             app:getSession().timelineStartBeat = 4.5
 
-            local scaleRect = EditorLayout.getPropertyValueRect(app.layout, 1)
+            local scaleRect = EditorLayout.getPropertyValueRect(app.layout, 2)
             app:mousepressed(scaleRect.x + 8, scaleRect.y + 8, 1)
             clearValueEdit(app)
             app:textinput("2")
@@ -1012,7 +1122,7 @@ return {
 
             local eventRect = EditorLayout.getEventRowRect(app.layout, 2)
             app:mousepressed(eventRect.x + 8, eventRect.y + 8, 1)
-            local bpmRect = EditorLayout.getPropertyValueRect(app.layout, 4)
+            local bpmRect = EditorLayout.getPropertyValueRect(app.layout, 5)
             app:mousepressed(bpmRect.x + 12, bpmRect.y + 12, 1)
 
             test.assertEqual(app:getDialog(), nil)
@@ -1038,7 +1148,7 @@ return {
 
             local eventRect = EditorLayout.getEventRowRect(app.layout, 2)
             app:mousepressed(eventRect.x + 8, eventRect.y + 8, 1)
-            local bpmRect = EditorLayout.getPropertyValueRect(app.layout, 4)
+            local bpmRect = EditorLayout.getPropertyValueRect(app.layout, 5)
             app:mousepressed(bpmRect.x + 12, bpmRect.y + 12, 1)
             clearValueEdit(app)
             app:textinput("0")
@@ -1062,7 +1172,7 @@ return {
 
             local eventRect = EditorLayout.getEventRowRect(app.layout, 2)
             app:mousepressed(eventRect.x + 8, eventRect.y + 8, 1)
-            local bpmRect = EditorLayout.getPropertyValueRect(app.layout, 4)
+            local bpmRect = EditorLayout.getPropertyValueRect(app.layout, 5)
             app:mousepressed(bpmRect.x + 12, bpmRect.y + 12, 1)
             clearValueEdit(app)
             app:textinput("90")

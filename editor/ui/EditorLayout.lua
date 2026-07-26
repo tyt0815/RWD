@@ -102,16 +102,36 @@ function EditorLayout.getPixelsPerBeat(scale)
     return BASE_BEAT_WIDTH * scale
 end
 
+function EditorLayout.getTimelineHeaderRect(timeline)
+    return {
+        x = timeline.x,
+        y = timeline.y,
+        width = timeline.width,
+        height = HEADER_HEIGHT,
+    }
+end
+
+function EditorLayout.hitTestTimelineHeader(timeline, x, y)
+    local header = EditorLayout.getTimelineHeaderRect(timeline)
+    return x >= header.x and x < header.x + header.width
+        and y >= header.y and y < header.y + header.height
+end
+
+function EditorLayout.getTimelineBeatOriginX(timeline, scale)
+    return timeline.x + EditorLayout.getPixelsPerBeat(scale)
+end
+
 function EditorLayout.getVisibleBeatCount(layout, scale)
+    local pixelsPerBeat = EditorLayout.getPixelsPerBeat(scale)
     return math.max(1, math.floor(
-        layout.timeline.width / EditorLayout.getPixelsPerBeat(scale)
+        math.max(0, layout.timeline.width - pixelsPerBeat) / pixelsPerBeat
     ))
 end
 
 function EditorLayout.getPlayheadHandle(timeline, viewModel)
     local pixelsPerBeat = EditorLayout.getPixelsPerBeat(viewModel.scale)
     return {
-        x = timeline.x
+        x = EditorLayout.getTimelineBeatOriginX(timeline, viewModel.scale)
             + (viewModel.beat - viewModel.timelineStartBeat) * pixelsPerBeat,
         y = timeline.y,
         halfWidth = PLAYHEAD_HANDLE_HALF_WIDTH,
@@ -181,7 +201,8 @@ local function drawPanelContent(layout, viewModel)
 
             local valueText
             local editing = viewModel.valueEdit
-                and viewModel.valueEdit.groupId == viewModel.selectedEventId
+                and viewModel.valueEdit.groupId
+                    == (property.groupId or viewModel.selectedEventId)
                 and viewModel.valueEdit.propertyId == property.id
             if editing then
                 valueText = viewModel.valueEdit.text
@@ -257,12 +278,19 @@ local function drawTimeline(timeline, viewModel)
     love.graphics.rectangle("fill", timeline.x, timeline.y, timeline.width, timeline.height)
 
     local pixelsPerBeat = EditorLayout.getPixelsPerBeat(viewModel.scale)
+    local labelPeriod = viewModel.metronomePeriod or 4
+    local timelineRight = timeline.x + timeline.width
+    local beatOriginX = EditorLayout.getTimelineBeatOriginX(
+        timeline,
+        viewModel.scale
+    )
     local firstBeat = math.floor(viewModel.timelineStartBeat)
     local lastBeat = math.ceil(
-        viewModel.timelineStartBeat + timeline.width / pixelsPerBeat
+        viewModel.timelineStartBeat
+            + math.max(0, timelineRight - beatOriginX) / pixelsPerBeat
     )
     for beat = firstBeat, lastBeat do
-        local x = timeline.x
+        local x = beatOriginX
             + (beat - viewModel.timelineStartBeat) * pixelsPerBeat
         love.graphics.setColor(
             beat % 2 == 0 and 0.23 or 0.2,
@@ -270,16 +298,22 @@ local function drawTimeline(timeline, viewModel)
             beat % 2 == 0 and 0.26 or 0.23,
             1
         )
-        love.graphics.rectangle(
-            "fill",
-            x,
-            timeline.y + 32,
-            pixelsPerBeat,
-            timeline.height - 32
-        )
-        if beat % 4 == 0 then
+        local stripeX = math.max(beatOriginX, x)
+        local stripeRight = math.min(timelineRight, x + pixelsPerBeat)
+        if stripeRight > stripeX then
+            love.graphics.rectangle(
+                "fill",
+                stripeX,
+                timeline.y + 32,
+                stripeRight - stripeX,
+                timeline.height - 32
+            )
+        end
+        if beat % labelPeriod == 0 and x >= beatOriginX and x < timelineRight then
+            local label = tostring(beat)
+            local labelWidth = love.graphics.getFont():getWidth(label)
             love.graphics.setColor(0.82, 0.83, 0.86, 1)
-            love.graphics.print(tostring(beat), x + 4, timeline.y + 8)
+            love.graphics.print(label, x - labelWidth / 2, timeline.y + 8)
         end
     end
 
@@ -287,7 +321,7 @@ local function drawTimeline(timeline, viewModel)
         local handle = EditorLayout.getPlayheadHandle(timeline, viewModel)
         local playheadX = handle.x
         love.graphics.setColor(1, 0.45, 0.2, 1)
-        love.graphics.rectangle("fill", playheadX, timeline.y, 2, timeline.height)
+        love.graphics.rectangle("fill", playheadX - 1, timeline.y, 2, timeline.height)
         love.graphics.polygon(
             "fill",
             handle.x - handle.halfWidth,

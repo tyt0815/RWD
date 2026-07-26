@@ -14,6 +14,11 @@ local Button = require("core").UI.Button
 local EditorApp = {}
 EditorApp.__index = EditorApp
 
+local TIMELINE_EDGE_SCROLL_THRESHOLD = 32
+local TIMELINE_EDGE_SCROLL_BASE_BEATS_PER_SECOND = 8
+local TIMELINE_EDGE_SCROLL_ACCELERATION = 8
+local TIMELINE_EDGE_SCROLL_MAX_BEATS_PER_SECOND = 64
+
 function EditorApp.new(options)
     options = options or {}
     local projectCatalog = options.projectCatalog or ProjectCatalog.new({
@@ -37,6 +42,9 @@ function EditorApp.new(options)
         musicCatalog = musicCatalog,
         musicOnsetDetector = options.musicOnsetDetector or MusicOnsetDetector.new(),
         onQuit = options.onQuit or function() end,
+        isControlDown = options.isControlDown or function()
+            return love.keyboard.isDown("lctrl", "rctrl")
+        end,
         dialog = nil,
         selectedEventId = "editorProperties",
         valueEdit = nil,
@@ -72,21 +80,28 @@ end
 function EditorApp:getViewModel()
     local properties = {}
     local scale = 1
+    local metronomePeriod = 4
     if self.session:hasStage() then
         scale = self.session:getProperty("editorProperties", "scale")
+        metronomePeriod = self.session:getProperty(
+            "editorProperties",
+            "metronomePeriod"
+        )
     end
     local selectedEvent = PropertyCatalog.getEvent(self.selectedEventId)
     self:updateBeat0AutoButton()
     if selectedEvent then
         for _, property in ipairs(selectedEvent.properties) do
+            local groupId = property.groupId or selectedEvent.id
             local value
             if self.session:hasStage() then
-                value = self.session:getProperty(selectedEvent.id, property.id)
+                value = self.session:getProperty(groupId, property.id)
             end
             local viewProperty = {
                 id = property.id,
                 label = property.label,
                 kind = property.kind,
+                groupId = groupId,
                 value = value,
             }
             if selectedEvent.id == "mixtapeProperties"
@@ -109,6 +124,7 @@ function EditorApp:getViewModel()
         beat = self.session:getBeat(),
         timelineStartBeat = self.session:getTimelineStartBeat(),
         scale = scale,
+        metronomePeriod = metronomePeriod,
         menuItems = EditorMenu.getItems(self.session),
         hoveredAction = self.hoveredAction,
     }
@@ -121,7 +137,15 @@ function EditorApp:autoDetectBeat0Offset()
         return nil, "Select Music before detecting its first sound."
     end
 
-    local onset, errorMessage = self.musicOnsetDetector:detect(project.id, music)
+    local threshold = self.session:getProperty(
+        "editorProperties",
+        "onsetThreshold"
+    )
+    local onset, errorMessage = self.musicOnsetDetector:detect(
+        project.id,
+        music,
+        threshold
+    )
     if onset == nil then return nil, errorMessage end
     return self.session:setProperty(
         "mixtapeProperties",
@@ -324,12 +348,69 @@ function EditorApp:processDialogResult()
     end
 end
 
+function EditorApp:seekTimelineAtX(x)
+    local timeline = self.layout.timeline
+    local scale = self.session:getProperty("editorProperties", "scale")
+    local beatOriginX = EditorLayout.getTimelineBeatOriginX(timeline, scale)
+    local contentWidth = math.max(
+        0,
+        timeline.x + timeline.width - beatOriginX
+    )
+    local offsetX = math.max(0, math.min(contentWidth, x - beatOriginX))
+    local beat = self.session:getTimelineStartBeat()
+        + offsetX / EditorLayout.getPixelsPerBeat(scale)
+    local changed, errorMessage = self.session:seekTimeline(beat)
+    if not changed then
+        self.timelineDrag = nil
+        self:showError(errorMessage)
+        return nil, errorMessage
+    end
+    return true, nil
+end
+
+function EditorApp:updateTimelineEdgeScroll(deltaTime)
+    if self.timelineDrag ~= "playhead" or self.mouseX == nil then return true end
+
+    local timeline = self.layout.timeline
+    local direction = 0
+    if self.mouseX <= timeline.x + TIMELINE_EDGE_SCROLL_THRESHOLD then
+        direction = 1
+    elseif self.mouseX >= timeline.x + timeline.width
+        - TIMELINE_EDGE_SCROLL_THRESHOLD then
+        direction = -1
+    end
+    if direction == 0 then return true end
+
+    local scale = self.session:getProperty("editorProperties", "scale")
+    local pixelsPerBeat = EditorLayout.getPixelsPerBeat(scale)
+    local playheadX = EditorLayout.getTimelineBeatOriginX(timeline, scale)
+        + (self.session:getBeat() - self.session:getTimelineStartBeat())
+            * pixelsPerBeat
+    local distanceBeats = math.abs(self.mouseX - playheadX) / pixelsPerBeat
+    local speed = math.min(
+        TIMELINE_EDGE_SCROLL_MAX_BEATS_PER_SECOND,
+        TIMELINE_EDGE_SCROLL_BASE_BEATS_PER_SECOND
+            + distanceBeats * TIMELINE_EDGE_SCROLL_ACCELERATION
+    )
+    local moved, errorMessage = self.session:panTimeline(
+        direction * speed * pixelsPerBeat * deltaTime,
+        pixelsPerBeat
+    )
+    if not moved then
+        self.timelineDrag = nil
+        self:showError(errorMessage)
+        return nil, errorMessage
+    end
+    return self:seekTimelineAtX(self.mouseX)
+end
+
 function EditorApp:update(deltaTime)
     self:processDialogResult()
     if self.dialog then
         self.dialog:update(deltaTime)
         return
     end
+    if not self:updateTimelineEdgeScroll(deltaTime) then return end
     if self.valueEdit and not self.session:isPlaying() then
         self.valueEdit:update(deltaTime)
     end
@@ -363,16 +444,7 @@ function EditorApp:mousemoved(x, y, deltaX)
     if self.dialog then return true end
 
     if self.timelineDrag == "playhead" then
-        local timeline = self.layout.timeline
-        local scale = self.session:getProperty("editorProperties", "scale")
-        local offsetX = math.max(0, math.min(timeline.width, x - timeline.x))
-        local beat = self.session:getTimelineStartBeat()
-            + offsetX / EditorLayout.getPixelsPerBeat(scale)
-        local changed, errorMessage = self.session:seekTimeline(beat)
-        if not changed then
-            self.timelineDrag = nil
-            self:showError(errorMessage)
-        end
+        self:seekTimelineAtX(x)
         return true
     elseif self.timelineDrag == "pan" then
         local scale = self.session:getProperty("editorProperties", "scale")
@@ -443,13 +515,11 @@ function EditorApp:mousepressed(x, y, button)
     if button ~= 1 then return true end
     if self.session:hasStage()
         and not self.session:isPlaying()
-        and EditorLayout.hitTestPlayheadHandle(
-            timeline,
-            self:getViewModel(),
-            x,
-            y
-        ) then
+        and EditorLayout.hitTestTimelineHeader(timeline, x, y) then
+        self.mouseX = x
+        self.mouseY = y
         self.timelineDrag = "playhead"
+        self:seekTimelineAtX(x)
         return true
     end
     local selectedEvent = PropertyCatalog.getEvent(self.selectedEventId)
@@ -470,7 +540,8 @@ function EditorApp:mousepressed(x, y, button)
         local clickedProperty = propertyRow and selectedEvent.properties[propertyRow] or nil
         if not actionClicked
             and clickedProperty
-            and self.valueEdit.groupId == selectedEvent.id
+            and self.valueEdit.groupId
+                == (clickedProperty.groupId or selectedEvent.id)
             and self.valueEdit.propertyId == clickedProperty.id then
             return true
         end
@@ -502,12 +573,13 @@ function EditorApp:mousepressed(x, y, button)
 
     if self.session:hasStage() and not self.session:isPlaying() and propertyRow then
         local property = selectedEvent.properties[propertyRow]
+        local groupId = property.groupId or selectedEvent.id
         if property.kind == "number" then
-            self:beginValueEdit(selectedEvent.id, property.id)
+            self:beginValueEdit(groupId, property.id)
         elseif property.kind == "boolean" then
-            local currentValue = self.session:getProperty(selectedEvent.id, property.id)
+            local currentValue = self.session:getProperty(groupId, property.id)
             local changed, errorMessage = self.session:setProperty(
-                selectedEvent.id,
+                groupId,
                 property.id,
                 not currentValue
             )
@@ -540,7 +612,7 @@ function EditorApp:textinput(text)
     return true
 end
 
-function EditorApp:keypressed(key)
+function EditorApp:keypressed(key, _, isRepeat)
     if self.dialog then
         self.dialog:keypressed(key)
     elseif self.valueEdit and not self.session:isPlaying() then
@@ -553,6 +625,19 @@ function EditorApp:keypressed(key)
         elseif key == "escape" then
             self.valueEdit = nil
         end
+    elseif not isRepeat and key == "s" and self.isControlDown()
+        and self.session:hasStage() then
+        self:executeAction("save")
+    elseif not isRepeat and key == "f" and self.session:hasStage() then
+        if self.session:isPlaying() then
+            self.session:pause()
+        else
+            self:executeAction("play")
+        end
+    elseif not isRepeat and key == "r" and self.session:hasStage() then
+        if self.session:isPlaying() then self.session:pause() end
+        local reset, errorMessage = self.session:resetTimeline()
+        if not reset then self:showError(errorMessage) end
     end
     return true
 end

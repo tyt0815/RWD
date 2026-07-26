@@ -86,6 +86,37 @@ return {
         end,
     },
     {
+        name = "MusicPlayback은 stream 재생을 시작한 뒤 요청 위치로 seek한다",
+        run = function(test)
+            local calls = {}
+            local source = {
+                getDuration = function() return 10 end,
+                setVolume = function() end,
+                setPitch = function()
+                    table.insert(calls, "pitch")
+                end,
+                play = function()
+                    table.insert(calls, "play")
+                end,
+                seek = function()
+                    table.insert(calls, "seek")
+                end,
+                stop = function() end,
+            }
+            local MusicPlayback = require("core.MusicPlayback")
+            local playback = MusicPlayback.new({
+                sourceFactory = function() return source end,
+            })
+
+            test.assertTrue(playback:prepare("song.mp3", 1))
+            test.assertTrue(playback:play(0.2, 1))
+
+            test.assertEqual(calls[1], "pitch")
+            test.assertEqual(calls[2], "play")
+            test.assertEqual(calls[3], "seek")
+        end,
+    },
+    {
         name = "MusicPlayback stops at or after the music duration",
         run = function(test)
             local state = { duration = 10 }

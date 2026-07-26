@@ -63,6 +63,33 @@ return {
         end,
     },
     {
+        name = "MusicOnsetDetector는 설정한 RMS threshold보다 큰 첫 연속 구간을 찾는다",
+        run = function(test)
+            local MusicOnsetDetector = require("editor.project.MusicOnsetDetector")
+            local function createDetector()
+                return MusicOnsetDetector.new({
+                    decoderFactory = function()
+                        return newDecoder({
+                            newSoundData(repeatedSamples(20, 0.005), 1000),
+                            newSoundData(repeatedSamples(20, 0.02), 1000),
+                        })
+                    end,
+                })
+            end
+
+            test.assertNear(
+                assert(createDetector():detect("sample", "song.wav", 0)),
+                0,
+                0.000001
+            )
+            test.assertNear(
+                assert(createDetector():detect("sample", "song.wav", 0.01)),
+                0.02,
+                0.000001
+            )
+        end,
+    },
+    {
         name = "MusicOnsetDetector는 무음과 decode 오류를 설명한다",
         run = function(test)
             local MusicOnsetDetector = require("editor.project.MusicOnsetDetector")

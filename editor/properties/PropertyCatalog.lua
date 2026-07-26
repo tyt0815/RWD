@@ -5,6 +5,7 @@ local EVENTS = {
         id = "editorProperties",
         label = "Editor Properties",
         properties = {
+            { id = "snap", label = "Snap", kind = "number" },
             { id = "scale", label = "Scale", kind = "number" },
             { id = "playbackRate", label = "Playback Rate", kind = "number" },
             { id = "metronome", label = "Metronome", kind = "boolean" },
@@ -18,6 +19,12 @@ local EVENTS = {
             { id = "music", label = "Music", kind = "music" },
             { id = "volume", label = "Volume", kind = "number" },
             { id = "beat0Offset", label = "Beat 0 Offset", kind = "number" },
+            {
+                id = "onsetThreshold",
+                label = "Onset Threshold",
+                kind = "number",
+                groupId = "editorProperties",
+            },
             { id = "bpm", label = "BPM", kind = "number" },
         },
     },
@@ -30,6 +37,7 @@ local function copyEvent(event)
             id = property.id,
             label = property.label,
             kind = property.kind,
+            groupId = property.groupId,
         })
     end
     return {

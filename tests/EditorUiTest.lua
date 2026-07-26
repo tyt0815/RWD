@@ -151,10 +151,10 @@ local function assertHeading(test, recorder, label, visible)
     test.assertEqual(countPrints(recorder, label, 10), visible and 1 or 0)
 end
 
-local function assertPlayhead(test, recorder, layout, expectedX)
+local function assertPlayhead(test, recorder, layout, expectedCenterX)
     local playhead = findRectangle(recorder, {
         mode = "fill",
-        x = expectedX,
+        x = expectedCenterX - 1,
         y = layout.timeline.y,
         width = 2,
         height = layout.timeline.height,
@@ -183,15 +183,28 @@ return {
             test.assertEqual(events[2].id, "mixtapeProperties")
             test.assertEqual(events[2].label, "Mixtape Properties")
 
-            local editorLabels = { "Scale", "Playback Rate", "Metronome", "Metronome Period" }
-            local mixtapeLabels = { "Music", "Volume", "Beat 0 Offset", "BPM" }
+            local editorLabels = {
+                "Snap",
+                "Scale",
+                "Playback Rate",
+                "Metronome",
+                "Metronome Period",
+            }
+            local mixtapeLabels = {
+                "Music",
+                "Volume",
+                "Beat 0 Offset",
+                "Onset Threshold",
+                "BPM",
+            }
             for index, label in ipairs(editorLabels) do
                 test.assertEqual(events[1].properties[index].label, label)
             end
             for index, label in ipairs(mixtapeLabels) do
                 test.assertEqual(events[2].properties[index].label, label)
             end
-            test.assertEqual(events[1].properties[3].kind, "boolean")
+            test.assertEqual(events[1].properties[4].kind, "boolean")
+            test.assertEqual(events[2].properties[4].groupId, "editorProperties")
             test.assertEqual(events[2].properties[1].kind, "music")
             test.assertEqual(events[2].properties[3].kind, "number")
 
@@ -199,7 +212,7 @@ return {
             events[1].properties[1].label = "Changed"
             local editorEvent = PropertyCatalog.getEvent("editorProperties")
             test.assertEqual(editorEvent.label, "Editor Properties")
-            test.assertEqual(editorEvent.properties[1].label, "Scale")
+            test.assertEqual(editorEvent.properties[1].label, "Snap")
             test.assertEqual(PropertyCatalog.getEvent("missing"), nil)
         end,
     },
@@ -267,6 +280,7 @@ return {
                     },
                     selectedEventId = "editorProperties",
                     properties = {
+                        { id = "snap", label = "Snap", kind = "number", value = 1 },
                         { id = "scale", label = "Scale", kind = "number", value = 1 },
                         { id = "playbackRate", label = "Playback Rate", kind = "number", value = 1 },
                         { id = "metronome", label = "Metronome", kind = "boolean", value = false },
@@ -292,16 +306,18 @@ return {
                 test.assertEqual(countPrints(recorder, "Playback Rate"), 1)
                 test.assertEqual(countPrints(recorder, "Metronome"), 1)
                 test.assertEqual(countPrints(recorder, "Metronome Period"), 1)
+                test.assertEqual(countPrints(recorder, "Snap"), 1)
+                test.assertEqual(countPrints(recorder, "Onset Threshold"), 0)
                 test.assertEqual(countPrints(recorder, "false"), 1)
-                local periodRect = EditorLayout.getPropertyValueRect(layout, 4)
+                local periodRect = EditorLayout.getPropertyValueRect(layout, 5)
                 test.assertEqual(countPrints(recorder, "4", periodRect.y + 3), 1)
                 test.assertEqual(previewCount, 0)
                 test.assertEqual(#recorder.pushes, 1)
                 test.assertEqual(recorder.pushes[1], "all")
                 test.assertEqual(recorder.pops, 1)
                 test.assertEqual(#recorder.clears, 1)
-                assertTimelineLabels(test, recorder, layout.timeline, { "0", "4", "8" })
-                assertPlayhead(test, recorder, layout, 80)
+                assertTimelineLabels(test, recorder, layout.timeline, { "0", "4" })
+                assertPlayhead(test, recorder, layout, 112)
             end)
         end,
     },
@@ -354,8 +370,8 @@ return {
                 test.assertEqual(previewCalls[1].y, expectedPreview.y)
                 test.assertEqual(previewCalls[1].width, expectedPreview.width)
                 test.assertEqual(previewCalls[1].height, expectedPreview.height)
-                assertTimelineLabels(test, recorder, layout.timeline, { "4", "8", "12" })
-                assertPlayhead(test, recorder, layout, 64)
+                assertTimelineLabels(test, recorder, layout.timeline, { "4", "8" })
+                assertPlayhead(test, recorder, layout, 96)
             end)
         end,
     },
@@ -377,6 +393,8 @@ return {
             local preview = EditorLayout.getPreviewRect(layout)
             local event = EditorLayout.getEventRowRect(layout, 2)
             local value = EditorLayout.getPropertyValueRect(layout, 4)
+            test.assertEqual(layout.timeline.x, 0)
+            test.assertEqual(layout.timeline.width, 1200)
             test.assertEqual(preview.x, layout.panels[4].x)
             test.assertEqual(preview.y, layout.panels[4].y)
             test.assertEqual(preview.width, layout.panels[4].width + layout.panels[5].width)
@@ -392,9 +410,9 @@ return {
             test.assertEqual(EditorLayout.getPixelsPerBeat(0.25), 8)
             test.assertEqual(EditorLayout.getPixelsPerBeat(1), 32)
             test.assertEqual(EditorLayout.getPixelsPerBeat(8), 256)
-            test.assertEqual(EditorLayout.getVisibleBeatCount(layout, 1), 37)
-            test.assertEqual(EditorLayout.getVisibleBeatCount(layout, 2), 18)
-            test.assertEqual(EditorLayout.getVisibleBeatCount(layout, 0.25), 150)
+            test.assertEqual(EditorLayout.getVisibleBeatCount(layout, 1), 36)
+            test.assertEqual(EditorLayout.getVisibleBeatCount(layout, 2), 17)
+            test.assertEqual(EditorLayout.getVisibleBeatCount(layout, 0.25), 149)
             test.assertEqual(EditorLayout.hitTestEvent(layout, 2, event.x, event.y), 2)
             test.assertEqual(EditorLayout.hitTestEvent(layout, 1, event.x, event.y), nil)
             test.assertEqual(EditorLayout.hitTestEvent(layout, 2, event.x + event.width, event.y), nil)
@@ -426,38 +444,43 @@ return {
                     beat = 2.5,
                     timelineStartBeat = 0.5,
                     scale = 2,
+                    metronomePeriod = 3,
                     menuItems = items,
                     hoveredAction = nil,
                 }, function() end)
 
                 local firstStripe = findRectangle(recorder, {
                     mode = "fill",
-                    x = -32,
+                    x = 64,
                     y = layout.timeline.y + 32,
-                    width = 64,
+                    width = 32,
                     height = layout.timeline.height - 32,
                 })
                 assertColor(test, firstStripe, { 0.23, 0.24, 0.26, 1 })
                 test.assertEqual(
-                    countPrints(recorder, "4", layout.timeline.y + 8),
+                    countPrints(recorder, "3", layout.timeline.y + 8),
                     1
+                )
+                test.assertEqual(
+                    countPrints(recorder, "4", layout.timeline.y + 8),
+                    0
                 )
                 local timelineLabel
                 for _, call in ipairs(recorder.prints) do
-                    if call.text == "4" and call.y == layout.timeline.y + 8 then
+                    if call.text == "3" and call.y == layout.timeline.y + 8 then
                         timelineLabel = call
                     end
                 end
-                test.assertEqual(timelineLabel.x, 228)
-                assertPlayhead(test, recorder, layout, 128)
+                test.assertEqual(timelineLabel.x, 220)
+                assertPlayhead(test, recorder, layout, 192)
                 test.assertEqual(#recorder.polygons, 1)
                 local handle = recorder.polygons[1]
                 test.assertEqual(handle.mode, "fill")
-                test.assertEqual(handle.points[1], 121)
+                test.assertEqual(handle.points[1], 185)
                 test.assertEqual(handle.points[2], layout.timeline.y)
-                test.assertEqual(handle.points[3], 135)
+                test.assertEqual(handle.points[3], 199)
                 test.assertEqual(handle.points[4], layout.timeline.y)
-                test.assertEqual(handle.points[5], 128)
+                test.assertEqual(handle.points[5], 192)
                 test.assertEqual(handle.points[6], layout.timeline.y + 12)
                 assertColor(test, handle, { 1, 0.45, 0.2, 1 })
                 test.assertEqual(EditorLayout.hitTestPlayheadHandle(
@@ -467,7 +490,7 @@ return {
                         timelineStartBeat = 0.5,
                         scale = 2,
                     },
-                    128,
+                    192,
                     layout.timeline.y + 6
                 ), true)
                 test.assertEqual(EditorLayout.hitTestPlayheadHandle(
@@ -477,7 +500,7 @@ return {
                         timelineStartBeat = 0.5,
                         scale = 2,
                     },
-                    140,
+                    204,
                     layout.timeline.y + 6
                 ), false)
             end)
@@ -513,6 +536,13 @@ return {
                                 label = "Auto",
                             }),
                         },
+                        {
+                            id = "onsetThreshold",
+                            label = "Onset Threshold",
+                            kind = "number",
+                            groupId = "editorProperties",
+                            value = 0,
+                        },
                         { id = "bpm", label = "BPM", kind = "number", value = 120 },
                     },
                     valueEdit = {
@@ -528,7 +558,7 @@ return {
                     menuItems = items,
                     hoveredAction = nil,
                 }, function() end)
-                local bpm = EditorLayout.getPropertyValueRect(layout, 4)
+                local bpm = EditorLayout.getPropertyValueRect(layout, 5)
                 local outline = findRectangle(recorder, {
                     mode = "line",
                     x = bpm.x + 4,

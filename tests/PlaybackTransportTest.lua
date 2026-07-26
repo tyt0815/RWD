@@ -83,6 +83,20 @@ return {
         end,
     },
     {
+        name = "PlaybackTransport applies beat zero offset when playback starts from a middle beat",
+        run = function(test)
+            local state = {}
+            local transport = newTransport(state)
+            transport:configureMixtape({ volume = 1, beat0Offset = 0.5 }, "song.wav")
+            assert(transport:seekBeat(8))
+
+            test.assertTrue(transport:play())
+
+            test.assertEqual(#state.playPositions, 1)
+            test.assertNear(state.playPositions[1].position, 4.5, 0.000001)
+        end,
+    },
+    {
         name = "PlaybackTransport starts music when a negative beat zero offset is crossed",
         run = function(test)
             local state = {}

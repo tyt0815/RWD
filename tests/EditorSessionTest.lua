@@ -498,11 +498,11 @@ return {
             assert(anchorSession:openStage("sample", "tutorial"))
             anchorSession.timelineStartBeat = 4
             local cursorOffsetX = 320
-            local oldCursorBeat = 4 + cursorOffsetX / 32
+            local oldCursorBeat = 4 + cursorOffsetX / 32 - 1
             assert(anchorSession:zoomTimeline(cursorOffsetX, 1))
             local newScale = anchorSession:getProperty("editorProperties", "scale")
             local newCursorBeat = anchorSession:getTimelineStartBeat()
-                + cursorOffsetX / (32 * newScale)
+                + cursorOffsetX / (32 * newScale) - 1
             test.assertNear(newScale, 1.25, 0.000001)
             test.assertNear(newCursorBeat, oldCursorBeat, 0.000001)
 
@@ -543,7 +543,7 @@ return {
         end,
     },
     {
-        name = "타임라인 seek와 pan은 beat 0 경계를 지킨다",
+        name = "타임라인 seek는 Snap을 적용하고 pan은 beat 0 경계를 지킨다",
         run = function(test)
             local noStageSession = newSession()
             local noStageSeek, seekError = noStageSession:seekTimeline(2)
@@ -553,8 +553,8 @@ return {
             local session, _, options = newSession({ stored = VALID_STAGE })
             assert(session:openStage("sample", "tutorial"))
             assert(session:seekTimeline(3.5))
-            test.assertNear(session:getBeat(), 3.5, 0.000001)
-            test.assertNear(options.transportState.seekBeat, 3.5, 0.000001)
+            test.assertNear(session:getBeat(), 4, 0.000001)
+            test.assertNear(options.transportState.seekBeat, 4, 0.000001)
 
             session.timelineStartBeat = 4
             assert(session:panTimeline(64, 32))

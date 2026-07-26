@@ -4,7 +4,7 @@ RWD는 LÖVE2D 11.5로 여러 개의 리듬게임을 제작하기 위한 공통 
 
 ## 현재 상태
 
-공통 Launcher에서 Stage 에디터와 Sample Project를 열 수 있다. 에디터는 Stage JSON 버전 2를 만들고 열고 저장하며, Project 음악과 고정 BPM Transport를 Project Canvas에 맞춰 미리 재생한다. Editor 전용 Playback Rate와 Metronome, Timeline Scale을 Stage에 희소 저장한다.
+공통 Launcher에서 Stage 에디터와 Sample Project를 열 수 있다. 에디터는 Stage JSON 버전 2를 만들고 열고 저장하며, Project 음악과 고정 BPM Transport를 Project Canvas에 맞춰 미리 재생한다. Editor 전용 Playback Rate, Metronome, Timeline Scale, Snap과 Onset Threshold를 Stage에 희소 저장한다.
 
 Stage Event 실행, 리듬 판정, 타임라인 Event 배치·편집과 Project 입력 전달은 아직 구현하지 않았다.
 
@@ -47,16 +47,16 @@ Launcher에서 `E`를 눌러 에디터를 연다. Menu는 마우스로 조작한
 
 Stage가 수정되면 `Save*`로 표시된다. `Events`에서 선택한 Property 그룹에 따라 다음 순서로 `Properties | Values`가 표시된다.
 
-- `Editor Properties`(기본 선택): Scale, Playback Rate, Metronome, Metronome Period
-- `Mixtape Properties`: Music, Volume, Beat 0 Offset, BPM
+- `Editor Properties`(기본 선택): Snap, Scale, Playback Rate, Metronome, Metronome Period
+- `Mixtape Properties`: Music, Volume, Beat 0 Offset, Onset Threshold, BPM
 
 Metronome은 BPM 한 박마다 한 번 울리며, Metronome Period는 클릭 속도가 아니라 강박 반복 길이입니다. Period 4는 `강 약 약 약`, Period 5는 `강 약 약 약 약`을 반복합니다.
 
-Project, Stage와 Music 선택은 공통 ComboBox를 사용한다. 선택값을 클릭하면 해당 한 줄이 검색 입력으로 바뀌고 그 아래에 목록이 열리며, 타이핑으로 필터링한 뒤 마우스 또는 위·아래 방향키와 Enter로 선택한다. Escape는 열린 목록을 닫는다. Music 선택 시 Beat 0 Offset이 기본값 `0`이면 첫 소리를 자동으로 찾아 설정하며, Offset 오른쪽의 `Auto` 버튼으로 언제든 다시 분석할 수 있다.
+Project, Stage와 Music 선택은 공통 ComboBox를 사용한다. 선택값을 클릭하면 해당 한 줄이 검색 입력으로 바뀌고 그 아래에 목록이 열리며, 타이핑으로 필터링한 뒤 마우스 또는 위·아래 방향키와 Enter로 선택한다. Escape는 열린 목록을 닫는다. Music 선택 시 Beat 0 Offset이 기본값 `0`이면 첫 소리를 자동으로 찾아 설정하며, Offset 오른쪽의 `Auto` 버튼으로 언제든 다시 분석할 수 있다. Onset Threshold는 연속된 10ms RMS 창이 설정값보다 커지는 첫 위치를 정하며 기본값 `0.01`은 작은 압축 노이즈를 건너뛴다.
 
 에디터의 Dialog 입력과 숫자 Values는 공통 텍스트 입력 동작을 사용한다. 포커스되면 값 끝에 깜빡이는 커서가 바로 표시되며, 첫 입력부터 현재 커서 위치에 이어서 입력한다. 좌우 방향키로 커서를 옮겨 중간에 입력하거나 Backspace/Delete로 삭제할 수 있다. Enter 또는 다른 영역 클릭으로 확정하고 Escape로 취소한다. 유효하지 않은 값은 Stage에 적용하지 않고 빨간 테두리로 표시한다. boolean은 클릭 즉시 바뀌며 Music은 `None`과 현재 Project 파일 목록을 제공하는 모달에서 선택한다.
 
-Timeline 위에 마우스를 두고 wheel을 돌리면 커서가 가리키는 beat를 유지한 채 Scale이 `0.25~8` 범위에서 바뀐다. 일시정지 상태에서는 재생 바 상단의 역삼각형 핸들을 좌클릭 드래그해 beat를 옮길 수 있고, Timeline 안을 마우스 중간 버튼으로 드래그하면 보이는 구간이 이동한다. Play 중에도 zoom과 구간 이동을 사용할 수 있다. Music이 없어도 Play/Pause와 Project preview는 동작하며, 음악 decode 또는 preview 시작이 실패하면 Transport, Metronome과 TestPlayer를 모두 정지하고 오류 모달을 표시한다.
+Timeline 위에 마우스를 두고 wheel을 돌리면 커서가 가리키는 beat를 유지한 채 Scale이 `0.25~8` 범위에서 바뀐다. Timeline은 왼쪽 첫 칸을 비워 둔 뒤 그 오른쪽 경계선부터 beat를 배치하며, 번호는 경계선 중앙에 현재 Metronome Period 간격으로 표시된다. 일시정지 상태에서는 번호가 있는 Timeline 상단을 좌클릭하거나 드래그해 Snap 간격으로 재생 바를 옮길 수 있다. 드래그 중 좌우 끝에 머물면 보이는 구간이 자동 이동하며 마우스와 재생 바의 수평 거리가 클수록 빨라진다. Timeline 안을 마우스 중간 버튼으로 드래그하면 보이는 구간이 이동한다. `F`는 Play/Pause를 전환하고 `Ctrl+S`는 저장하며, `R`은 재생을 멈춘 뒤 beat 0과 Timeline 시작 위치로 돌아간다. Play 중에도 zoom과 구간 이동을 사용할 수 있다. Music이 없어도 Play/Pause와 Project preview는 동작하며, 음악 decode 또는 preview 시작이 실패하면 Transport, Metronome과 TestPlayer를 모두 정지하고 오류 모달을 표시한다.
 
 ## 구조
 

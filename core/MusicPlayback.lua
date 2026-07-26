@@ -97,11 +97,6 @@ function MusicPlayback:play(positionSeconds, playbackRate)
         return true, nil
     end
 
-    local sought, seekError = callSource(self.source, "seek", positionSeconds)
-    if not sought then
-        return self:fail(seekError)
-    end
-
     local pitchSet, pitchError = callSource(self.source, "setPitch", playbackRate)
     if not pitchSet then
         return self:fail(pitchError)
@@ -110,6 +105,13 @@ function MusicPlayback:play(positionSeconds, playbackRate)
     local played, playError = callSource(self.source, "play")
     if not played then
         return self:fail(playError)
+    end
+
+    -- LÖVE 11.5 can apply a stopped stream's sub-second seek offset again
+    -- when play starts, so seek the active Source instead.
+    local sought, seekError = callSource(self.source, "seek", positionSeconds)
+    if not sought then
+        return self:fail(seekError)
     end
 
     self.started = true

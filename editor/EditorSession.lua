@@ -1,6 +1,7 @@
 local Core = require("core")
 local StageDocument = require("editor.stage.StageDocument")
 local MetronomePlayback = require("editor.playback.MetronomePlayback")
+local TimelineSnap = require("editor.timeline.TimelineSnap")
 
 local EditorSession = {}
 EditorSession.__index = EditorSession
@@ -69,7 +70,15 @@ end
 
 function EditorSession:seekTimeline(beat)
     if not self.document then return nil, "No Stage is open." end
-    return self.transport:seekBeat(math.max(0, beat))
+    local snap = self.document:getEditorSettings().snap
+    return self.transport:seekBeat(TimelineSnap.snapBeat(beat, snap))
+end
+
+function EditorSession:resetTimeline()
+    local seeked, errorMessage = self:seekTimeline(0)
+    if not seeked then return nil, errorMessage end
+    self.timelineStartBeat = 0
+    return true, nil
 end
 
 function EditorSession:panTimeline(deltaX, pixelsPerBeat)
@@ -86,8 +95,9 @@ function EditorSession:zoomTimeline(cursorOffsetX, wheelY)
 
     local oldScale = self.document:getEditorSettings().scale
     local newScale = math.max(0.25, math.min(8, oldScale * (1.25 ^ wheelY)))
-    local cursorBeat = self.timelineStartBeat + cursorOffsetX / (32 * oldScale)
-    local newStart = cursorBeat - cursorOffsetX / (32 * newScale)
+    local cursorBeat = self.timelineStartBeat
+        + cursorOffsetX / (32 * oldScale) - 1
+    local newStart = cursorBeat - cursorOffsetX / (32 * newScale) + 1
     local changed, errorMessage = self.document:setEditorSetting("scale", newScale)
     if not changed then return nil, errorMessage end
     self.timelineStartBeat = math.max(0, newStart)

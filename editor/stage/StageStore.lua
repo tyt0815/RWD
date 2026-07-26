@@ -10,7 +10,8 @@ local JSON_KEY_ORDER = {
     "schemaVersion", "projectId", "stageId", "name", "bpm",
     "mixtape", "editorSettings", "events",
     "music", "volume", "beat0Offset",
-    "metronome", "metronomePeriod", "scale", "playbackRate",
+    "snap", "scale", "playbackRate", "metronome", "metronomePeriod",
+    "onsetThreshold",
     "id", "startBeat", "type", "patternId", "params", "durationBeats",
 }
 

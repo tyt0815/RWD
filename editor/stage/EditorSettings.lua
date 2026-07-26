@@ -3,6 +3,8 @@ local EditorSettings = {}
 local DEFAULTS = {
     metronome = false,
     metronomePeriod = 4,
+    snap = 1,
+    onsetThreshold = 0.01,
     scale = 1,
     playbackRate = 1,
 }
@@ -10,6 +12,8 @@ local DEFAULTS = {
 local ALLOWED_KEYS = {
     metronome = true,
     metronomePeriod = true,
+    snap = true,
+    onsetThreshold = true,
     scale = true,
     playbackRate = true,
 }
@@ -39,6 +43,19 @@ function EditorSettings.validate(value)
             or value.metronomePeriod > 32) then
         return "$.editorSettings.metronomePeriod must be an integer between 1 and 32."
     end
+    if value.snap ~= nil
+        and (not isFiniteNumber(value.snap)
+            or value.snap % 1 ~= 0
+            or value.snap < 1
+            or value.snap > 32) then
+        return "$.editorSettings.snap must be an integer between 1 and 32."
+    end
+    if value.onsetThreshold ~= nil
+        and (not isFiniteNumber(value.onsetThreshold)
+            or value.onsetThreshold < 0
+            or value.onsetThreshold > 1) then
+        return "$.editorSettings.onsetThreshold must be between 0 and 1."
+    end
     if value.scale ~= nil
         and (not isFiniteNumber(value.scale) or value.scale < 0.25 or value.scale > 8) then
         return "$.editorSettings.scale must be between 0.25 and 8."
@@ -59,6 +76,8 @@ function EditorSettings.resolve(value)
     return {
         metronome = metronome,
         metronomePeriod = value.metronomePeriod or DEFAULTS.metronomePeriod,
+        snap = value.snap or DEFAULTS.snap,
+        onsetThreshold = value.onsetThreshold or DEFAULTS.onsetThreshold,
         scale = value.scale or DEFAULTS.scale,
         playbackRate = value.playbackRate or DEFAULTS.playbackRate,
     }

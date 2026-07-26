@@ -3,7 +3,6 @@ MusicOnsetDetector.__index = MusicOnsetDetector
 
 local DECODER_BUFFER_BYTES = 4096
 local WINDOW_SECONDS = 0.01
-local RMS_THRESHOLD = 0.01
 local REQUIRED_LOUD_WINDOWS = 2
 
 local function defaultDecoderFactory(path)
@@ -21,7 +20,7 @@ function MusicOnsetDetector.new(options)
     }, MusicOnsetDetector)
 end
 
-local function scanDecoder(decoder)
+local function scanDecoder(decoder, threshold)
     local processedFrames = 0
     local windowPower = 0
     local windowFrameCount = 0
@@ -51,7 +50,7 @@ local function scanDecoder(decoder)
 
             if windowFrameCount == targetWindowFrames then
                 local rms = math.sqrt(windowPower / windowFrameCount)
-                if rms >= RMS_THRESHOLD then
+                if rms > threshold then
                     loudWindowCount = loudWindowCount + 1
                     if loudWindowCount == 1 then
                         candidateFrame = windowStartFrame
@@ -73,7 +72,8 @@ local function scanDecoder(decoder)
     return nil
 end
 
-function MusicOnsetDetector:detect(projectId, music)
+function MusicOnsetDetector:detect(projectId, music, threshold)
+    threshold = threshold or 0
     local path = "projects/" .. projectId .. "/" .. music
     local created, decoderOrError = pcall(
         self.decoderFactory,
@@ -85,7 +85,7 @@ function MusicOnsetDetector:detect(projectId, music)
     end
 
     local decoder = decoderOrError
-    local scanned, onsetOrError = pcall(scanDecoder, decoder)
+    local scanned, onsetOrError = pcall(scanDecoder, decoder, threshold)
     releaseDecoder(decoder)
     if not scanned then
         return nil, "Failed to analyze Music onset: " .. tostring(onsetOrError)

@@ -4,7 +4,7 @@
 
 LÖVE2D 11.5 Launcher에서 Sample Project와 Stage 에디터를 열 수 있다. 에디터는 schemaVersion 2 Stage를 만들고 열고 원자 저장하며, Project 음악을 Core `PlaybackTransport`에 연결해 Project Canvas와 함께 미리 재생한다.
 
-`Editor Properties`는 Scale, Playback Rate, Metronome, Metronome Period를, `Mixtape Properties`는 Music, Volume, Beat 0 Offset, BPM을 순서대로 제공한다. 숫자 직접 편집, boolean 전환, Project Music 선택 모달, cursor anchor wheel zoom, Play/Pause, 재생 오류 정리와 beat rollback이 연결되었다. 기본값은 Stage JSON에서 희소화된다.
+`Editor Properties`는 Snap, Scale, Playback Rate, Metronome, Metronome Period를, `Mixtape Properties`는 Music, Volume, Beat 0 Offset, Onset Threshold, BPM을 순서대로 제공한다. 숫자 직접 편집, boolean 전환, Project Music 선택 모달, cursor anchor wheel zoom, 상단 click·adaptive edge-scroll 재생 바 drag, F·Ctrl+S·R 단축키, 재생 오류 정리와 beat rollback이 연결되었다. 기본값은 Stage JSON에서 희소화된다.
 
 Stage Event 실행, 리듬 판정, Timeline Event 배치·편집과 Project 입력 전달은 아직 구현하지 않았다.
 
@@ -177,3 +177,58 @@ Stage 계약은 schemaVersion 2, 최상위 `bpm`, 선택적 `mixtape`, 선택적
 - RED: `seek(0.36)` 뒤 Source가 0 기준으로 진행하는 회귀 테스트에서 정상 진행인데도 `seekCount expected: 1, actual: 2`를 확인했다.
 - GREEN: 서로 다른 tell 원점, 실제 drift 보정과 큰 update의 interval remainder 테스트를 포함해 `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 206 tests`; `git diff --check` 출력 없음. 실제 스피커에서 해당 MP3의 되감김 제거 여부는 수동 재확인이 필요하다.
 - 최종 검증: Project JSON 1개 문법 통과, Editor/Project의 Core 내부 require 검색 출력 없음, 숨김 창 LÖVE 기동 `LOVE_SMOKE_RUNNING=True`.
+
+## Timeline 빈 첫 칸·재생 바 정렬·Period 눈금 (2026-07-26)
+
+- Timeline은 패딩 없이 다시 전체 너비를 사용한다. 대신 Scale에 따른 한 beat 너비의 첫 칸을 비우고, 그 오른쪽 경계선을 현재 시작 beat 원점으로 사용한다. fractional 시작 beat stripe도 이 원점 왼쪽의 빈 칸을 침범하지 않는다.
+- 역삼각형 핸들의 중심을 기준으로 2px 재생 바를 좌우 1px씩 배치해 중심축을 맞췄다. seek와 cursor anchor zoom도 새 beat 원점을 공유한다.
+- Timeline 번호는 고정 4박 대신 현재 `Metronome Period`의 배수 beat에 표시되며, 박스 내부가 아니라 해당 경계선 중앙에 정렬된다. `EditorApp` view model이 Stage의 현재 Period를 렌더러에 전달한다.
+- 최초 RED에서 좌우 inset, playhead 중심, Period 3 눈금을 기대한 UI 테스트 등 4건이 실패했다. 디자인 피드백 후 전체 너비·빈 첫 칸·경계선 중앙 번호 계약으로 바꾼 RED에서는 5건의 실패를 확인했다.
+- GREEN: `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 207 tests`; `git diff --check` 출력 없음; Project JSON PowerShell 문법 검사 통과; Editor/Project의 Core 내부 require 검색 출력 없음; 숨김 창 기동 `LOVE_SMOKE_RUNNING=True`.
+
+## Timeline Snap·edge scroll·단축키 (2026-07-26)
+
+- `editorSettings.snap`을 기본값 `1`, 허용 범위 정수 `1~32`로 추가했다. 기본값은 희소 저장되며 값 4는 가장 가까운 4박 위치에 맞춘다. 순수 `editor/timeline/TimelineSnap` 모듈을 재생 바와 향후 Event 노드 배치가 공유할 반올림 규칙으로 분리했다.
+- 일시정지 상태에서 Timeline 상단 32px 전체를 클릭·drag해 재생 바를 이동한다. 역삼각형만 hit-test하던 입력은 제거했으며 본문 좌클릭은 seek하지 않는다.
+- drag 중 좌우 끝 32px에 머물면 mouse move 없이도 `update`에서 초당 4박으로 Timeline을 pan한 뒤 현재 Snap 위치로 seek한다.
+- `Space`는 Play/Pause를 전환하고 `Home`은 재생 중 Pause 후 beat와 Timeline 시작 위치를 0으로 되돌린다. Dialog·Value 편집 중에는 실행하지 않고 key repeat를 무시한다.
+- RED: Settings, 공통 Snap 모듈, snapped seek, 상단 click·drag, 양방향 edge scroll과 단축키 테스트에서 9건 실패를 확인했다.
+- GREEN: `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 210 tests`; `git diff --check` 출력 없음; Project JSON PowerShell 문법 검사 통과; Editor/Project의 Core 내부 require 검색 출력 없음; 숨김 창 기동 `LOVE_SMOKE_RUNNING=True`.
+
+## 중간 beat Offset 확인·adaptive scroll·Onset Threshold (2026-07-26)
+
+- Core Transport 회귀 테스트에서 BPM 120, beat 8, Beat 0 Offset `0.5`로 Play할 때 Music seek가 `4.5`초임을 확인했다. 중간 beat 시작에도 `timelineSeconds + beat0Offset`이 정상 적용되어 해당 Core 경로는 수정하지 않고 테스트만 고정했다.
+- edge scroll은 기본 초당 8박에 마우스와 재생 바 거리 1박당 초당 8박을 더하며 최대 초당 64박으로 제한한다. 좌우 이동과 먼 마우스가 더 빠른 동작을 테스트한다.
+- Play/Pause 단축키를 `Space`에서 `P`로 바꾸고 `Ctrl+S` Save를 추가했다. `Home`은 유지하며 Dialog·Value 편집과 key repeat 차단도 유지한다.
+- Snap을 Editor Properties 첫 행으로 옮겼다. 최종 순서는 Snap, Scale, Playback Rate, Metronome, Metronome Period, Onset Threshold다.
+- 기존 Auto onset은 고정 RMS `0.01` 이상을 사용했다. 이를 `editorSettings.onsetThreshold` 기본값 `0`, 범위 `0~1`로 바꾸고, 연속된 두 10ms 창의 RMS가 threshold보다 큰 첫 위치를 사용한다. 기본값 0은 완전한 무음을 건너뛴다.
+- RED: Offset 중간 시작 테스트는 즉시 통과해 버그를 재현하지 못했다. Settings, Property 순서, threshold 전달·검출, adaptive scroll과 단축키 변경은 10건 실패로 재현했다.
+- GREEN: `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 212 tests`; `git diff --check` 출력 없음; Project JSON PowerShell 문법 검사 통과; Editor/Project의 Core 내부 require 검색 출력 없음; 숨김 창 기동 `LOVE_SMOKE_RUNNING=True`.
+
+## Onset Threshold UI 위치 조정 (2026-07-26)
+
+- Onset Threshold를 Editor Properties에서 제거하고 Mixtape Properties의 Beat 0 Offset 바로 아래에 배치했다. 최종 Mixtape 순서는 Music, Volume, Beat 0 Offset, Onset Threshold, BPM이다.
+- 데이터 소유권은 계속 `editorSettings.onsetThreshold`에 둔다. `PropertyCatalog`의 선택적 `groupId`가 화면상 그룹과 실제 설정 그룹을 분리하며 Values 조회·편집·커서 렌더링이 이 메타데이터를 공통 사용한다.
+- RED: Property 순서·소유 그룹·인라인 편집 테스트 3건 실패를 확인했다.
+- GREEN: `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 213 tests`; `git diff --check` 출력 없음; Project JSON 문법 검사와 숨김 창 기동을 통과했다.
+
+## 1초 미만 Music stream seek 중복 적용 수정 (2026-07-26)
+
+- `HifumiDaisuki.mp3`의 44.1kHz decoded PCM은 `0.357324`초까지 실제로 0이며 Threshold 0의 10ms 창 검출 결과 `0.35`초는 정상이다. 사용자가 수동으로 맞춘 `0.20~0.22`초와의 차이는 Auto 분석 해상도가 원인이 아니었다.
+- LÖVE 11.5 실제 Source smoke에서 정지된 stream에 `seek(0.2)` 후 `play()`하면 즉시 위치가 `0.4`로, `seek(0.35)`는 `0.699955`로 중복 적용됐다. 같은 현상은 MP3뿐 아니라 임시 WAV stream에서도 재현됐고 static Source에서는 재현되지 않았다.
+- `MusicPlayback:play`는 pitch를 설정하고 Source를 먼저 재생한 뒤 활성 Source를 요청 위치로 seek한다. 실제 MP3 smoke에서 요청 `0.2`는 `0.2`, 요청 `0.35`는 `0.349977`로 유지됐다.
+- RED: stream 호출 순서를 고정한 회귀 테스트에서 `expected: pitch`, `actual: seek` 실패를 확인했다.
+- GREEN: `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 214 tests`; `git diff --check` 출력 없음; Project JSON 1개 문법 검사와 Core 내부 require 경계 검색 통과; 숨김 창 기동 `LOVE_SMOKE_RUNNING=True`.
+
+## Onset Threshold 권장 기본값 복원 (2026-07-26)
+
+- `editorSettings.onsetThreshold` 기본값을 일반 음악의 작은 압축 노이즈를 제외하는 권장값 `0.01`로 변경했다. `0`은 계속 유효한 명시값이며 기본값과 다르므로 Stage compact 시 보존된다.
+- 아직 커밋되지 않은 Onset Threshold 기능 범위 안에서 기본값을 확정했으므로 schemaVersion은 계속 2를 사용한다. Stage 형식 예시는 기본값 희소화가 드러나도록 명시값을 `0.02`로 바꿨다.
+- RED: 기본 resolve와 compact 기대값 변경 후 `expected: 0.01, actual: 0` 및 기본값 compact 실패 2건을 확인했다. 구현 변경 뒤 Mixtape Properties 기본 표시의 `expected: 0, actual: 0.01` 테스트를 새 계약에 맞게 갱신했다.
+- GREEN: `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 214 tests`; `git diff --check` 출력 없음; Project JSON 1개 문법 검사와 Core 내부 require 경계 검색 통과; 숨김 창 기동 `LOVE_SMOKE_RUNNING=True`.
+
+## 에디터 재생 단축키 변경 (2026-07-26)
+
+- Play/Pause 단축키를 `P`에서 `F`로, beat 0과 Timeline 시작 위치 초기화 단축키를 `Home`에서 `R`로 변경했다. `Ctrl+S`, Dialog·Value 편집 중 차단과 key repeat 차단 동작은 유지한다.
+- RED: 단축키 통합 테스트를 `F`·`R` 기대값으로 먼저 변경한 뒤 Play가 시작되지 않아 `expected: true`, `actual: false`로 실패함을 확인했다.
+- GREEN: `love . --test` → `PASS: 214 tests`; `git diff --check`, 이전 단축키 구현·현재 문서 잔존 검색과 Editor/Project의 Core 내부 require 검색은 출력 없음; Project JSON 문법 검사 통과.
