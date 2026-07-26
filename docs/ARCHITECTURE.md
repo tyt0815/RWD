@@ -34,7 +34,7 @@ Editor는 `Menu | Categories | Events | Properties | Values` 상단 영역과 Sc
 
 `EditorSession`은 Project, `StageDocument`, `StageStore`, Core `PlaybackTransport`, Editor 전용 `MetronomePlayback`과 `TestPlayer`를 조립한다. Play는 resolved Mixtape와 `projects/<projectId>/...` Music 경로를 Transport에 전달하고, Stage의 Playback Rate로 Transport·TestPlayer·Metronome 속도를 함께 바꾼다. Metronome이 false면 SoundData와 Source를 만들지 않는다. 시작이나 update 실패의 정리는 `EditorSession:pause()` 한 곳에서 수행한다.
 
-`MetronomePlayback`은 Period 전체 길이의 Editor 전용 정적 Source를 만들고, BPM 한 박마다 클릭 하나를 배치하며 beat 0에 해당하는 첫 클릭만 1760Hz 강박, 나머지는 880Hz 일반박을 사용한다. 재생 위치는 `beat % period` 위치로 seek하고 Core와 Project는 Editor 내부 구현 세부를 알지 못한다.
+`MetronomePlayback`은 0.012초 길이의 1760Hz 강박과 880Hz 일반박 SoundData·정적 Source를 각각 하나만 만든다. Source는 반복하지 않으며, `EditorSession:update`가 Transport의 현재 beat를 전달하면 새로 지난 정수 beat를 순서대로 처리한다. Period의 배수 beat에는 강박을, 나머지 beat에는 일반박을 재생하므로 BPM과 Period가 오디오 메모리 크기를 늘리지 않는다. Core와 Project는 이 Editor 내부 구현 세부를 알지 못한다.
 
 `EditorApp`은 Session을 Menu, Music 모달, Properties/Values, Timeline wheel zoom과 오류 dialog에 연결한다. 숫자 편집은 유효한 값을 확정할 때만 Session에 전달하고, boolean은 즉시 전환한다. Timeline zoom은 cursor beat를 고정하며 Play 중에도 허용된다.
 

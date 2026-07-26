@@ -45,7 +45,7 @@
 - [x] Core PlaybackTransport 기반 Timeline과 Music 동기화
 - [x] 재생, 일시정지, 오류 rollback과 자동 playhead 추적
 - [x] Editor 전용 Playback Rate와 Metronome
-- [x] BPM beat 고정 클릭과 Metronome Period 강박 그룹
+- [x] 고정 메모리 동적 BPM beat 클릭과 Metronome Period 강박 그룹
 - [x] Music 없음, Offset, duration 종료와 희소 설정 통합 경로
 - [ ] Stage Event 실행
 - [ ] Project 입력 전달

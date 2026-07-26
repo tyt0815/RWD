@@ -29,29 +29,54 @@ local function defaultSourceFactory(soundData, sourceType)
     return love.audio.newSource(soundData, sourceType)
 end
 
-local function createSoundData(self, bpm, period)
-    local beatDuration = 60 / bpm
-    local loopDuration = beatDuration * period
-    local sampleCount = math.floor(loopDuration * SAMPLE_RATE + 0.5)
-    local clickSampleCount = math.floor(CLICK_SECONDS * SAMPLE_RATE)
+local function createClickSoundData(self, frequency)
+    local sampleCount = math.floor(CLICK_SECONDS * SAMPLE_RATE)
     local soundData = self.soundDataFactory(sampleCount, SAMPLE_RATE)
 
-    for beatIndex = 0, period - 1 do
-        local frequency = beatIndex == 0 and ACCENT_FREQUENCY or NORMAL_FREQUENCY
-        local startSample = math.floor(beatIndex * beatDuration * SAMPLE_RATE)
-        for offset = 0, clickSampleCount - 1 do
-            local sampleIndex = startSample + offset
-            if sampleIndex >= sampleCount then break end
-            local time = offset / SAMPLE_RATE
-            local envelope = 1 - time / CLICK_SECONDS
-            local sample = AMPLITUDE
-                * envelope
-                * math.sin(2 * math.pi * frequency * time)
-            soundData:setSample(sampleIndex, sample)
-        end
+    for offset = 0, sampleCount - 1 do
+        local time = offset / SAMPLE_RATE
+        local envelope = 1 - time / CLICK_SECONDS
+        local sample = AMPLITUDE
+            * envelope
+            * math.sin(2 * math.pi * frequency * time)
+        soundData:setSample(offset, sample)
     end
 
-    return soundData, loopDuration, beatDuration
+    return soundData
+end
+
+local function clear(metronome)
+    metronome.accentSource = nil
+    metronome.normalSource = nil
+    metronome.period = nil
+    metronome.lastProcessedBeat = nil
+end
+
+local function callBoth(metronome, methodName, ...)
+    local firstError = nil
+    if metronome.accentSource then
+        local called, errorMessage = callSource(
+            metronome.accentSource,
+            methodName,
+            ...
+        )
+        if not called then firstError = errorMessage end
+    end
+    if metronome.normalSource then
+        local called, errorMessage = callSource(
+            metronome.normalSource,
+            methodName,
+            ...
+        )
+        if not called and not firstError then firstError = errorMessage end
+    end
+    return firstError == nil, firstError
+end
+
+local function fail(metronome, errorMessage)
+    callBoth(metronome, "stop")
+    clear(metronome)
+    return failureMessage(errorMessage)
 end
 
 function MetronomePlayback.new(options)
@@ -59,60 +84,81 @@ function MetronomePlayback.new(options)
     return setmetatable({
         soundDataFactory = options.soundDataFactory or defaultSoundDataFactory,
         sourceFactory = options.sourceFactory or defaultSourceFactory,
-        source = nil,
+        accentSource = nil,
+        normalSource = nil,
+        period = nil,
+        lastProcessedBeat = nil,
     }, MetronomePlayback)
 end
 
-local function fail(metronome, source, errorMessage)
-    metronome.source = nil
-    if source then callSource(source, "stop") end
-    return failureMessage(errorMessage)
+local function playBeat(metronome, beatIndex)
+    local source = beatIndex % metronome.period == 0
+        and metronome.accentSource or metronome.normalSource
+    local played, playError = callSource(source, "play")
+    if not played then return fail(metronome, playError) end
+    return true, nil
 end
 
 function MetronomePlayback:play(bpm, period, beat, playbackRate)
     local stopped, stopError = self:stop()
     if not stopped then return nil, stopError end
 
-    local soundCreated, soundData, loopDuration, beatDuration = pcall(
-        createSoundData,
-        self,
-        bpm,
-        period
-    )
-    if not soundCreated then return failureMessage(soundData) end
+    local soundCreated, accentData, normalData = pcall(function()
+        return createClickSoundData(self, ACCENT_FREQUENCY),
+            createClickSoundData(self, NORMAL_FREQUENCY)
+    end)
+    if not soundCreated then return failureMessage(accentData) end
 
-    local sourceCreated, source = pcall(self.sourceFactory, soundData, "static")
-    if not sourceCreated then return failureMessage(source) end
-    self.source = source
-
-    local loopSet, loopError = callSource(source, "setLooping", true)
-    if not loopSet then return fail(self, source, loopError) end
-    local sought, seekError = callSource(
-        source,
-        "seek",
-        (beat % period) * beatDuration
+    local accentCreated, accentSource = pcall(
+        self.sourceFactory,
+        accentData,
+        "static"
     )
-    if not sought then return fail(self, source, seekError) end
-    local pitchSet, pitchError = callSource(source, "setPitch", playbackRate)
-    if not pitchSet then return fail(self, source, pitchError) end
-    local played, playError = callSource(source, "play")
-    if not played then return fail(self, source, playError) end
+    if not accentCreated then return failureMessage(accentSource) end
+    self.accentSource = accentSource
+
+    local normalCreated, normalSource = pcall(
+        self.sourceFactory,
+        normalData,
+        "static"
+    )
+    if not normalCreated then return fail(self, normalSource) end
+    self.normalSource = normalSource
+
+    local loopSet, loopError = callBoth(self, "setLooping", false)
+    if not loopSet then return fail(self, loopError) end
+    local pitchSet, pitchError = callBoth(self, "setPitch", playbackRate)
+    if not pitchSet then return fail(self, pitchError) end
+
+    self.period = period
+    self.lastProcessedBeat = math.floor(beat)
+    if beat == self.lastProcessedBeat then
+        return playBeat(self, self.lastProcessedBeat)
+    end
+    return true, nil
+end
+
+function MetronomePlayback:update(beat)
+    if not self.accentSource or not self.normalSource then return true, nil end
+
+    local currentBeat = math.floor(beat)
+    for beatIndex = self.lastProcessedBeat + 1, currentBeat do
+        local played, playError = playBeat(self, beatIndex)
+        if not played then return nil, playError end
+        self.lastProcessedBeat = beatIndex
+    end
     return true, nil
 end
 
 function MetronomePlayback:pause()
-    if not self.source then return true, nil end
-    local paused, pauseError = callSource(self.source, "pause")
-    if not paused then return fail(self, self.source, pauseError) end
+    local paused, pauseError = callBoth(self, "pause")
+    if not paused then return fail(self, pauseError) end
     return true, nil
 end
 
 function MetronomePlayback:stop()
-    local source = self.source
-    self.source = nil
-    if not source then return true, nil end
-
-    local stopped, stopError = callSource(source, "stop")
+    local stopped, stopError = callBoth(self, "stop")
+    clear(self)
     if not stopped then return failureMessage(stopError) end
     return true, nil
 end

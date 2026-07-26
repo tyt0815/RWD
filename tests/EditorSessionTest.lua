@@ -167,6 +167,12 @@ local function newFixture(options)
             metronomeState.playing = true
             return true, nil
         end,
+        update = function(_, beat)
+            metronomeState.updateCount = (metronomeState.updateCount or 0) + 1
+            metronomeState.updateBeat = beat
+            if metronomeState.updateError then return nil, metronomeState.updateError end
+            return true, nil
+        end,
         pause = function()
             metronomeState.pauseCount = metronomeState.pauseCount + 1
             metronomeState.playing = false
@@ -627,6 +633,44 @@ return {
             test.assertEqual(state.metronomeState.period, 3)
             test.assertEqual(state.metronomeState.beat, 0)
             test.assertEqual(state.metronomeState.playbackRate, 0.5)
+        end,
+    },
+    {
+        name = "EditorSession update는 Transport의 현재 beat를 Metronome에 전달한다",
+        run = function(test)
+            local session, _, state = newSession({ stored = VALID_STAGE })
+            assert(session:openStage("sample", "tutorial"))
+            assert(session:getDocument():setEditorSetting("metronome", true))
+            assert(session:play())
+
+            assert(session:update(0.25, 16))
+
+            test.assertEqual(state.metronomeState.updateCount, 1)
+            test.assertNear(state.metronomeState.updateBeat, 0.5, 0.000001)
+        end,
+    },
+    {
+        name = "EditorSession은 Metronome update 실패 시 재생을 정리한다",
+        run = function(test)
+            local session, testPlayer, state = newSession({ stored = VALID_STAGE })
+            assert(session:openStage("sample", "tutorial"))
+            assert(session:getDocument():setEditorSetting("metronome", true))
+            assert(session:play())
+            state.metronomeState.updateError = "metronome update failed"
+            state.transportState.pauseCount = 0
+            state.metronomeState.pauseCount = 0
+            state.testPlayerState.stopCount = 0
+
+            local updated, errorMessage = session:update(0.25, 16)
+
+            test.assertEqual(updated, nil)
+            test.assertEqual(errorMessage, "metronome update failed")
+            test.assertEqual(state.transportState.pauseCount, 1)
+            test.assertEqual(state.metronomeState.pauseCount, 1)
+            test.assertEqual(state.testPlayerState.stopCount, 1)
+            test.assertEqual(session:isPlaying(), false)
+            test.assertEqual(state.metronomeState.playing, false)
+            test.assertEqual(testPlayer.playing, false)
         end,
     },
     {

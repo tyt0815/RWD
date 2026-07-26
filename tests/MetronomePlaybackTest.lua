@@ -1,6 +1,7 @@
 local SAMPLE_RATE = 44100
 local CLICK_SECONDS = 0.012
 local AMPLITUDE = 0.35
+local CLICK_SAMPLE_COUNT = math.floor(CLICK_SECONDS * SAMPLE_RATE)
 
 local function expectedClickSample(frequency, offset)
     local time = offset / SAMPLE_RATE
@@ -10,222 +11,231 @@ local function expectedClickSample(frequency, offset)
         * math.sin(2 * math.pi * frequency * time)
 end
 
-local function newFixture()
+local function newMetronome(options)
+    options = options or {}
     local state = {
-        samples = {},
-        playing = false,
+        soundData = {},
+        sources = {},
+        clicks = {},
     }
 
     local function soundDataFactory(sampleCount, sampleRate)
-        state.sampleCount = sampleCount
-        state.sampleRate = sampleRate
-        return {
-            setSample = function(_, index, value)
-                state.samples[index] = value
+        local soundData = {
+            sampleCount = sampleCount,
+            sampleRate = sampleRate,
+            samples = {},
+            setSample = function(self, index, value)
+                self.samples[index] = value
             end,
         }
+        table.insert(state.soundData, soundData)
+        return soundData
     end
 
     local function sourceFactory(soundData, sourceType)
-        state.soundData = soundData
-        state.sourceType = sourceType
-        return {
-            setLooping = function(_, looping)
-                state.looping = looping
+        if options.sourceErrorAt == #state.sources + 1 then
+            error("source creation failed")
+        end
+
+        local accentSample = expectedClickSample(1760, 1)
+        local kind = math.abs(soundData.samples[1] - accentSample) < 0.000001
+            and "accent" or "normal"
+        local source = {
+            kind = kind,
+            sourceType = sourceType,
+            pauseCount = 0,
+            stopCount = 0,
+            setLooping = function(self, looping) self.looping = looping end,
+            setPitch = function(self, pitch) self.pitch = pitch end,
+            play = function(self)
+                if options.playErrorKind == self.kind then
+                    error(self.kind .. " play failed")
+                end
+                table.insert(state.clicks, self.kind)
             end,
-            seek = function(_, position)
-                state.seekPosition = position
-            end,
-            setPitch = function(_, pitch)
-                state.pitch = pitch
-            end,
-            play = function()
-                state.playing = true
-            end,
-            pause = function()
-                state.playing = false
-            end,
-            stop = function()
-                state.playing = false
-            end,
+            pause = function(self) self.pauseCount = self.pauseCount + 1 end,
+            stop = function(self) self.stopCount = self.stopCount + 1 end,
         }
+        table.insert(state.sources, source)
+        return source
     end
 
-    return state, soundDataFactory, sourceFactory
-end
-
-local function newMetronome()
     local MetronomePlayback = require("editor.playback.MetronomePlayback")
-    local state, soundDataFactory, sourceFactory = newFixture()
     return MetronomePlayback.new({
         soundDataFactory = soundDataFactory,
         sourceFactory = sourceFactory,
-    }), state
+    }), state, options
+end
+
+local function assertClicks(test, state, expected)
+    test.assertEqual(#state.clicks, #expected)
+    for index, kind in ipairs(expected) do
+        test.assertEqual(state.clicks[index], kind)
+    end
 end
 
 return {
     {
-        name = "Metronome Period 1은 BPM beat마다 강박을 반복한다",
+        name = "Metronome audio memory는 낮은 BPM과 긴 Period에도 고정 크기다",
         run = function(test)
             local metronome, state = newMetronome()
-            assert(metronome:play(120, 1, 0, 1))
+            assert(metronome:play(0.1, 32, 0, 1))
 
-            test.assertEqual(state.sampleCount, SAMPLE_RATE / 2)
-            test.assertNear(state.samples[1], expectedClickSample(1760, 1), 0.000001)
-        end,
-    },
-    {
-        name = "Metronome Period 4는 BPM beat별 강박 하나와 일반박 셋을 만든다",
-        run = function(test)
-            local metronome, state = newMetronome()
-            assert(metronome:play(120, 4, 0, 1))
-
-            local beatSamples = SAMPLE_RATE / 2
-            test.assertEqual(state.sampleCount, beatSamples * 4)
-            test.assertNear(state.samples[1], expectedClickSample(1760, 1), 0.000001)
-            for beatIndex = 1, 3 do
-                local sampleIndex = beatIndex * beatSamples + 1
-                test.assertNear(
-                    state.samples[sampleIndex],
-                    expectedClickSample(880, 1),
-                    0.000001
-                )
-            end
-            for sampleIndex in pairs(state.samples) do
-                test.assertTrue(sampleIndex >= 0)
-                test.assertTrue(sampleIndex < state.sampleCount)
-            end
-        end,
-    },
-    {
-        name = "Metronome Period 5는 다섯 BPM beat 길이로 반복한다",
-        run = function(test)
-            local metronome, state = newMetronome()
-            assert(metronome:play(120, 5, 0, 1))
-
-            local beatSamples = SAMPLE_RATE / 2
-            test.assertEqual(state.sampleCount, beatSamples * 5)
-            test.assertNear(state.samples[1], expectedClickSample(1760, 1), 0.000001)
+            test.assertEqual(#state.soundData, 2)
+            test.assertEqual(state.soundData[1].sampleCount, CLICK_SAMPLE_COUNT)
+            test.assertEqual(state.soundData[2].sampleCount, CLICK_SAMPLE_COUNT)
+            test.assertEqual(state.soundData[1].sampleRate, SAMPLE_RATE)
+            test.assertEqual(state.soundData[2].sampleRate, SAMPLE_RATE)
             test.assertNear(
-                state.samples[4 * beatSamples + 1],
+                state.soundData[1].samples[1],
+                expectedClickSample(1760, 1),
+                0.000001
+            )
+            test.assertNear(
+                state.soundData[2].samples[1],
                 expectedClickSample(880, 1),
                 0.000001
             )
+            test.assertEqual(state.sources[1].sourceType, "static")
+            test.assertEqual(state.sources[2].sourceType, "static")
+            test.assertEqual(state.sources[1].looping, false)
+            test.assertEqual(state.sources[2].looping, false)
         end,
     },
     {
-        name = "Metronome beat 0 Play는 phase 0에서 즉시 재생한다",
+        name = "Metronome Period 1은 beat 0과 beat 1에 강박을 재생한다",
+        run = function(test)
+            local metronome, state = newMetronome()
+            assert(metronome:play(120, 1, 0, 1))
+            assert(metronome:update(1))
+
+            assertClicks(test, state, { "accent", "accent" })
+        end,
+    },
+    {
+        name = "Metronome Period 4는 강약약약 순서로 beat crossing을 처리한다",
         run = function(test)
             local metronome, state = newMetronome()
             assert(metronome:play(120, 4, 0, 1))
+            assert(metronome:update(4))
 
-            test.assertEqual(state.seekPosition, 0)
-            test.assertEqual(state.looping, true)
-            test.assertEqual(state.playing, true)
-            test.assertEqual(state.sourceType, "static")
+            assertClicks(test, state, {
+                "accent", "normal", "normal", "normal", "accent",
+            })
         end,
     },
     {
-        name = "Metronome Period 4는 beat 4에서 강박 위치로 돌아간다",
+        name = "Metronome Period 5는 강약약약약 순서로 beat crossing을 처리한다",
         run = function(test)
             local metronome, state = newMetronome()
-            assert(metronome:play(120, 4, 4, 1))
+            assert(metronome:play(120, 5, 0, 1))
+            assert(metronome:update(5))
 
-            test.assertNear(state.seekPosition, 0, 0.000001)
+            assertClicks(test, state, {
+                "accent", "normal", "normal", "normal", "normal", "accent",
+            })
         end,
     },
     {
-        name = "Metronome은 Period 내 fractional beat 위치에서 재개한다",
+        name = "Metronome fractional 시작은 지난 클릭을 건너뛴다",
         run = function(test)
             local metronome, state = newMetronome()
             assert(metronome:play(120, 4, 6.5, 1))
+            assertClicks(test, state, {})
 
-            test.assertNear(state.seekPosition, 1.25, 0.000001)
+            assert(metronome:update(7))
+            assertClicks(test, state, { "normal" })
+            assert(metronome:update(8))
+            assertClicks(test, state, { "normal", "accent" })
         end,
     },
     {
-        name = "Metronome은 Playback Rate를 적용하고 Pause한다",
+        name = "Metronome은 두 Source에 Playback Rate를 적용한다",
         run = function(test)
             local metronome, state = newMetronome()
-            assert(metronome:play(120, 4, 2.5, 0.5))
+            assert(metronome:play(120, 4, 0.5, 0.5))
 
-            test.assertEqual(state.pitch, 0.5)
-            test.assertEqual(state.playing, true)
-            assert(metronome:pause())
-            test.assertEqual(state.playing, false)
+            test.assertEqual(state.sources[1].pitch, 0.5)
+            test.assertEqual(state.sources[2].pitch, 0.5)
         end,
     },
     {
-        name = "Metronome Stop은 현재 Source를 정지한다",
+        name = "Metronome Pause와 Stop은 두 Source 모두에 적용된다",
         run = function(test)
             local metronome, state = newMetronome()
             assert(metronome:play(120, 4, 0, 1))
-
+            assert(metronome:pause())
             assert(metronome:stop())
-            test.assertEqual(state.playing, false)
+
+            for _, source in ipairs(state.sources) do
+                test.assertEqual(source.pauseCount, 1)
+                test.assertEqual(source.stopCount, 1)
+            end
         end,
     },
     {
-        name = "Metronome Source 시작 실패는 생성한 Source를 정리한다",
+        name = "Metronome 두 번째 Source 생성 실패는 첫 Source를 정리한다",
         run = function(test)
-            local state = { playing = false, stopCount = 0 }
+            local metronome, state = newMetronome({ sourceErrorAt = 2 })
+
+            local started, errorMessage = metronome:play(120, 4, 0, 1)
+
+            test.assertEqual(started, nil)
+            test.assertContains(errorMessage, "source creation failed")
+            test.assertEqual(state.sources[1].stopCount, 1)
+        end,
+    },
+    {
+        name = "Metronome update 재생 실패는 두 Source를 정리한다",
+        run = function(test)
+            local metronome, state, options = newMetronome()
+            assert(metronome:play(120, 4, 0, 1))
+            options.playErrorKind = "normal"
+
+            local updated, errorMessage = metronome:update(1)
+
+            test.assertEqual(updated, nil)
+            test.assertContains(errorMessage, "normal play failed")
+            for _, source in ipairs(state.sources) do
+                test.assertEqual(source.stopCount, 1)
+            end
+        end,
+    },
+    {
+        name = "Metronome은 두 LÖVE userdata Source를 재생하고 정지한다",
+        run = function(test)
+            local state = { sources = {}, clicks = {} }
             local metronome = require("editor.playback.MetronomePlayback").new({
                 soundDataFactory = function()
                     return { setSample = function() end }
                 end,
                 sourceFactory = function()
-                    return {
-                        setLooping = function() end,
-                        seek = function() end,
-                        setPitch = function() end,
-                        play = function()
-                            state.playing = true
-                            error("source play failed")
-                        end,
+                    local source = newproxy(true)
+                    local sourceIndex = #state.sources + 1
+                    getmetatable(source).__index = {
+                        setLooping = function(_, value) state.looping = value end,
+                        setPitch = function(_, value) state.pitch = value end,
+                        play = function() table.insert(state.clicks, sourceIndex) end,
+                        pause = function() end,
                         stop = function()
-                            state.stopCount = state.stopCount + 1
-                            state.playing = false
+                            state.stopCount = (state.stopCount or 0) + 1
                         end,
                     }
+                    table.insert(state.sources, source)
+                    return source
                 end,
             })
 
-            local returned, started, errorMessage = pcall(function()
-                return metronome:play(120, 4, 0, 1)
-            end)
+            assert(metronome:play(120, 4, 0, 1))
+            assert(metronome:update(1))
+            assert(metronome:stop())
 
-            test.assertEqual(returned, true)
-            test.assertEqual(started, nil)
-            test.assertContains(errorMessage, "source play failed")
-            test.assertEqual(state.stopCount, 1)
-            test.assertEqual(state.playing, false)
-        end,
-    },
-    {
-        name = "Metronome은 LÖVE userdata Source를 재생한다",
-        run = function(test)
-            local state = { playing = false }
-            local source = newproxy(true)
-            getmetatable(source).__index = {
-                setLooping = function(_, value) state.looping = value end,
-                seek = function(_, value) state.seekPosition = value end,
-                setPitch = function(_, value) state.pitch = value end,
-                play = function() state.playing = true end,
-                pause = function() state.playing = false end,
-                stop = function() state.playing = false end,
-            }
-            local metronome = require("editor.playback.MetronomePlayback").new({
-                soundDataFactory = function()
-                    return { setSample = function() end }
-                end,
-                sourceFactory = function() return source end,
-            })
-
-            local started, errorMessage = metronome:play(120, 4, 0, 1)
-
-            test.assertEqual(started, true, errorMessage)
-            test.assertEqual(state.looping, true)
-            test.assertEqual(state.playing, true)
+            test.assertEqual(#state.sources, 2)
+            test.assertEqual(state.clicks[1], 1)
+            test.assertEqual(state.clicks[2], 2)
+            test.assertEqual(state.looping, false)
+            test.assertEqual(state.pitch, 1)
+            test.assertEqual(state.stopCount, 2)
         end,
     },
 }

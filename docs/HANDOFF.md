@@ -11,8 +11,8 @@ Stage Event 실행, 리듬 판정, Timeline Event 배치·편집과 Project 입�
 ## 이번 기능 범위와 커밋
 
 - 기준 커밋: `2d544f1`
-- 완료된 기능 커밋 범위: `2d544f1..035552a`
-- 마지막 커밋: `035552a fix: keep narrow timeline playhead visible`
+- 완료된 기능 커밋 범위: `2d544f1..HEAD`
+- 마지막 커밋: `fix: bound metronome audio memory` (이 문서를 포함한 현재 HEAD)
 - Task 10 통합 테스트·문서와 `EditorApp` 최소 수정은 이 문서를 포함한 현재 HEAD 커밋이다. 전체 기능 범위는 `2d544f1..HEAD`로 확인한다.
 
 기능 커밋은 Stage 설정·v2 전환, Core Tempo/Music/Transport, Editor 재생 조립, Properties/Music UI와 Scale zoom을 포함한다. 주요 변경 파일은 다음과 같다.
@@ -98,8 +98,9 @@ Stage 계약은 schemaVersion 2, 최상위 `bpm`, 선택적 `mixtape`, 선택적
 
 ## 메트로놈 Period 의미 수정 (2026-07-26)
 
-- 기준 커밋: `80504bf fix: use metronome period as accent cycle`
+- 기준 범위: `80504bf..HEAD`; 최종 수정 커밋은 `fix: bound metronome audio memory`다.
 - 메트로놈은 BPM 한 박마다 클릭하며, `editorSettings.metronomePeriod`는 강박 반복 박자 수다. JSON 키는 그대로이고 기본값은 `4`, 허용 범위는 정수 `1~32`다. Period 4는 `강 약 약 약`, Period 5는 `강 약 약 약 약`을 반복한다.
-- 최종 자동 검증: `C:\Program Files\LOVE\lovec.exe --version`은 `LOVE 11.5 (Mysterious Mysteries)`, `C:\Program Files\LOVE\lovec.exe . --test`는 `PASS: 187 tests`와 종료 코드 `0`을 반환했다. `git diff --check`는 출력 없이 통과했고, Project JSON은 PowerShell `ConvertFrom-Json`으로 모두 통과했으며 `rg -n 'require\("core\.' editor projects`는 출력이 없었다.
+- 최종 리뷰에서 Period 전체 길이의 정적 SoundData가 낮은 BPM에서 메모리를 과도하게 사용하는 문제를 수정했다. 이제 529 samples인 0.012초 강박·일반박 SoundData와 non-looping static Source를 각각 하나만 만들고, `EditorSession:update`가 Transport beat를 전달해 새 정수 beat crossing을 동적으로 재생한다.
+- 최종 자동 검증: focused suite는 `PASS: 34 tests`, 전체 suite는 `PASS: 189 tests`와 종료 코드 `0`을 반환했다. `git diff --check`는 출력 없이 통과했고, Project JSON은 PowerShell `ConvertFrom-Json`으로 모두 통과했으며 `rg -n 'require\("core\.' editor projects`는 출력이 없었다.
 - LÖVE 기동 smoke: `love .`를 숨김 창으로 2초 실행해 `LOVE_SMOKE_RUNNING=True`를 확인한 뒤 종료했다. 이 환경에서는 사람이 Period 1/4의 소리와 pause 뒤 강박 위치를 직접 청취하지 못했으므로 수동 청취는 미확인이다.
 - 다음 작업은 Project Event 등록 계약을 정의하고 Stage Event를 TestPlayer 실행에 연결하는 일이다.

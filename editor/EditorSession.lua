@@ -255,6 +255,16 @@ function EditorSession:update(deltaTime, visibleBeatCount)
         return nil, transportError
     end
 
+    if self.document:getEditorSettings().metronome then
+        local metronomeUpdated, metronomeError = self.metronome:update(
+            self.transport:getBeat()
+        )
+        if not metronomeUpdated then
+            self:pause()
+            return nil, metronomeError
+        end
+    end
+
     local playbackRate = self.document:getEditorSettings().playbackRate
     local updated, errorMessage = self.testPlayer:update(deltaTime * playbackRate)
     if not updated then
