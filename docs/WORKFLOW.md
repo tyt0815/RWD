@@ -38,7 +38,7 @@ New는 Project, Stage ID, Name과 BPM으로 `events: []`인 schemaVersion 2 Stag
 1. Scale: Timeline 확대 배율 `0.25~8.0`
 2. Playback Rate: Editor preview 속도 `0.25~4.0`
 3. Metronome: Editor 디버깅 click 사용 여부
-4. Metronome Period: 한 beat 안의 subdivision 수 `1~32`
+4. Metronome Period: BPM 한 박마다 울리는 클릭을 몇 박 단위로 강박 그룹화할지 지정한다. 값 4는 `강 약 약 약`을 반복한다.
 
 숫자 Value는 셀에서 직접 편집한다. 첫 문자 입력은 기존 값을 대체하고 Backspace로 수정한다. Enter 또는 다른 영역 클릭은 유효한 값을 확정하며 Escape는 취소한다. boolean은 클릭 즉시 바뀐다. 기본값과 같은 선택 속성은 저장 JSON에서 제거된다.
 

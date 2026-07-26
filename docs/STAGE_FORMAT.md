@@ -84,9 +84,11 @@ Mixtape와 Editor 설정이 모두 기본값이면 `mixtape`와 `editorSettings`
 | 필드 | 기본값 | 검증 |
 | --- | ---: | --- |
 | `metronome` | `false` | boolean |
-| `metronomePeriod` | `4` | `1~32` 정수 |
+| `metronomePeriod` | `4` | 강박 반복 BPM 박자 수, `1~32` 정수 |
 | `scale` | `1.0` | `0.25~8.0` 유한 수 |
 | `playbackRate` | `1.0` | `0.25~4.0` 유한 수 |
+
+`metronomePeriod`는 강박을 반복하는 BPM 박자 수다. 값 4는 beat 0, 4, 8, 12에서 강박이 울리고 BPM 클릭 간격 자체는 바뀌지 않는다.
 
 기본값과 같은 선택 필드는 저장할 때 제거한다. 그 결과 비어 있는 `mixtape` 또는 `editorSettings`도 제거된다. 예를 들어 wheel zoom으로 Scale만 `1.25`가 되면 `editorSettings`에는 `scale` 하나만 남는다. 이 기본값은 schemaVersion 2 계약이므로 의미를 바꾸려면 새 schemaVersion과 변환 정책이 필요하다.
 

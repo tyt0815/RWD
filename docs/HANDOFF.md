@@ -64,7 +64,7 @@ Stage 계약은 schemaVersion 2, 최상위 `bpm`, 선택적 `mixtape`, 선택적
 
 ## 실제 확인과 미확인 사항
 
-실제 LÖVE가 생성한 WAV를 decode하고 stream Source에 Volume `0.25`, seek `0.1`, pitch `0.5/2.0`, play/pause/resume/stop을 적용하는 smoke는 통과했다. 실제 앱 프로세스도 응답 상태를 유지했다.
+임시 생성한 WAV를 실제 LÖVE에서 decode하고 stream Source에 Volume `0.25`, seek `0.1`, pitch `0.5/2.0`, play/pause/resume/stop을 적용하는 smoke는 통과했다. 실제 앱 프로세스도 응답 상태를 유지했다.
 
 숨김 GUI 환경에서는 SDL 입력과 청취를 의미 있게 자동화할 수 없었다. 따라서 다음 항목은 자동 통합 테스트로 동작을 검증했지만 사람이 화면과 소리로 확인하지는 못했다.
 
@@ -94,3 +94,12 @@ Stage 계약은 schemaVersion 2, 최상위 `bpm`, 선택적 `mixtape`, 선택적
 2. `docs/ARCHITECTURE.md`, `docs/STAGE_FORMAT.md`, `docs/ROADMAP.md`를 확인한다.
 3. `love . --test`를 실행한다.
 4. Project Event 등록 계약과 Stage Event 실행 연결 범위를 확인한다.
+
+
+## 메트로놈 Period 의미 수정 (2026-07-26)
+
+- 기준 커밋: `80504bf fix: use metronome period as accent cycle`
+- 메트로놈은 BPM 한 박마다 클릭하며, `editorSettings.metronomePeriod`는 강박 반복 박자 수다. JSON 키는 그대로이고 기본값은 `4`, 허용 범위는 정수 `1~32`다. Period 4는 `강 약 약 약`, Period 5는 `강 약 약 약 약`을 반복한다.
+- 최종 자동 검증: `C:\Program Files\LOVE\lovec.exe --version`은 `LOVE 11.5 (Mysterious Mysteries)`, `C:\Program Files\LOVE\lovec.exe . --test`는 `PASS: 187 tests`와 종료 코드 `0`을 반환했다. `git diff --check`는 출력 없이 통과했고, Project JSON은 PowerShell `ConvertFrom-Json`으로 모두 통과했으며 `rg -n 'require\("core\.' editor projects`는 출력이 없었다.
+- LÖVE 기동 smoke: `love .`를 숨김 창으로 2초 실행해 `LOVE_SMOKE_RUNNING=True`를 확인한 뒤 종료했다. 이 환경에서는 사람이 Period 1/4의 소리와 pause 뒤 강박 위치를 직접 청취하지 못했으므로 수동 청취는 미확인이다.
+- 다음 작업은 Project Event 등록 계약을 정의하고 Stage Event를 TestPlayer 실행에 연결하는 일이다.
