@@ -17,6 +17,7 @@ local function withGraphicsRecorder(run)
     local recorder = {
         prints = {},
         rectangles = {},
+        polygons = {},
         pushes = {},
         pops = 0,
         clears = {},
@@ -34,6 +35,14 @@ local function withGraphicsRecorder(run)
             y = y,
             width = width,
             height = height,
+            color = copyColor(currentColor),
+        })
+    end
+
+    function graphics.polygon(mode, ...)
+        table.insert(recorder.polygons, {
+            mode = mode,
+            points = { ... },
             color = copyColor(currentColor),
         })
     end
@@ -441,12 +450,43 @@ return {
                 end
                 test.assertEqual(timelineLabel.x, 228)
                 assertPlayhead(test, recorder, layout, 128)
+                test.assertEqual(#recorder.polygons, 1)
+                local handle = recorder.polygons[1]
+                test.assertEqual(handle.mode, "fill")
+                test.assertEqual(handle.points[1], 121)
+                test.assertEqual(handle.points[2], layout.timeline.y)
+                test.assertEqual(handle.points[3], 135)
+                test.assertEqual(handle.points[4], layout.timeline.y)
+                test.assertEqual(handle.points[5], 128)
+                test.assertEqual(handle.points[6], layout.timeline.y + 12)
+                assertColor(test, handle, { 1, 0.45, 0.2, 1 })
+                test.assertEqual(EditorLayout.hitTestPlayheadHandle(
+                    layout.timeline,
+                    {
+                        beat = 2.5,
+                        timelineStartBeat = 0.5,
+                        scale = 2,
+                    },
+                    128,
+                    layout.timeline.y + 6
+                ), true)
+                test.assertEqual(EditorLayout.hitTestPlayheadHandle(
+                    layout.timeline,
+                    {
+                        beat = 2.5,
+                        timelineStartBeat = 0.5,
+                        scale = 2,
+                    },
+                    140,
+                    layout.timeline.y + 6
+                ), false)
             end)
         end,
     },
     {
         name = "숫자 인라인 편집 상태와 invalid를 해당 Values 셀에 표시한다",
         run = function(test)
+            local Button = require("core").UI.Button
             local EditorMenu = require("editor.menu.EditorMenu")
             local EditorLayout = require("editor.ui.EditorLayout")
             local items = EditorMenu.getItems(sessionState({ hasStage = true }))
@@ -463,7 +503,16 @@ return {
                     properties = {
                         { id = "music", label = "Music", kind = "music", value = nil },
                         { id = "volume", label = "Volume", kind = "number", value = 1 },
-                        { id = "beat0Offset", label = "Beat 0 Offset", kind = "number", value = 0 },
+                        {
+                            id = "beat0Offset",
+                            label = "Beat 0 Offset",
+                            kind = "number",
+                            value = 0,
+                            actionButton = Button.new({
+                                id = "detectBeat0Offset",
+                                label = "Auto",
+                            }),
+                        },
                         { id = "bpm", label = "BPM", kind = "number", value = 120 },
                     },
                     valueEdit = {
@@ -491,6 +540,15 @@ return {
                 test.assertEqual(countPrints(recorder, "135"), 1)
                 test.assertEqual(countPrints(recorder, "120"), 0)
                 test.assertEqual(countPrints(recorder, "None"), 1)
+                test.assertEqual(countPrints(recorder, "Auto"), 1)
+                local autoRect = EditorLayout.getPropertyActionRect(layout, 3)
+                assertColor(test, findRectangle(recorder, {
+                    mode = "fill",
+                    x = autoRect.x,
+                    y = autoRect.y,
+                    width = autoRect.width,
+                    height = autoRect.height,
+                }), { 0.24, 0.25, 0.29, 1 })
                 assertColor(test, outline, { 1, 0.45, 0.2, 1 })
                 test.assertTrue(findRectangle(recorder, {
                     mode = "fill",

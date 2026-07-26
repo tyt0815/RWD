@@ -31,9 +31,10 @@
 
 - [x] Project와 Stage 선택
 - [x] EditorSession의 Stage 생성, 열기와 저장 상태
-- [x] Core.UI TextInput·Project/Stage/Music 인라인 검색 ComboBox와 Editor 스타일 조합
+- [x] Core.UI Button·TextInput·Project/Stage/Music 인라인 검색 ComboBox와 Editor 스타일 조합
 - [x] Project Music 재귀 검색과 선택 모달
-- [x] Scale 기반 Timeline과 cursor anchor wheel zoom
+- [x] Music 첫 소리 검출과 Beat 0 Offset 자동·수동 설정
+- [x] Scale 기반 Timeline, cursor anchor wheel zoom, 재생 바 drag와 중간 버튼 pan
 - [ ] Project Events와 Categories 목록
 - [ ] Project Event의 Properties와 Values 편집
 - [ ] Timeline Event 배치, 이동, 삭제

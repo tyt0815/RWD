@@ -20,9 +20,11 @@ local TEST_MODULES = {
     "tests.TestPlayerTest",
     "tests.EditorSessionTest",
     "tests.EditorUiTest",
+    "tests.ButtonTest",
     "tests.ComboBoxTest",
     "tests.EditorDialogTest",
     "tests.EditorWorkflowTest",
+    "tests.MusicOnsetDetectorTest",
     "tests.EditorTest",
     "tests.LauncherTest",
 }

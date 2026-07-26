@@ -1,3 +1,5 @@
+local Button = require("core").UI.Button
+
 local EditorMenu = {}
 
 local HEADER_HEIGHT = 32
@@ -34,11 +36,11 @@ function EditorMenu.getItems(session)
             label = "Save*"
         end
 
-        table.insert(items, {
+        table.insert(items, Button.new({
             action = definition.action,
             label = label,
             enabled = enabled,
-        })
+        }))
     end
 
     return items
@@ -60,8 +62,7 @@ end
 
 function EditorMenu.hitTest(panel, items, x, y)
     for _, row in ipairs(EditorMenu.getRows(panel, items)) do
-        if x >= row.x and x < row.x + row.width
-            and y >= row.y and y < row.y + row.height then
+        if row.item:hitTest(row, x, y, 1) then
             return row.item
         end
     end

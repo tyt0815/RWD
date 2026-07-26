@@ -22,6 +22,8 @@ function MusicPlayback.new(options)
         source = nil,
         duration = nil,
         driftElapsed = 0,
+        driftExpectedAnchor = nil,
+        driftReportedAnchor = nil,
         started = false,
     }, MusicPlayback)
 end
@@ -30,6 +32,8 @@ function MusicPlayback:clearState()
     self.source = nil
     self.duration = nil
     self.driftElapsed = 0
+    self.driftExpectedAnchor = nil
+    self.driftReportedAnchor = nil
     self.started = false
 end
 
@@ -88,6 +92,8 @@ function MusicPlayback:play(positionSeconds, playbackRate)
 
         self.started = false
         self.driftElapsed = 0
+        self.driftExpectedAnchor = nil
+        self.driftReportedAnchor = nil
         return true, nil
     end
 
@@ -108,6 +114,8 @@ function MusicPlayback:play(positionSeconds, playbackRate)
 
     self.started = true
     self.driftElapsed = 0
+    self.driftExpectedAnchor = nil
+    self.driftReportedAnchor = nil
     return true, nil
 end
 
@@ -124,6 +132,8 @@ function MusicPlayback:update(expectedSeconds, playbackRate, deltaTime)
 
         self.started = false
         self.driftElapsed = 0
+        self.driftExpectedAnchor = nil
+        self.driftReportedAnchor = nil
         return true, nil
     end
 
@@ -143,11 +153,21 @@ function MusicPlayback:update(expectedSeconds, playbackRate, deltaTime)
         return self:fail(positionOrError)
     end
 
-    if math.abs(positionOrError - expectedSeconds) > MAX_DRIFT_SECONDS then
+    if self.driftExpectedAnchor == nil then
+        self.driftExpectedAnchor = expectedSeconds
+        self.driftReportedAnchor = positionOrError
+        return true, nil
+    end
+
+    local expectedElapsed = expectedSeconds - self.driftExpectedAnchor
+    local reportedElapsed = positionOrError - self.driftReportedAnchor
+    if math.abs(reportedElapsed - expectedElapsed) > MAX_DRIFT_SECONDS then
         local sought, seekError = callSource(self.source, "seek", expectedSeconds)
         if not sought then
             return self:fail(seekError)
         end
+        self.driftExpectedAnchor = nil
+        self.driftReportedAnchor = nil
     end
 
     return true, nil

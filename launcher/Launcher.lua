@@ -87,6 +87,12 @@ function Launcher:mousepressed(x, y, button, isTouch, presses)
     end
 end
 
+function Launcher:mousereleased(x, y, button, isTouch, presses)
+    if self.activeApp and self.activeApp.mousereleased then
+        self.activeApp:mousereleased(x, y, button, isTouch, presses)
+    end
+end
+
 function Launcher:textinput(text)
     if self.activeApp and self.activeApp.textinput then
         self.activeApp:textinput(text)

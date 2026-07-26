@@ -151,3 +151,29 @@ Stage 계약은 schemaVersion 2, 최상위 `bpm`, 선택적 `mixtape`, 선택적
 - Project도 향후 Editor 의존 없이 같은 Core.UI를 기반으로 Project 전용 UI를 조합할 수 있다. `AGENTS.md`에 Core UI와 화면별 스타일의 책임, 공개 API 사용, 직접 재구현 금지 지침을 반영했다.
 - RED: ComboBox 테스트를 Core 공개 API로 전환한 뒤 `attempt to index field 'UI' (a nil value)` 2건을 확인했다.
 - GREEN: Core.UI 공개와 Editor 연결 후 `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 196 tests`; `git diff --check`, Editor/Project의 Core 내부 경로 require 검색, Core UI의 Editor·Project·graphics 의존 검색은 출력 없음; 숨김 창 기동은 `LOVE_SMOKE_RUNNING=True`.
+
+## Timeline 재생 바 drag와 pan (2026-07-26)
+
+- 재생 바 상단에 14×12 역삼각형 핸들을 추가했다. 일시정지 상태에서 핸들을 좌클릭 드래그하면 `EditorSession:seekTimeline`이 화면 x를 beat로 변환해 Core Transport를 이동한다.
+- Timeline 안을 마우스 중간 버튼으로 드래그하면 `EditorSession:panTimeline`이 시작 beat를 이동하며 0 아래로 제한한다. pan과 seek는 Stage 저장 데이터와 dirty 상태를 바꾸지 않는다. `mousereleased`는 Main → Launcher → EditorApp 경로로 전달해 drag 상태를 종료한다.
+- RED: 세션 API, 역삼각형 렌더링, 앱 drag와 release 전달 테스트 4곳의 실패를 확인했다.
+- GREEN: `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 198 tests`; `git diff --check` → 출력 없음; 숨김 창 기동 → `LOVE_SMOKE_RUNNING=True`.
+- 자동 테스트와 기동 smoke는 완료했지만 실제 마우스로 핸들과 중간 버튼을 드래그하는 화면 확인은 이 환경에서 수행하지 못했다.
+
+## Music 첫 소리 자동 Offset과 Core.UI Button (2026-07-26)
+
+- `editor/project/MusicOnsetDetector.lua`가 LÖVE Decoder로 Music을 4096-byte 청크 단위 분석한다. 채널 평균 10ms RMS가 `0.01` 이상인 창 두 개가 연속되는 첫 위치를 반환하며 Decoder를 즉시 release한다.
+- Music Apply 시 기존 Beat 0 Offset이 기본값 `0`인 경우에만 검출값을 자동 적용한다. Mixtape Properties의 Beat 0 Offset Values 오른쪽 `Auto` 버튼은 현재 Offset과 관계없이 다시 분석한다. Music 없음에는 비활성화되고 분석 실패 시 Music은 유지하며 Offset은 보존한 채 오류 모달을 표시한다.
+- `Core.UI.Button`이 enabled 상태, 영역 포함과 활성 좌클릭 hit-test를 소유한다. Editor Menu, Dialog 확인·취소 버튼과 새 Auto 버튼이 이를 조합하며 색상·문구·배치는 계속 Editor가 소유한다.
+- RED: Core Button 공개·통합, onset 검출, 기본값 보호, Auto 재분석, 실패 모달과 비활성 영역 테스트에서 7건, 편집 중·비활성 Auto 경계 보강에서 3건의 실패를 확인했다.
+- GREEN: 정식 전체 suite `PASS: 205 tests`; 실제 `projects/sample/assets/audio/HifumiDaisuki.mp3` smoke는 첫 소리 `0.36`초와 임시 포함 suite `PASS: 206 tests`를 확인한 뒤 임시 검증 코드를 제거했다.
+- 최종 검증: `git diff --check` 출력 없음, Project JSON 1개 문법 통과, Editor/Project의 Core 내부 require와 Core Button의 화면 의존 검색 출력 없음, 숨김 창 LÖVE 기동 `LOVE_SMOKE_RUNNING=True`.
+
+## 작은 양수 Offset의 시작부 재탐색 방지 (2026-07-26)
+
+- 재현 조건은 Offset `0 < value < 0.75`, playhead beat 0, Metronome off이며 시작 직후 5번째 박 전까지 되감김에 가까운 소리가 나는 경우다. Offset 0과 0.76 이상은 정상이다.
+- 최초 수정에서 첫 drift 검사를 1초 늦추자 증상이 1~4박에서 5~8박으로 그대로 이동했다. 이 결과로 streamed MP3의 작은 양수 seek 뒤 `tell()` 원점을 절대 음악 위치로 비교해 추가 seek하는 경로를 원인으로 확정했다.
+- 시간 유예는 제거했다. 첫 drift 검사에서 Transport expected 위치와 Source reported 위치를 각각 기준점으로 기록하고, 이후에는 두 위치 자체가 아니라 각각의 진행 시간 차이만 1초마다 비교한다. 실제 차이가 0.05초를 넘을 때만 seek하며 seek 뒤에는 기준점을 다시 측정한다.
+- RED: `seek(0.36)` 뒤 Source가 0 기준으로 진행하는 회귀 테스트에서 정상 진행인데도 `seekCount expected: 1, actual: 2`를 확인했다.
+- GREEN: 서로 다른 tell 원점, 실제 drift 보정과 큰 update의 interval remainder 테스트를 포함해 `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 206 tests`; `git diff --check` 출력 없음. 실제 스피커에서 해당 MP3의 되감김 제거 여부는 수동 재확인이 필요하다.
+- 최종 검증: Project JSON 1개 문법 통과, Editor/Project의 Core 내부 require 검색 출력 없음, 숨김 창 LÖVE 기동 `LOVE_SMOKE_RUNNING=True`.

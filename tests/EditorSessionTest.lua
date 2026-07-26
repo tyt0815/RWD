@@ -543,6 +543,30 @@ return {
         end,
     },
     {
+        name = "타임라인 seek와 pan은 beat 0 경계를 지킨다",
+        run = function(test)
+            local noStageSession = newSession()
+            local noStageSeek, seekError = noStageSession:seekTimeline(2)
+            test.assertEqual(noStageSeek, nil)
+            test.assertContains(seekError, "No Stage")
+
+            local session, _, options = newSession({ stored = VALID_STAGE })
+            assert(session:openStage("sample", "tutorial"))
+            assert(session:seekTimeline(3.5))
+            test.assertNear(session:getBeat(), 3.5, 0.000001)
+            test.assertNear(options.transportState.seekBeat, 3.5, 0.000001)
+
+            session.timelineStartBeat = 4
+            assert(session:panTimeline(64, 32))
+            test.assertNear(session:getTimelineStartBeat(), 2, 0.000001)
+            assert(session:panTimeline(96, 32))
+            test.assertEqual(session:getTimelineStartBeat(), 0)
+            assert(session:panTimeline(-64, 32))
+            test.assertNear(session:getTimelineStartBeat(), 2, 0.000001)
+            test.assertEqual(session:isDirty(), false)
+        end,
+    },
+    {
         name = "Play 중 wheel zoom과 직접 Scale 편집은 timeline 시작 위치 계약을 지킨다",
         run = function(test)
             local session = newSession({ stored = VALID_STAGE })

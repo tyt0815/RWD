@@ -1,6 +1,7 @@
 local Core = require("core")
 
 local ComboBox = Core.UI.ComboBox
+local Button = Core.UI.Button
 local TextInput = Core.UI.TextInput
 
 local EditorDialog = {}
@@ -50,6 +51,9 @@ local function newDialog(config)
     for _, field in ipairs(config.fields) do
         field.input = TextInput.new(field.value)
         field.value = nil
+    end
+    for buttonIndex, button in ipairs(config.buttons) do
+        config.buttons[buttonIndex] = Button.new(button)
     end
     config.result = nil
     return setmetatable(config, EditorDialog)
@@ -406,6 +410,7 @@ function EditorDialog:getLayout(width, height)
             height = ROW_HEIGHT,
             buttonId = button.id,
             label = button.label,
+            button = button,
         })
     end
 
@@ -467,7 +472,7 @@ function EditorDialog:mousepressed(x, y)
         end
     end
     for _, rect in ipairs(layout.buttons) do
-        if contains(rect, x, y) then
+        if rect.button:hitTest(rect, x, y, 1) then
             self:submit(rect.buttonId)
             return true
         end

@@ -15,6 +15,10 @@ local TOP_HEIGHT_RATIO = 0.46
 local BASE_BEAT_WIDTH = 32
 local HEADER_HEIGHT = 32
 local PROPERTY_ROW_HEIGHT = 24
+local PROPERTY_ACTION_WIDTH = 48
+local PROPERTY_ACTION_GAP = 4
+local PLAYHEAD_HANDLE_HALF_WIDTH = 7
+local PLAYHEAD_HANDLE_HEIGHT = 12
 
 function EditorLayout.getLayout(width, height)
     local topHeight = math.floor(height * TOP_HEIGHT_RATIO)
@@ -84,6 +88,16 @@ function EditorLayout.getPropertyValueRect(layout, rowIndex)
     return getRowRect(layout.panels[5], rowIndex)
 end
 
+function EditorLayout.getPropertyActionRect(layout, rowIndex)
+    local valueRect = EditorLayout.getPropertyValueRect(layout, rowIndex)
+    return {
+        x = valueRect.x + valueRect.width - PROPERTY_ACTION_WIDTH,
+        y = valueRect.y + 2,
+        width = PROPERTY_ACTION_WIDTH - PROPERTY_ACTION_GAP,
+        height = valueRect.height - 4,
+    }
+end
+
 function EditorLayout.getPixelsPerBeat(scale)
     return BASE_BEAT_WIDTH * scale
 end
@@ -92,6 +106,25 @@ function EditorLayout.getVisibleBeatCount(layout, scale)
     return math.max(1, math.floor(
         layout.timeline.width / EditorLayout.getPixelsPerBeat(scale)
     ))
+end
+
+function EditorLayout.getPlayheadHandle(timeline, viewModel)
+    local pixelsPerBeat = EditorLayout.getPixelsPerBeat(viewModel.scale)
+    return {
+        x = timeline.x
+            + (viewModel.beat - viewModel.timelineStartBeat) * pixelsPerBeat,
+        y = timeline.y,
+        halfWidth = PLAYHEAD_HANDLE_HALF_WIDTH,
+        height = PLAYHEAD_HANDLE_HEIGHT,
+    }
+end
+
+function EditorLayout.hitTestPlayheadHandle(timeline, viewModel, x, y)
+    local handle = EditorLayout.getPlayheadHandle(timeline, viewModel)
+    local localY = y - handle.y
+    if localY < 0 or localY > handle.height then return false end
+    local halfWidth = handle.halfWidth * (1 - localY / handle.height)
+    return math.abs(x - handle.x) <= halfWidth
 end
 
 local function hitTestRows(getRect, layout, rowCount, x, y)
@@ -137,6 +170,12 @@ local function drawPanelContent(layout, viewModel)
     if not viewModel.playing then
         for rowIndex, property in ipairs(viewModel.properties) do
             local rect = EditorLayout.getPropertyValueRect(layout, rowIndex)
+            local valueWidth = rect.width
+            local actionRect
+            if property.actionButton then
+                actionRect = EditorLayout.getPropertyActionRect(layout, rowIndex)
+                valueWidth = actionRect.x - rect.x - PROPERTY_ACTION_GAP
+            end
             love.graphics.setColor(0.9, 0.91, 0.93, 1)
             love.graphics.print(property.label, layout.panels[4].x + 12, rect.y + 3)
 
@@ -158,7 +197,7 @@ local function drawPanelContent(layout, viewModel)
                     "fill",
                     rect.x + 4,
                     rect.y + 2,
-                    rect.width - 8,
+                    valueWidth - 8,
                     rect.height - 4
                 )
                 if viewModel.valueEdit.invalid then
@@ -170,7 +209,7 @@ local function drawPanelContent(layout, viewModel)
                     "line",
                     rect.x + 4,
                     rect.y + 2,
-                    rect.width - 8,
+                    valueWidth - 8,
                     rect.height - 4
                 )
             end
@@ -182,6 +221,32 @@ local function drawPanelContent(layout, viewModel)
                 local cursorX = rect.x + 12
                     + love.graphics.getFont():getWidth(textBeforeCursor)
                 love.graphics.rectangle("fill", cursorX, rect.y + 4, 1, rect.height - 8)
+            end
+            if actionRect then
+                if property.actionButton.enabled then
+                    love.graphics.setColor(0.24, 0.25, 0.29, 1)
+                else
+                    love.graphics.setColor(0.18, 0.19, 0.21, 1)
+                end
+                love.graphics.rectangle(
+                    "fill",
+                    actionRect.x,
+                    actionRect.y,
+                    actionRect.width,
+                    actionRect.height
+                )
+                if property.actionButton.enabled then
+                    love.graphics.setColor(0.92, 0.93, 0.96, 1)
+                else
+                    love.graphics.setColor(0.48, 0.49, 0.52, 1)
+                end
+                love.graphics.printf(
+                    property.actionButton.label,
+                    actionRect.x,
+                    actionRect.y + 3,
+                    actionRect.width,
+                    "center"
+                )
             end
         end
     end
@@ -219,10 +284,19 @@ local function drawTimeline(timeline, viewModel)
     end
 
     if viewModel.hasStage then
-        local playheadX = timeline.x
-            + (viewModel.beat - viewModel.timelineStartBeat) * pixelsPerBeat
+        local handle = EditorLayout.getPlayheadHandle(timeline, viewModel)
+        local playheadX = handle.x
         love.graphics.setColor(1, 0.45, 0.2, 1)
         love.graphics.rectangle("fill", playheadX, timeline.y, 2, timeline.height)
+        love.graphics.polygon(
+            "fill",
+            handle.x - handle.halfWidth,
+            handle.y,
+            handle.x + handle.halfWidth,
+            handle.y,
+            handle.x,
+            handle.y + handle.height
+        )
     end
 end
 

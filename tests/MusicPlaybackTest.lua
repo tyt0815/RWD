@@ -14,6 +14,8 @@ local function newSource(state)
             state.seekCount = (state.seekCount or 0) + 1
         end,
         tell = function()
+            state.tellCount = (state.tellCount or 0) + 1
+            if state.tellPosition ~= nil then return state.tellPosition end
             return state.position or 0
         end,
         play = function()
@@ -97,7 +99,7 @@ return {
         end,
     },
     {
-        name = "MusicPlayback corrects drift greater than 0.05 seconds every second",
+        name = "MusicPlayback은 초기 유예 뒤 0.05초보다 큰 drift를 1초마다 보정한다",
         run = function(test)
             local state = {}
             local playback = newPlayback(state)
@@ -105,30 +107,57 @@ return {
             test.assertTrue(playback:prepare("projects/sample/assets/audio/a.wav", 0.8))
             test.assertTrue(playback:play(2.5, 1))
             local seekCountBeforeUpdate = state.seekCount
-            state.position = 2.551
+            state.tellPosition = 3.5
 
-            test.assertTrue(playback:update(2.5, 1, 1.0))
+            test.assertTrue(playback:update(3.5, 1, 1.0))
+            test.assertEqual(state.seekCount, seekCountBeforeUpdate)
+
+            state.tellPosition = 4.551
+            test.assertTrue(playback:update(4.5, 1, 1.0))
             test.assertEqual(state.seekCount, seekCountBeforeUpdate + 1)
-            test.assertEqual(state.position, 2.5)
+            test.assertEqual(state.position, 4.5)
         end,
     },
     {
-        name = "MusicPlayback preserves drift interval remainder after a large update",
+        name = "MusicPlayback은 초기 seek와 다른 tell 원점을 drift로 오인하지 않는다",
+        run = function(test)
+            local state = {}
+            local playback = newPlayback(state)
+
+            test.assertTrue(playback:prepare("projects/sample/assets/audio/a.mp3", 0.8))
+            test.assertTrue(playback:play(0.36, 1))
+            local seekCountAfterPlay = state.seekCount
+            state.tellPosition = 1
+
+            test.assertTrue(playback:update(1.36, 1, 1))
+            state.tellPosition = 2
+            test.assertTrue(playback:update(2.36, 1, 1))
+
+            test.assertEqual(state.seekCount, seekCountAfterPlay)
+        end,
+    },
+    {
+        name = "MusicPlayback은 큰 update 뒤 drift interval 나머지를 보존한다",
         run = function(test)
             local state = {}
             local playback = newPlayback(state)
 
             test.assertTrue(playback:prepare("projects/sample/assets/audio/a.wav", 0.8))
             test.assertTrue(playback:play(0, 1))
-            state.position = 0.051
+            state.tellPosition = 0
+            test.assertTrue(playback:update(0, 1, 1))
+
+            state.tellPosition = 2.551
             local seekCountBeforeLargeUpdate = state.seekCount
 
-            test.assertTrue(playback:update(0, 1, 2.5))
+            test.assertTrue(playback:update(2.5, 1, 2.5))
             test.assertEqual(state.seekCount, seekCountBeforeLargeUpdate + 1)
 
-            state.position = 0.051
-            test.assertTrue(playback:update(0, 1, 0.5))
-            test.assertEqual(state.seekCount, seekCountBeforeLargeUpdate + 2)
+            state.tellPosition = 3.051
+            local tellCountBeforeRemainder = state.tellCount
+            test.assertTrue(playback:update(3, 1, 0.5))
+            test.assertEqual(state.tellCount, tellCountBeforeRemainder + 1)
+            test.assertEqual(state.seekCount, seekCountBeforeLargeUpdate + 1)
         end,
     },
     {

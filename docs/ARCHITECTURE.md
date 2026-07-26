@@ -17,9 +17,9 @@ Core는 Editor와 Project를 알지 못한다. Project는 Editor를 알지 못�
 
 - `MixtapeSettings`는 Music, Volume과 Beat 0 Offset을 검증하고 기본값을 해석하거나 희소 객체로 줄인다.
 - `TempoMap`은 양수 유한 BPM 하나를 소유하고 beat와 논리 seconds를 상호 변환한다. Stage 형식과 독립적이므로 이후 BPM 변화 구조를 이 경계 뒤에서 확장할 수 있다.
-- `MusicPlayback`은 LÖVE stream Source의 생성, Volume, seek, pitch, play/pause/stop, duration 종료와 1초 간격 drift 보정을 감싼다. Source 오류를 문자열로 바꾸고 내부 Source를 정리한다.
+- `MusicPlayback`은 LÖVE stream Source의 생성, Volume, seek, pitch, play/pause/stop, duration 종료와 1초 간격 drift 보정을 감싼다. 첫 위치 검사에서 Transport와 Source의 기준점을 각각 기록하고 이후 진행 시간의 차이만 비교하므로, streamed MP3가 초기 seek 위치와 다른 원점으로 `tell()`해도 drift로 오인하지 않는다. Source 오류를 문자열로 바꾸고 내부 Source를 정리한다.
 - `PlaybackTransport`는 논리 seconds, beat, Mixtape Offset과 Music 시작 상태를 함께 소유한다. `play(rate)`의 rate 생략값은 실제 게임 경로의 `1.0`이며, Editor만 Stage의 Playback Rate를 명시적으로 전달한다. 음악 duration이 끝나도 Transport의 논리 시간과 beat는 계속 진행한다.
-- `UI.TextInput`은 UTF-8 텍스트·커서, 삽입·삭제와 깜빡임 상태를, `UI.ComboBox`는 TextInput 기반 검색·필터·선택과 키보드 탐색 상태를 제공한다. 두 모듈은 색상, 좌표와 LÖVE graphics 호출을 포함하지 않는다.
+- `UI.Button`은 enabled 상태와 좌클릭 hit-test를, `UI.TextInput`은 UTF-8 텍스트·커서, 삽입·삭제와 깜빡임 상태를, `UI.ComboBox`는 TextInput 기반 검색·필터·선택과 키보드 탐색 상태를 제공한다. 세 모듈은 색상, 좌표와 LÖVE graphics 호출을 포함하지 않는다.
 
 `Core.PlaybackTransport:seekBeat(beat)`는 재생 중 호출을 거부하는 paused-only 경계다. `EditorSession:update`에서 TestPlayer update가 실패하면 먼저 `pause()`로 Transport, Metronome과 TestPlayer를 모두 정지한 뒤 이전 beat로 rollback할 때만 이 API를 사용한다. rollback도 실패하면 원래 preview 오류와 rollback 오류를 함께 반환한다. 이 순서는 재생 중 Source와 논리 시간을 동시에 이동시키지 않도록 보장한다.
 
@@ -33,11 +33,13 @@ Editor는 `Menu | Categories | Events | Properties | Values` 상단 영역과 Sc
 
 `StageStore`는 검증된 식별자로 `projects/<projectId>/stages/<stageId>.json`만 읽고 쓴다. 개발용 네이티브 source에서는 실제 `sourceRoot` 파일을 기준으로 목록·읽기·존재 확인·원자 저장을 수행해 LÖVE save directory의 shadow 파일을 원본으로 취급하지 않는다. 패키징된 `.love`는 읽기만 허용한다.
 
-`EditorSession`은 Project, `StageDocument`, `StageStore`, Core `PlaybackTransport`, Editor 전용 `MetronomePlayback`과 `TestPlayer`를 조립한다. Play는 resolved Mixtape와 `projects/<projectId>/...` Music 경로를 Transport에 전달하고, Stage의 Playback Rate로 Transport·TestPlayer·Metronome 속도를 함께 바꾼다. Metronome이 false면 SoundData와 Source를 만들지 않는다. 시작이나 update 실패의 정리는 `EditorSession:pause()` 한 곳에서 수행한다.
+`EditorSession`은 Project, `StageDocument`, `StageStore`, Core `PlaybackTransport`, Editor 전용 `MetronomePlayback`과 `TestPlayer`를 조립한다. Play는 resolved Mixtape와 `projects/<projectId>/...` Music 경로를 Transport에 전달하고, Stage의 Playback Rate로 Transport·TestPlayer·Metronome 속도를 함께 바꾼다. `seekTimeline`은 paused-only Transport seek를, `panTimeline`은 저장 데이터와 분리된 Timeline 시작 beat 이동을 제공한다. Metronome이 false면 SoundData와 Source를 만들지 않는다. 시작이나 update 실패의 정리는 `EditorSession:pause()` 한 곳에서 수행한다.
 
 `MetronomePlayback`은 0.012초 길이의 1760Hz 강박과 880Hz 일반박 SoundData·정적 Source를 각각 하나만 만든다. Source는 반복하지 않으며, `EditorSession:update`가 Transport의 현재 beat를 전달하면 새 정수 beat crossing을 처리한다. 한 프레임에서 여러 beat를 건너뛰면 과거 클릭을 몰아서 재생하지 않고 두 Source를 정지한 뒤 마지막 crossed beat의 클릭 하나만 재생한다. Period의 배수 beat에는 강박을, 나머지 beat에는 일반박을 재생하므로 처리 시간과 오디오 메모리는 건너뛴 beat 수, BPM, Period와 무관하다. Core와 Project는 이 Editor 내부 구현 세부를 알지 못한다.
 
-`EditorApp`은 Session을 Menu, Music 모달, Properties/Values, Timeline wheel zoom과 오류 dialog에 연결한다. Values와 Dialog는 `Core.UI.TextInput`을 조합하고 Values만 숫자 필터를 적용한다. Project, Stage와 Music 선택은 `Core.UI.ComboBox`를 조합한다. Editor의 색상, 좌표, 셀·Dialog 렌더링과 Stage 검증 연결은 `editor/ui/`에 남으며 Core UI는 이를 알지 못한다. 숫자 편집은 유효한 값을 확정할 때만 Session에 전달하고, boolean은 즉시 전환한다. Timeline zoom은 cursor beat를 고정하며 Play 중에도 허용된다.
+`EditorApp`은 Session을 Menu, Music 모달, Properties/Values, Timeline wheel zoom·재생 바 drag·중간 버튼 pan과 오류 dialog에 연결한다. Menu·Dialog·Beat 0 Auto 버튼은 `Core.UI.Button`을, Values와 Dialog는 `Core.UI.TextInput`을 조합하며 Values만 숫자 필터를 적용한다. Project, Stage와 Music 선택은 `Core.UI.ComboBox`를 조합한다. Editor의 색상, 좌표, 셀·Dialog 렌더링과 Stage 검증 연결은 `editor/ui/`에 남으며 Core UI는 이를 알지 못한다. 숫자 편집은 유효한 값을 확정할 때만 Session에 전달하고, boolean은 즉시 전환한다. Timeline zoom은 cursor beat를 고정하며 Play 중에도 허용된다. 재생 바 drag는 paused-only이고 중간 버튼 pan은 Play 중에도 허용된다.
+
+`MusicOnsetDetector`는 Project Music을 LÖVE Decoder로 청크 단위 디코딩한다. 채널 평균 10ms RMS가 `-40dB` 이상인 창이 두 번 연속 나타나는 첫 위치를 반환하므로 전체 곡의 raw SoundData를 한꺼번에 메모리에 올리지 않는다. 이 결과는 Offset이 기본값일 때만 Music 선택 흐름에서 자동 적용되며, 수동 Auto 버튼은 현재 값을 다시 분석 결과로 바꾼다.
 
 `TestPlayer`는 Launcher가 주입한 `ProjectLoader.createGame`으로 프로젝트 앱을 만들고 Project의 `update(deltaTime)`과 `draw(width, height)`를 preview Canvas 안에서 실행한다. Editor는 Playback Rate가 적용된 deltaTime을 전달한다. Stage Event와 Project 입력은 아직 TestPlayer에 전달하지 않는다.
 

@@ -3,10 +3,11 @@
   "projectId":"sample",
   "stageId":"test",
   "name":"TestProject",
-  "bpm":165,
+  "bpm":164,
   "mixtape":{
     "music":"assets/audio/HifumiDaisuki.mp3",
-    "volume":0.1
+    "volume":0.1,
+    "beat0Offset":0.2
   },
   "editorSettings":{
     "metronome":true,

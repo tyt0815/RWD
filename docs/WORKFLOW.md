@@ -20,8 +20,8 @@ Project는 에디터에 Categories와 Events를 제공한다. Categories에는 `
 
 ```text
 Project audio 배치 → New/Open → Mixtape Properties에서 Music 선택
-→ Beat 0 Offset·Volume·BPM 편집 → Editor Properties에서 디버깅 설정
-→ wheel로 Timeline Scale 조정 → Save/Save As → Test Play → Pause
+→ 첫 소리 자동 검출 또는 Beat 0 Offset·Volume·BPM 편집 → Editor Properties에서 디버깅 설정
+→ wheel zoom·재생 바 이동·중간 버튼 pan으로 Timeline 탐색 → Save/Save As → Test Play → Pause
 ```
 
 New는 Project, Stage ID, Name과 BPM으로 `events: []`인 schemaVersion 2 Stage를 만든다. New와 Save As의 텍스트 필드는 Values와 같은 공통 입력 모듈을 사용해 UTF-8 중간 삽입·삭제, 좌우 커서 이동과 커서 깜빡임을 지원한다. New/Open의 Project·Stage와 Music 선택은 공통 ComboBox를 사용하며, 클릭해 선택값 한 줄을 검색 입력으로 전환하고 아래 목록을 검색어로 필터링한 뒤 마우스 또는 위·아래 방향키와 Enter로 선택한다. Open, Save와 Save As는 선택한 Project의 `stages` 폴더 안에서만 동작한다. 수정된 Stage의 Menu에는 `Save*`가 보이고 New, Open, Quit은 Save/Discard/Cancel 확인을 거친다.
@@ -30,7 +30,7 @@ New는 Project, Stage ID, Name과 BPM으로 `events: []`인 schemaVersion 2 Stag
 
 1. Music: `None` 또는 현재 Project의 오디오 파일 선택
 2. Volume: `0.0~1.0`
-3. Beat 0 Offset: 음악 시작을 논리 beat 0과 맞추는 seconds 값
+3. Beat 0 Offset: 음악 시작을 논리 beat 0과 맞추는 seconds 값. Music 선택 시 현재 값이 기본값 `0`이면 첫 소리 위치를 자동 설정하고, 오른쪽 `Auto` 버튼은 현재 값과 관계없이 다시 분석한다.
 4. BPM: 0보다 큰 유한 값
 
 `Editor Properties`는 다음 순서다.
@@ -42,7 +42,9 @@ New는 Project, Stage ID, Name과 BPM으로 `events: []`인 schemaVersion 2 Stag
 
 숫자 Value는 셀을 클릭하면 값 끝에 깜빡이는 커서가 바로 표시된다. 공통 입력 모듈에 숫자 필터를 적용하며 첫 입력부터 현재 커서 위치에 이어서 입력한다. 좌우 방향키로 커서를 옮겨 중간 삽입하고 Backspace/Delete로 커서 주변 문자를 삭제할 수 있다. Enter 또는 다른 영역 클릭은 유효한 값을 확정하며 Escape는 취소한다. boolean은 클릭 즉시 바뀐다. 기본값과 같은 선택 속성은 저장 JSON에서 제거된다.
 
-Timeline 위의 wheel zoom은 커서가 가리키는 beat를 화면의 같은 x에 유지한다. Play 중에도 사용할 수 있으며 직접 Scale Value를 편집할 때는 현재 Timeline 시작 beat를 바꾸지 않는다.
+첫 소리 분석은 Project Music을 청크 단위로 읽고 채널 평균 10ms RMS가 `-40dB` 이상인 구간이 20ms 이상 이어지는 첫 위치를 사용한다. 순간 노이즈는 줄이지만 음악적 첫 박자를 찾는 기능은 아니다. 분석 실패나 유효한 소리를 찾지 못하면 Music 선택은 유지하고 Offset은 바꾸지 않은 채 오류 모달을 표시한다.
+
+Timeline 위의 wheel zoom은 커서가 가리키는 beat를 화면의 같은 x에 유지한다. 일시정지 상태에서는 재생 바 상단의 역삼각형 핸들을 좌클릭 드래그해 현재 beat를 옮긴다. Timeline 안을 마우스 중간 버튼으로 드래그하면 보이는 구간을 이동하며 시작 beat는 0 아래로 내려가지 않는다. zoom과 구간 이동은 Play 중에도 사용할 수 있으며 직접 Scale Value를 편집할 때는 현재 Timeline 시작 beat를 바꾸지 않는다. 재생 바 이동과 구간 이동은 Stage 저장 데이터와 dirty 상태를 바꾸지 않는다.
 
 ## 5. Test Play
 

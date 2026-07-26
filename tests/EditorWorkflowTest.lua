@@ -70,6 +70,9 @@ local function newFixture(config)
         stageStore = store,
         testPlayer = testPlayer,
         session = session,
+        musicOnsetDetector = config.musicOnsetDetector or {
+            detect = function() return 0, nil end,
+        },
         onQuit = function() state.quitCount = state.quitCount + 1 end,
     })
     return app, state
@@ -334,6 +337,124 @@ return {
                 nil
             )
             test.assertEqual(app:getSession():isDirty(), true)
+        end,
+    },
+    {
+        name = "Music 첫 선택은 기본 Offset만 자동 설정하고 Auto 버튼은 다시 분석한다",
+        run = function(test)
+            local EditorLayout = require("editor.ui.EditorLayout")
+            local detectedOffsets = { 0.25, 0.5 }
+            local detectCount = 0
+            local app = newFixture({
+                musicOnsetDetector = {
+                    detect = function(_, projectId, music)
+                        detectCount = detectCount + 1
+                        test.assertEqual(projectId, "sample")
+                        test.assertTrue(music ~= nil)
+                        return detectedOffsets[detectCount], nil
+                    end,
+                },
+            })
+            createStageThroughDialog(app, "music-onset")
+            local eventRect = EditorLayout.getEventRowRect(app.layout, 2)
+            app:mousepressed(eventRect.x + 8, eventRect.y + 8, 1)
+            local musicRect = EditorLayout.getPropertyValueRect(app.layout, 1)
+
+            app:mousepressed(musicRect.x + 8, musicRect.y + 8, 1)
+            assert(app:getDialog():select("music", "assets/audio/a.ogg"))
+            app:getDialog():submit("confirm")
+            app:update(0)
+            test.assertNear(
+                app:getSession():getProperty("mixtapeProperties", "beat0Offset"),
+                0.25,
+                0.000001
+            )
+            test.assertEqual(detectCount, 1)
+
+            assert(app:getSession():setProperty(
+                "mixtapeProperties",
+                "beat0Offset",
+                0.75
+            ))
+            app:mousepressed(musicRect.x + 8, musicRect.y + 8, 1)
+            assert(app:getDialog():select("music", "assets/audio/b.wav"))
+            app:getDialog():submit("confirm")
+            app:update(0)
+            test.assertEqual(detectCount, 1)
+            test.assertNear(
+                app:getSession():getProperty("mixtapeProperties", "beat0Offset"),
+                0.75,
+                0.000001
+            )
+
+            local autoRect = EditorLayout.getPropertyActionRect(app.layout, 3)
+            local offsetRect = EditorLayout.getPropertyValueRect(app.layout, 3)
+            app:mousepressed(offsetRect.x + 8, offsetRect.y + 8, 1)
+            test.assertTrue(app:getViewModel().valueEdit ~= nil)
+            app:mousepressed(
+                autoRect.x + autoRect.width / 2,
+                autoRect.y + autoRect.height / 2,
+                1
+            )
+            test.assertEqual(detectCount, 2)
+            test.assertNear(
+                app:getSession():getProperty("mixtapeProperties", "beat0Offset"),
+                0.5,
+                0.000001
+            )
+            test.assertEqual(app:getViewModel().valueEdit, nil)
+        end,
+    },
+    {
+        name = "Music이 없을 때 비활성 Auto 영역은 Offset 편집을 시작하지 않는다",
+        run = function(test)
+            local EditorLayout = require("editor.ui.EditorLayout")
+            local app = newFixture()
+            createStageThroughDialog(app, "music-onset-disabled")
+            local eventRect = EditorLayout.getEventRowRect(app.layout, 2)
+            app:mousepressed(eventRect.x + 8, eventRect.y + 8, 1)
+            local autoRect = EditorLayout.getPropertyActionRect(app.layout, 3)
+
+            app:mousepressed(
+                autoRect.x + autoRect.width / 2,
+                autoRect.y + autoRect.height / 2,
+                1
+            )
+
+            test.assertEqual(app:getViewModel().valueEdit, nil)
+            test.assertEqual(app:getDialog(), nil)
+        end,
+    },
+    {
+        name = "첫 소리 자동 분석 실패는 선택한 Music을 유지하고 오류를 표시한다",
+        run = function(test)
+            local EditorLayout = require("editor.ui.EditorLayout")
+            local app = newFixture({
+                musicOnsetDetector = {
+                    detect = function()
+                        return nil, "onset decode failed"
+                    end,
+                },
+            })
+            createStageThroughDialog(app, "music-onset-error")
+            local eventRect = EditorLayout.getEventRowRect(app.layout, 2)
+            app:mousepressed(eventRect.x + 8, eventRect.y + 8, 1)
+            local musicRect = EditorLayout.getPropertyValueRect(app.layout, 1)
+            app:mousepressed(musicRect.x + 8, musicRect.y + 8, 1)
+            assert(app:getDialog():select("music", "assets/audio/a.ogg"))
+            app:getDialog():submit("confirm")
+            app:update(0)
+
+            test.assertEqual(
+                app:getSession():getProperty("mixtapeProperties", "music"),
+                "assets/audio/a.ogg"
+            )
+            test.assertEqual(
+                app:getSession():getProperty("mixtapeProperties", "beat0Offset"),
+                0
+            )
+            test.assertEqual(app:getDialog():getKind(), "error")
+            test.assertContains(app:getDialog().message, "onset decode failed")
         end,
     },
     {
@@ -629,6 +750,43 @@ return {
             test.assertEqual(decoded.editorSettings.metronomePeriod, nil)
             test.assertEqual(decoded.editorSettings.playbackRate, nil)
             test.assertEqual(decoded.mixtape, nil)
+        end,
+    },
+    {
+        name = "playhead 핸들 좌클릭과 중간 버튼 드래그로 timeline을 조작한다",
+        run = function(test)
+            local EditorLayout = require("editor.ui.EditorLayout")
+            local app = newFixture()
+            createStageThroughDialog(app, "timeline-drag")
+            app:executeAction("save")
+            local timeline = app.layout.timeline
+            local handle = EditorLayout.getPlayheadHandle(
+                timeline,
+                app:getViewModel()
+            )
+
+            app:mousepressed(handle.x, handle.y + 2, 1)
+            app:mousemoved(timeline.x + 96, timeline.y + 8, 96, 0)
+            test.assertNear(app:getViewModel().beat, 3, 0.000001)
+            app:mousereleased(timeline.x + 96, timeline.y + 8, 1)
+            app:mousemoved(timeline.x + 160, timeline.y + 8, 64, 0)
+            test.assertNear(app:getViewModel().beat, 3, 0.000001)
+
+            app:mousepressed(timeline.x + 200, timeline.y + 80, 3)
+            app:mousemoved(timeline.x + 136, timeline.y + 80, -64, 0)
+            test.assertNear(
+                app:getSession():getTimelineStartBeat(),
+                2,
+                0.000001
+            )
+            app:mousereleased(timeline.x + 136, timeline.y + 80, 3)
+            app:mousemoved(timeline.x + 104, timeline.y + 80, -32, 0)
+            test.assertNear(
+                app:getSession():getTimelineStartBeat(),
+                2,
+                0.000001
+            )
+            test.assertEqual(app:getSession():isDirty(), false)
         end,
     },
     {

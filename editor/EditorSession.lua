@@ -67,6 +67,20 @@ function EditorSession:getTimelineStartBeat()
     return self.timelineStartBeat
 end
 
+function EditorSession:seekTimeline(beat)
+    if not self.document then return nil, "No Stage is open." end
+    return self.transport:seekBeat(math.max(0, beat))
+end
+
+function EditorSession:panTimeline(deltaX, pixelsPerBeat)
+    if not self.document then return nil, "No Stage is open." end
+    self.timelineStartBeat = math.max(
+        0,
+        self.timelineStartBeat - deltaX / pixelsPerBeat
+    )
+    return true, nil
+end
+
 function EditorSession:zoomTimeline(cursorOffsetX, wheelY)
     if not self.document then return nil, "No Stage is open." end
 

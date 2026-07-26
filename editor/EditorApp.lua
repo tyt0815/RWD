@@ -3,11 +3,13 @@ local EditorDialog = require("editor.ui.EditorDialog")
 local EditorLayout = require("editor.ui.EditorLayout")
 local EditorMenu = require("editor.menu.EditorMenu")
 local MusicCatalog = require("editor.project.MusicCatalog")
+local MusicOnsetDetector = require("editor.project.MusicOnsetDetector")
 local ProjectCatalog = require("editor.project.ProjectCatalog")
 local PropertyCatalog = require("editor.properties.PropertyCatalog")
 local StageStore = require("editor.stage.StageStore")
 local TestPlayer = require("editor.playback.TestPlayer")
 local TextInput = require("core").UI.TextInput
+local Button = require("core").UI.Button
 
 local EditorApp = {}
 EditorApp.__index = EditorApp
@@ -33,11 +35,18 @@ function EditorApp.new(options)
     return setmetatable({
         session = session,
         musicCatalog = musicCatalog,
+        musicOnsetDetector = options.musicOnsetDetector or MusicOnsetDetector.new(),
         onQuit = options.onQuit or function() end,
         dialog = nil,
         selectedEventId = "editorProperties",
         valueEdit = nil,
         hoveredAction = nil,
+        beat0AutoButton = Button.new({
+            id = "detectBeat0Offset",
+            label = "Auto",
+            enabled = false,
+        }),
+        timelineDrag = nil,
         layout = EditorLayout.getLayout(1200, 800),
     }, EditorApp)
 end
@@ -50,6 +59,16 @@ function EditorApp:getDialog()
     return self.dialog
 end
 
+function EditorApp:updateBeat0AutoButton()
+    local music
+    if self.session:hasStage() then
+        music = self.session:getProperty("mixtapeProperties", "music")
+    end
+    self.beat0AutoButton:setEnabled(
+        music ~= nil and not self.session:isPlaying()
+    )
+end
+
 function EditorApp:getViewModel()
     local properties = {}
     local scale = 1
@@ -57,18 +76,24 @@ function EditorApp:getViewModel()
         scale = self.session:getProperty("editorProperties", "scale")
     end
     local selectedEvent = PropertyCatalog.getEvent(self.selectedEventId)
+    self:updateBeat0AutoButton()
     if selectedEvent then
         for _, property in ipairs(selectedEvent.properties) do
             local value
             if self.session:hasStage() then
                 value = self.session:getProperty(selectedEvent.id, property.id)
             end
-            table.insert(properties, {
+            local viewProperty = {
                 id = property.id,
                 label = property.label,
                 kind = property.kind,
                 value = value,
-            })
+            }
+            if selectedEvent.id == "mixtapeProperties"
+                and property.id == "beat0Offset" then
+                viewProperty.actionButton = self.beat0AutoButton
+            end
+            table.insert(properties, viewProperty)
         end
     end
 
@@ -87,6 +112,22 @@ function EditorApp:getViewModel()
         menuItems = EditorMenu.getItems(self.session),
         hoveredAction = self.hoveredAction,
     }
+end
+
+function EditorApp:autoDetectBeat0Offset()
+    local project = self.session:getProject()
+    local music = self.session:getProperty("mixtapeProperties", "music")
+    if not project or not music then
+        return nil, "Select Music before detecting its first sound."
+    end
+
+    local onset, errorMessage = self.musicOnsetDetector:detect(project.id, music)
+    if onset == nil then return nil, errorMessage end
+    return self.session:setProperty(
+        "mixtapeProperties",
+        "beat0Offset",
+        onset
+    )
 end
 
 function EditorApp:showError(message)
@@ -250,13 +291,20 @@ function EditorApp:processDialogResult()
     elseif kind == "music" and result.buttonId == "confirm" then
         local value = result.selections.music
         if value == "" then value = nil end
+        local shouldAutoDetect = value ~= nil
+            and self.session:getProperty("mixtapeProperties", "beat0Offset") == 0
         local changed, errorMessage = self.session:setProperty(
             "mixtapeProperties",
             "music",
             value
         )
         self.dialog = nil
-        if not changed then self:showError(errorMessage) end
+        if not changed then
+            self:showError(errorMessage)
+        elseif shouldAutoDetect then
+            local detected, detectError = self:autoDetectBeat0Offset()
+            if not detected then self:showError(detectError) end
+        end
     elseif kind == "unsaved" then
         local pendingAction = result.context.pendingAction
         if result.buttonId == "discard" then
@@ -305,10 +353,40 @@ function EditorApp:draw(width, height)
     if self.dialog then self.dialog:draw(width, height) end
 end
 
-function EditorApp:mousemoved(x, y)
+function EditorApp:mousemoved(x, y, deltaX)
+    local movementX = deltaX
+    if movementX == nil then
+        movementX = self.mouseX and x - self.mouseX or 0
+    end
     self.mouseX = x
     self.mouseY = y
     if self.dialog then return true end
+
+    if self.timelineDrag == "playhead" then
+        local timeline = self.layout.timeline
+        local scale = self.session:getProperty("editorProperties", "scale")
+        local offsetX = math.max(0, math.min(timeline.width, x - timeline.x))
+        local beat = self.session:getTimelineStartBeat()
+            + offsetX / EditorLayout.getPixelsPerBeat(scale)
+        local changed, errorMessage = self.session:seekTimeline(beat)
+        if not changed then
+            self.timelineDrag = nil
+            self:showError(errorMessage)
+        end
+        return true
+    elseif self.timelineDrag == "pan" then
+        local scale = self.session:getProperty("editorProperties", "scale")
+        local changed, errorMessage = self.session:panTimeline(
+            movementX,
+            EditorLayout.getPixelsPerBeat(scale)
+        )
+        if not changed then
+            self.timelineDrag = nil
+            self:showError(errorMessage)
+        end
+        return true
+    end
+
     local items = EditorMenu.getItems(self.session)
     local item = EditorMenu.hitTest(self.layout.panels[1], items, x, y)
     self.hoveredAction = item and item.enabled and item.action or nil
@@ -333,8 +411,8 @@ function EditorApp:wheelmoved(_, deltaY)
 end
 
 function EditorApp:mousepressed(x, y, button)
-    if button ~= 1 then return true end
     if self.dialog then
+        if button ~= 1 then return true end
         local previousProject = self.dialog:getSelection("projectId")
         self.dialog:mousepressed(x, y)
         local currentProject = self.dialog:getSelection("projectId")
@@ -352,6 +430,28 @@ function EditorApp:mousepressed(x, y, button)
         end
         return true
     end
+
+    local timeline = self.layout.timeline
+    local insideTimeline = x >= timeline.x
+        and x < timeline.x + timeline.width
+        and y >= timeline.y
+        and y < timeline.y + timeline.height
+    if button == 3 and self.session:hasStage() and insideTimeline then
+        self.timelineDrag = "pan"
+        return true
+    end
+    if button ~= 1 then return true end
+    if self.session:hasStage()
+        and not self.session:isPlaying()
+        and EditorLayout.hitTestPlayheadHandle(
+            timeline,
+            self:getViewModel(),
+            x,
+            y
+        ) then
+        self.timelineDrag = "playhead"
+        return true
+    end
     local selectedEvent = PropertyCatalog.getEvent(self.selectedEventId)
     local propertyCount = selectedEvent and #selectedEvent.properties or 0
     local propertyRow = EditorLayout.hitTestPropertyValue(
@@ -360,15 +460,29 @@ function EditorApp:mousepressed(x, y, button)
         x,
         y
     )
+    self:updateBeat0AutoButton()
+    local actionClicked = false
+    if self.selectedEventId == "mixtapeProperties" and button == 1 then
+        local actionRect = EditorLayout.getPropertyActionRect(self.layout, 3)
+        actionClicked = self.beat0AutoButton:contains(actionRect, x, y)
+    end
     if self.valueEdit then
         local clickedProperty = propertyRow and selectedEvent.properties[propertyRow] or nil
-        if clickedProperty
+        if not actionClicked
+            and clickedProperty
             and self.valueEdit.groupId == selectedEvent.id
             and self.valueEdit.propertyId == clickedProperty.id then
             return true
         end
         local committed = self:commitValueEdit()
         if not committed then return true end
+    end
+    if actionClicked then
+        if self.beat0AutoButton.enabled then
+            local detected, errorMessage = self:autoDetectBeat0Offset()
+            if not detected then self:showError(errorMessage) end
+        end
+        return true
     end
     local items = EditorMenu.getItems(self.session)
     local item = EditorMenu.hitTest(self.layout.panels[1], items, x, y)
@@ -402,6 +516,15 @@ function EditorApp:mousepressed(x, y, button)
             self:openMusicDialog()
         end
         return true
+    end
+    return true
+end
+
+function EditorApp:mousereleased(_, _, button)
+    if button == 1 and self.timelineDrag == "playhead" then
+        self.timelineDrag = nil
+    elseif button == 3 and self.timelineDrag == "pan" then
+        self.timelineDrag = nil
     end
     return true
 end

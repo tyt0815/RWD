@@ -32,9 +32,10 @@ end
 
 return {
     {
-        name = "LÖVE wheel callback이 등록된다",
+        name = "LÖVE wheel과 mouse release callback이 등록된다",
         run = function(test)
             test.assertTrue(type(love.wheelmoved) == "function")
+            test.assertTrue(type(love.mousereleased) == "function")
         end,
     },
     {
@@ -151,12 +152,15 @@ return {
             local Launcher = require("launcher.Launcher")
             local launcher = Launcher.new()
             launcher:openEditor()
-            local moved, pressed, entered, wheeled
+            local moved, pressed, released, entered, wheeled
             launcher.activeApp.mousemoved = function(_, x, y, deltaX, deltaY, isTouch)
                 moved = { x, y, deltaX, deltaY, isTouch }
             end
             launcher.activeApp.mousepressed = function(_, x, y, button, isTouch, presses)
                 pressed = { x, y, button, isTouch, presses }
+            end
+            launcher.activeApp.mousereleased = function(_, x, y, button, isTouch, presses)
+                released = { x, y, button, isTouch, presses }
             end
             launcher.activeApp.textinput = function(_, text)
                 entered = text
@@ -167,6 +171,7 @@ return {
 
             launcher:mousemoved(10, 20, 3, 4, true)
             launcher:mousepressed(30, 40, 1, false, 2)
+            launcher:mousereleased(50, 60, 3, true, 1)
             launcher:textinput("stage")
             launcher:wheelmoved(-1, 2)
 
@@ -180,6 +185,11 @@ return {
             test.assertEqual(pressed[3], 1)
             test.assertEqual(pressed[4], false)
             test.assertEqual(pressed[5], 2)
+            test.assertEqual(released[1], 50)
+            test.assertEqual(released[2], 60)
+            test.assertEqual(released[3], 3)
+            test.assertEqual(released[4], true)
+            test.assertEqual(released[5], 1)
             test.assertEqual(entered, "stage")
             test.assertEqual(wheeled[1], -1)
             test.assertEqual(wheeled[2], 2)
