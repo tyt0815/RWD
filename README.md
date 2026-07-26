@@ -52,7 +52,7 @@ Stage가 수정되면 `Save*`로 표시된다. `Events`에서 선택한 Property
 
 Metronome은 BPM 한 박마다 한 번 울리며, Metronome Period는 클릭 속도가 아니라 강박 반복 길이입니다. Period 4는 `강 약 약 약`, Period 5는 `강 약 약 약 약`을 반복합니다.
 
-숫자 Value는 셀을 클릭해 직접 편집한다. Enter 또는 다른 영역 클릭으로 확정하고 Escape로 취소한다. 유효하지 않은 값은 Stage에 적용하지 않고 빨간 테두리로 표시한다. boolean은 클릭 즉시 바뀌며 Music은 `None`과 현재 Project 파일 목록을 제공하는 모달에서 선택한다.
+에디터의 Dialog 입력과 숫자 Values는 공통 텍스트 입력 동작을 사용한다. 포커스되면 값 끝에 깜빡이는 커서가 바로 표시되며, 첫 입력부터 현재 커서 위치에 이어서 입력한다. 좌우 방향키로 커서를 옮겨 중간에 입력하거나 Backspace/Delete로 삭제할 수 있다. Enter 또는 다른 영역 클릭으로 확정하고 Escape로 취소한다. 유효하지 않은 값은 Stage에 적용하지 않고 빨간 테두리로 표시한다. boolean은 클릭 즉시 바뀌며 Music은 `None`과 현재 Project 파일 목록을 제공하는 모달에서 선택한다.
 
 Timeline 위에 마우스를 두고 wheel을 돌리면 커서가 가리키는 beat를 유지한 채 Scale이 `0.25~8` 범위에서 바뀐다. Play 중에도 zoom할 수 있다. Music이 없어도 Play/Pause와 Project preview는 동작하며, 음악 decode 또는 preview 시작이 실패하면 Transport, Metronome과 TestPlayer를 모두 정지하고 오류 모달을 표시한다.
 

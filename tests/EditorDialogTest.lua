@@ -29,6 +29,13 @@ local function withGraphicsRecorder(run)
     function graphics.pop() end
     function graphics.print() end
     function graphics.printf() end
+    function graphics.getFont()
+        return {
+            getWidth = function(_, text)
+                return #text * 8
+            end,
+        }
+    end
 
     function graphics.setColor(red, green, blue, alpha)
         currentColor = { red, green, blue, alpha }
@@ -102,6 +109,40 @@ return {
             test.assertEqual(dialog:getValue("stageId"), "copy5")
             dialog:keypressed("backspace")
             test.assertEqual(dialog:getValue("stageId"), "copy")
+        end,
+    },
+    {
+        name = "Dialog 입력은 UTF-8 커서 중간 편집과 깜빡임을 처리한다",
+        run = function(test)
+            local EditorDialog = require("editor.ui.EditorDialog")
+            local dialog = EditorDialog.saveAs("가나", "Copy")
+
+            dialog:keypressed("left")
+            dialog:textinput("X")
+            test.assertEqual(dialog:getValue("stageId"), "가X나")
+            dialog:keypressed("backspace")
+            test.assertEqual(dialog:getValue("stageId"), "가나")
+            dialog:keypressed("delete")
+            test.assertEqual(dialog:getValue("stageId"), "가")
+
+            local field = dialog:getLayout(1000, 700).fields[1]
+            test.assertEqual(field.cursorVisible, true)
+            withGraphicsRecorder(function(recorder)
+                dialog:draw(1000, 700)
+                local cursorCount = 0
+                for _, rectangle in ipairs(recorder.rectangles) do
+                    if rectangle.mode == "fill"
+                        and rectangle.width == 1
+                        and rectangle.height == field.height - 12 then
+                        cursorCount = cursorCount + 1
+                    end
+                end
+                test.assertEqual(cursorCount, 1)
+            end)
+
+            dialog:update(0.51)
+            field = dialog:getLayout(1000, 700).fields[1]
+            test.assertEqual(field.cursorVisible, false)
         end,
     },
     {

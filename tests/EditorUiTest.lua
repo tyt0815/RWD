@@ -58,6 +58,14 @@ local function withGraphicsRecorder(run)
         recordPrint("printf", text, x, y, limit, align)
     end
 
+    function graphics.getFont()
+        return {
+            getWidth = function(_, text)
+                return #text * 8
+            end,
+        }
+    end
+
     function graphics.push(mode)
         table.insert(recorder.pushes, mode)
     end
@@ -462,7 +470,7 @@ return {
                         groupId = "mixtapeProperties",
                         propertyId = "bpm",
                         text = "135",
-                        replaceOnInput = false,
+                        cursorPosition = 3,
                         invalid = false,
                     },
                     beat = 0,
@@ -484,6 +492,13 @@ return {
                 test.assertEqual(countPrints(recorder, "120"), 0)
                 test.assertEqual(countPrints(recorder, "None"), 1)
                 assertColor(test, outline, { 1, 0.45, 0.2, 1 })
+                test.assertTrue(findRectangle(recorder, {
+                    mode = "fill",
+                    x = bpm.x + 36,
+                    y = bpm.y + 4,
+                    width = 1,
+                    height = bpm.height - 8,
+                }) ~= nil)
             end)
 
             withGraphicsRecorder(function(recorder)
@@ -503,7 +518,8 @@ return {
                         groupId = "mixtapeProperties",
                         propertyId = "volume",
                         text = "2",
-                        replaceOnInput = false,
+                        cursorPosition = 1,
+                        cursorVisible = false,
                         invalid = true,
                     },
                     beat = 0,
@@ -524,6 +540,13 @@ return {
                 test.assertEqual(countPrints(recorder, "2"), 1)
                 test.assertEqual(countPrints(recorder, "1"), 0)
                 assertColor(test, outline, { 0.92, 0.3, 0.3, 1 })
+                test.assertEqual(findRectangle(recorder, {
+                    mode = "fill",
+                    x = volume.x + 20,
+                    y = volume.y + 4,
+                    width = 1,
+                    height = volume.height - 8,
+                }), nil)
             end)
         end,
     },

@@ -86,6 +86,12 @@ local function createStageThroughDialog(app, stageId)
     app:update(0)
 end
 
+local function clearValueEdit(app)
+    while app:getViewModel().valueEdit.text ~= "" do
+        app:keypressed("backspace")
+    end
+end
+
 return {
     {
         name = "Stage가 없으면 보이지 않는 Event 행 클릭을 무시한다",
@@ -140,6 +146,7 @@ return {
             app:mousepressed(eventRect.x + 8, eventRect.y + 8, 1)
             local offsetRect = EditorLayout.getPropertyValueRect(app.layout, 3)
             app:mousepressed(offsetRect.x + 8, offsetRect.y + 8, 1)
+            clearValueEdit(app)
             app:textinput("-0.5")
             app:keypressed("return")
 
@@ -149,6 +156,77 @@ return {
             )
             test.assertEqual(app:getViewModel().valueEdit, nil)
             test.assertEqual(app:getDialog(), nil)
+        end,
+    },
+    {
+        name = "숫자 Property는 최초 포커스부터 커서 위치에 이어서 입력한다",
+        run = function(test)
+            local EditorLayout = require("editor.ui.EditorLayout")
+            local app = newFixture()
+            createStageThroughDialog(app, "numeric-property-initial-cursor")
+
+            local scaleRect = EditorLayout.getPropertyValueRect(app.layout, 1)
+            app:mousepressed(scaleRect.x + 8, scaleRect.y + 8, 1)
+            app:textinput("2")
+
+            test.assertEqual(app:getViewModel().valueEdit.text, "12")
+            test.assertEqual(app:getViewModel().valueEdit.cursorPosition, 2)
+        end,
+    },
+    {
+        name = "숫자 Property는 커서를 이동해 중간 삽입과 삭제를 처리한다",
+        run = function(test)
+            local EditorLayout = require("editor.ui.EditorLayout")
+            local app = newFixture()
+            createStageThroughDialog(app, "numeric-property-cursor")
+
+            local eventRect = EditorLayout.getEventRowRect(app.layout, 2)
+            app:mousepressed(eventRect.x + 8, eventRect.y + 8, 1)
+            local bpmRect = EditorLayout.getPropertyValueRect(app.layout, 4)
+            app:mousepressed(bpmRect.x + 8, bpmRect.y + 8, 1)
+            clearValueEdit(app)
+            app:textinput("135")
+
+            app:keypressed("left")
+            app:textinput("2")
+            test.assertEqual(app:getViewModel().valueEdit.text, "1325")
+            test.assertEqual(app:getViewModel().valueEdit.cursorPosition, 3)
+
+            app:keypressed("backspace")
+            test.assertEqual(app:getViewModel().valueEdit.text, "135")
+            test.assertEqual(app:getViewModel().valueEdit.cursorPosition, 2)
+
+            app:keypressed("delete")
+            test.assertEqual(app:getViewModel().valueEdit.text, "13")
+            test.assertEqual(app:getViewModel().valueEdit.cursorPosition, 2)
+
+            app:keypressed("left")
+            app:keypressed("right")
+            app:textinput("5")
+            app:keypressed("return")
+            test.assertEqual(app:getSession():getProperty("mixtapeProperties", "bpm"), 135)
+        end,
+    },
+    {
+        name = "숫자 Property 커서는 포커스 직후부터 깜빡인다",
+        run = function(test)
+            local EditorLayout = require("editor.ui.EditorLayout")
+            local app = newFixture()
+            createStageThroughDialog(app, "numeric-property-cursor-blink")
+
+            local bpmRect = EditorLayout.getPropertyValueRect(app.layout, 2)
+            app:mousepressed(bpmRect.x + 8, bpmRect.y + 8, 1)
+            test.assertEqual(app:getViewModel().valueEdit.cursorVisible, true)
+
+            app:update(0.49)
+            test.assertEqual(app:getViewModel().valueEdit.cursorVisible, true)
+            app:update(0.02)
+            test.assertEqual(app:getViewModel().valueEdit.cursorVisible, false)
+            app:update(0.5)
+            test.assertEqual(app:getViewModel().valueEdit.cursorVisible, true)
+
+            app:keypressed("left")
+            test.assertEqual(app:getViewModel().valueEdit.cursorVisible, true)
         end,
     },
     {
@@ -185,6 +263,7 @@ return {
             app:mousepressed(eventRect.x + 8, eventRect.y + 8, 1)
             local volumeRect = EditorLayout.getPropertyValueRect(app.layout, 2)
             app:mousepressed(volumeRect.x + 8, volumeRect.y + 8, 1)
+            clearValueEdit(app)
             app:textinput("2")
             app:keypressed("return")
 
@@ -682,6 +761,7 @@ return {
 
             local scaleRect = EditorLayout.getPropertyValueRect(app.layout, 1)
             app:mousepressed(scaleRect.x + 8, scaleRect.y + 8, 1)
+            clearValueEdit(app)
             app:textinput("2")
             app:keypressed("return")
 
@@ -703,6 +783,7 @@ return {
             app:mousepressed(eventRect.x + 8, eventRect.y + 8, 1)
             local offsetRect = EditorLayout.getPropertyValueRect(app.layout, 3)
             app:mousepressed(offsetRect.x + 8, offsetRect.y + 8, 1)
+            clearValueEdit(app)
             app:textinput("-0.5")
 
             local started, errorMessage = app:executeAction("play")
@@ -728,6 +809,7 @@ return {
             app:mousepressed(eventRect.x + 8, eventRect.y + 8, 1)
             local volumeRect = EditorLayout.getPropertyValueRect(app.layout, 2)
             app:mousepressed(volumeRect.x + 8, volumeRect.y + 8, 1)
+            clearValueEdit(app)
             app:textinput("2")
 
             local started, errorMessage = app:executeAction("play")
@@ -759,7 +841,6 @@ return {
 
             test.assertEqual(app:getViewModel().valueEdit, valueEdit)
             test.assertEqual(valueEdit.text, "1")
-            test.assertEqual(valueEdit.replaceOnInput, true)
             test.assertEqual(valueEdit.invalid, false)
         end,
     },
@@ -780,6 +861,7 @@ return {
             test.assertEqual(app:getViewModel().valueEdit.propertyId, "bpm")
             test.assertEqual(app:getViewModel().valueEdit.text, "120")
 
+            clearValueEdit(app)
             app:textinput("135")
             test.assertEqual(app:getViewModel().valueEdit.text, "135")
             app:keypressed("return")
@@ -800,6 +882,7 @@ return {
             app:mousepressed(eventRect.x + 8, eventRect.y + 8, 1)
             local bpmRect = EditorLayout.getPropertyValueRect(app.layout, 4)
             app:mousepressed(bpmRect.x + 12, bpmRect.y + 12, 1)
+            clearValueEdit(app)
             app:textinput("0")
             app:keypressed("return")
 
@@ -823,6 +906,7 @@ return {
             app:mousepressed(eventRect.x + 8, eventRect.y + 8, 1)
             local bpmRect = EditorLayout.getPropertyValueRect(app.layout, 4)
             app:mousepressed(bpmRect.x + 12, bpmRect.y + 12, 1)
+            clearValueEdit(app)
             app:textinput("90")
             app:mousepressed(app.layout.panels[2].x + 12, 100, 1)
 

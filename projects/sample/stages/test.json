@@ -1,0 +1,16 @@
+{
+  "schemaVersion":2,
+  "projectId":"sample",
+  "stageId":"test",
+  "name":"TestProject",
+  "bpm":165,
+  "mixtape":{
+    "music":"assets/audio/HifumiDaisuki.mp3",
+    "volume":0.1
+  },
+  "editorSettings":{
+    "metronome":true,
+    "scale":0.48828125
+  },
+  "events":[]
+}

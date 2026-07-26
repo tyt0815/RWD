@@ -1,4 +1,4 @@
-local utf8 = require("utf8")
+local TextInput = require("editor.ui.TextInput")
 
 local EditorDialog = {}
 EditorDialog.__index = EditorDialog
@@ -33,6 +33,10 @@ local function newDialog(config)
     config.selectors = config.selectors or {}
     config.buttons = config.buttons or {}
     config.focusedFieldIndex = #config.fields > 0 and 1 or nil
+    for _, field in ipairs(config.fields) do
+        field.input = TextInput.new(field.value)
+        field.value = nil
+    end
     config.result = nil
     return setmetatable(config, EditorDialog)
 end
@@ -188,7 +192,7 @@ end
 function EditorDialog:getValue(fieldId)
     for _, field in ipairs(self.fields) do
         if field.id == fieldId then
-            return field.value
+            return field.input:getText()
         end
     end
     return nil
@@ -197,7 +201,7 @@ end
 function EditorDialog:setValue(fieldId, value)
     for _, field in ipairs(self.fields) do
         if field.id == fieldId then
-            field.value = tostring(value)
+            field.input:setText(value)
             return true
         end
     end
@@ -242,7 +246,7 @@ end
 function EditorDialog:textinput(text)
     local field = self.focusedFieldIndex and self.fields[self.focusedFieldIndex]
     if field then
-        field.value = field.value .. text
+        field.input:textinput(text)
     end
 end
 
@@ -250,7 +254,7 @@ function EditorDialog:submit(buttonId)
     local values = {}
     local selections = {}
     for _, field in ipairs(self.fields) do
-        values[field.id] = field.value
+        values[field.id] = field.input:getText()
     end
     for _, selector in ipairs(self.selectors) do
         selections[selector.id] = self:getSelection(selector.id)
@@ -280,15 +284,12 @@ function EditorDialog:keypressed(key)
             end
             return true
         end
-    elseif key == "backspace" and self.focusedFieldIndex then
-        local field = self.fields[self.focusedFieldIndex]
-        local offset = utf8.offset(field.value, -1)
-        if offset then
-            field.value = field.value:sub(1, offset - 1)
-        end
+    elseif self.focusedFieldIndex
+        and self.fields[self.focusedFieldIndex].input:keypressed(key) then
         return true
     elseif key == "tab" and #self.fields > 0 then
         self.focusedFieldIndex = self.focusedFieldIndex % #self.fields + 1
+        self.fields[self.focusedFieldIndex].input:resetCursorBlink()
         return true
     elseif key == "return" or key == "kpenter" then
         for _, button in ipairs(self.buttons) do
@@ -306,6 +307,11 @@ function EditorDialog:keypressed(key)
         end
     end
     return false
+end
+
+function EditorDialog:update(deltaTime)
+    local field = self.focusedFieldIndex and self.fields[self.focusedFieldIndex]
+    if field then field.input:update(deltaTime) end
 end
 
 function EditorDialog:consumeResult()
@@ -386,7 +392,9 @@ function EditorDialog:getLayout(width, height)
             fieldIndex = fieldIndex,
             fieldId = field.id,
             label = field.label,
-            value = field.value,
+            value = field.input:getText(),
+            cursorPosition = field.input.cursorPosition,
+            cursorVisible = field.input.cursorVisible,
             focused = self.focusedFieldIndex == fieldIndex,
         })
         cursorY = cursorY + ROW_HEIGHT + ROW_GAP
@@ -418,6 +426,7 @@ function EditorDialog:mousepressed(x, y)
     for _, rect in ipairs(layout.fields) do
         if contains(rect, x, y) then
             self.focusedFieldIndex = rect.fieldIndex
+            self.fields[rect.fieldIndex].input:resetCursorBlink()
             return true
         end
     end
@@ -486,6 +495,11 @@ function EditorDialog:draw(width, height)
         graphics.rectangle("line", rect.x, rect.y, rect.width, rect.height)
         graphics.setColor(0.94, 0.94, 0.96, 1)
         graphics.print(rect.value, rect.x + 8, rect.y + 7)
+        if rect.focused and rect.cursorVisible then
+            local textBeforeCursor = rect.value:sub(1, rect.cursorPosition)
+            local cursorX = rect.x + 8 + graphics.getFont():getWidth(textBeforeCursor)
+            graphics.rectangle("fill", cursorX, rect.y + 6, 1, rect.height - 12)
+        end
     end
     for _, rect in ipairs(layout.buttons) do
         graphics.setColor(0.24, 0.25, 0.29, 1)

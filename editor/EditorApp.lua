@@ -7,6 +7,7 @@ local ProjectCatalog = require("editor.project.ProjectCatalog")
 local PropertyCatalog = require("editor.properties.PropertyCatalog")
 local StageStore = require("editor.stage.StageStore")
 local TestPlayer = require("editor.playback.TestPlayer")
+local TextInput = require("editor.ui.TextInput")
 
 local EditorApp = {}
 EditorApp.__index = EditorApp
@@ -93,13 +94,15 @@ function EditorApp:showError(message)
 end
 
 function EditorApp:beginValueEdit(groupId, propertyId)
-    self.valueEdit = {
-        groupId = groupId,
-        propertyId = propertyId,
-        text = tostring(self.session:getProperty(groupId, propertyId)),
-        replaceOnInput = true,
-        invalid = false,
-    }
+    local text = tostring(self.session:getProperty(groupId, propertyId))
+    self.valueEdit = TextInput.new(text, {
+        filter = function(input)
+            return input:gsub("[^%d%.%-]", "")
+        end,
+    })
+    self.valueEdit.groupId = groupId
+    self.valueEdit.propertyId = propertyId
+    self.valueEdit.invalid = false
 end
 
 function EditorApp:commitValueEdit()
@@ -275,7 +278,13 @@ end
 
 function EditorApp:update(deltaTime)
     self:processDialogResult()
-    if self.dialog then return end
+    if self.dialog then
+        self.dialog:update(deltaTime)
+        return
+    end
+    if self.valueEdit and not self.session:isPlaying() then
+        self.valueEdit:update(deltaTime)
+    end
     local scale = self.session:hasStage()
         and self.session:getProperty("editorProperties", "scale")
         or 1
@@ -401,14 +410,7 @@ function EditorApp:textinput(text)
     if self.dialog then
         self.dialog:textinput(text)
     elseif self.valueEdit and not self.session:isPlaying() then
-        local numericText = text:gsub("[^%d%.%-]", "")
-        if numericText ~= "" then
-            if self.valueEdit.replaceOnInput then
-                self.valueEdit.text = numericText
-            else
-                self.valueEdit.text = self.valueEdit.text .. numericText
-            end
-            self.valueEdit.replaceOnInput = false
+        if self.valueEdit:textinput(text) then
             self.valueEdit.invalid = false
         end
     end
@@ -419,10 +421,10 @@ function EditorApp:keypressed(key)
     if self.dialog then
         self.dialog:keypressed(key)
     elseif self.valueEdit and not self.session:isPlaying() then
-        if key == "backspace" then
-            self.valueEdit.text = self.valueEdit.text:sub(1, -2)
-            self.valueEdit.replaceOnInput = false
-            self.valueEdit.invalid = false
+        if self.valueEdit:keypressed(key) then
+            if key == "backspace" or key == "delete" then
+                self.valueEdit.invalid = false
+            end
         elseif key == "return" or key == "kpenter" then
             self:commitValueEdit()
         elseif key == "escape" then

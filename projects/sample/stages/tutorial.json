@@ -1,8 +1,0 @@
-{
-  "schemaVersion": 2,
-  "projectId": "sample",
-  "stageId": "tutorial",
-  "name": "Tutorial",
-  "bpm": 120,
-  "events": []
-}

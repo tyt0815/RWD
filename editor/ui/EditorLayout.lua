@@ -176,6 +176,13 @@ local function drawPanelContent(layout, viewModel)
             end
             love.graphics.setColor(0.9, 0.91, 0.93, 1)
             love.graphics.print(valueText, rect.x + 12, rect.y + 3)
+            if editing and viewModel.valueEdit.cursorVisible ~= false then
+                local cursorPosition = viewModel.valueEdit.cursorPosition or #valueText
+                local textBeforeCursor = valueText:sub(1, cursorPosition)
+                local cursorX = rect.x + 12
+                    + love.graphics.getFont():getWidth(textBeforeCursor)
+                love.graphics.rectangle("fill", cursorX, rect.y + 4, 1, rect.height - 8)
+            end
         end
     end
 end

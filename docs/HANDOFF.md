@@ -104,3 +104,29 @@ Stage 계약은 schemaVersion 2, 최상위 `bpm`, 선택적 `mixtape`, 선택적
 - 최종 자동 검증: Fix Round 2 focused suite는 `PASS: 11 tests`, 전체 suite는 `PASS: 190 tests`와 종료 코드 `0`을 반환했다. `git diff --check`는 출력 없이 통과했고, Project JSON은 PowerShell `ConvertFrom-Json`으로 모두 통과했으며 `rg -n 'require\("core\.' editor projects`는 출력이 없었다.
 - LÖVE 기동 smoke: `love .`를 숨김 창으로 2초 실행해 `LOVE_SMOKE_RUNNING=True`를 확인한 뒤 종료했다. 이 환경에서는 사람이 Period 1/4의 소리와 pause 뒤 강박 위치를 직접 청취하지 못했으므로 수동 청취는 미확인이다.
 - 다음 작업은 Project Event 등록 계약을 정의하고 Stage Event를 TestPlayer 실행에 연결하는 일이다.
+
+## Values 커서 편집 (2026-07-26)
+
+- 숫자 Values 인라인 편집에 좌우 방향키 커서 이동, 커서 위치 삽입, Backspace/Delete 삭제와 커서 표시를 추가했다. 셀을 처음 클릭한 순간부터 값 끝에 커서를 표시하며 Enter 확정과 Escape 취소 동작을 유지한다.
+- RED: 중간 삽입·삭제 워크플로우 테스트에서 `expected: 1325`, `actual: 1352` 실패를 확인했다. 최초 포커스 커서 렌더링 테스트에서도 커서 사각형을 찾지 못하는 실패를 확인했다.
+- GREEN: `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 191 tests`; `git diff --check` → 출력 없음.
+- LÖVE 기동 smoke: 숨김 창으로 2초 실행해 `LOVE_SMOKE_RUNNING=True`를 확인했다. 실제 키보드 입력의 수동 화면 확인은 이 환경에서 수행하지 못했다.
+
+## Values 커서 깜빡임 (2026-07-26)
+
+- 숫자 Values 커서는 포커스 직후 표시되며 0.5초마다 표시/숨김을 반복한다. 문자 입력, Backspace/Delete와 좌우 방향키 입력 시에는 타이머를 초기화해 커서가 즉시 다시 보인다.
+- RED: 시간 경과에 따른 `cursorVisible` 테스트에서 최초 값이 `nil`이라 실패하는 것을 확인했다.
+- GREEN: `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 192 tests`; 숨김 창 LÖVE 기동과 `git diff --check`는 최종 검증한다.
+
+## 공통 TextInput 통합 (2026-07-26)
+
+- `editor/ui/TextInput.lua`가 UTF-8 커서 이동, 중간 삽입, Backspace/Delete, 0.5초 커서 깜빡임과 입력 후 타이머 초기화를 공통으로 소유한다.
+- Properties/Values는 숫자 필터를 적용하고, New/Save As Dialog 필드는 일반 UTF-8 입력으로 같은 모듈을 사용한다. 각 화면은 기존 배경·테두리 렌더링과 확정/검증 책임을 유지한다.
+- RED: Dialog에서 `left` 뒤 `X` 입력 시 `expected: 가X나`, `actual: 가나X`로 실패함을 확인했다.
+- GREEN: UTF-8 중간 삽입·삭제, Dialog 커서 렌더링·깜빡임과 기존 Values 동작을 포함해 `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 193 tests`; `git diff --check`와 Core 내부 require 경계 검색은 출력 없음; 숨김 창 기동은 `LOVE_SMOKE_RUNNING=True`.
+
+## Values 최초 입력 삽입 수정 (2026-07-26)
+
+- Values에만 남아 있던 최초 입력 전체 대체 옵션을 제거했다. 이제 처음 포커스한 직후에도 Dialog와 동일하게 현재 커서 위치에서 입력을 이어간다.
+- RED: 값 `1`에 최초로 `2`를 입력했을 때 `expected: 12`, `actual: 2`로 실패함을 확인했다.
+- GREEN: 기존 값 변경 테스트를 Backspace 삭제 후 입력 흐름으로 갱신했으며 `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 194 tests`; `git diff --check`와 잔존 대체 옵션 검색은 출력 없음; 숨김 창 기동은 `LOVE_SMOKE_RUNNING=True`.
