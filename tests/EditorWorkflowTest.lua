@@ -701,6 +701,12 @@ return {
             test.assertEqual(state.previewPlaying, false)
             app:update(0.25)
             test.assertNear(app:getViewModel().beat, 0.5, 0.000001)
+            test.assertEqual(app:getViewModel().anchorBeat, 0)
+            test.assertEqual(app:getViewModel().playbackBeat, nil)
+
+            app:executeAction("play")
+            test.assertNear(app:getViewModel().beat, 0, 0.000001)
+            test.assertEqual(app:getViewModel().playbackBeat, 0)
         end,
     },
     {

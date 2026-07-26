@@ -45,7 +45,7 @@
 
 - [x] 기본 Project Canvas 렌더링
 - [x] Core PlaybackTransport 기반 Timeline과 Music 동기화
-- [x] 재생, 일시정지, 오류 rollback과 자동 playhead 추적
+- [x] 기준 바와 재생 위치 바 분리, 기준 beat 재시작, 오류 rollback과 자동 playhead 추적
 - [x] Editor 전용 Playback Rate와 Metronome
 - [x] 고정 메모리 동적 BPM beat 클릭과 Metronome Period 강박 그룹
 - [x] Music 없음, Offset, duration 종료와 희소 설정 통합 경로

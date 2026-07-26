@@ -32,6 +32,7 @@ function EditorSession.new(options)
         project = nil,
         document = nil,
         transport = nil,
+        anchorBeat = 0,
         timelineStartBeat = 0,
     }, EditorSession)
 end
@@ -64,6 +65,10 @@ function EditorSession:getBeat()
     return self.transport and self.transport:getBeat() or 0
 end
 
+function EditorSession:getAnchorBeat()
+    return self.anchorBeat
+end
+
 function EditorSession:getTimelineStartBeat()
     return self.timelineStartBeat
 end
@@ -71,7 +76,11 @@ end
 function EditorSession:seekTimeline(beat)
     if not self.document then return nil, "No Stage is open." end
     local snap = self.document:getEditorSettings().snap
-    return self.transport:seekBeat(TimelineSnap.snapBeat(beat, snap))
+    local snappedBeat = TimelineSnap.snapBeat(beat, snap)
+    local seeked, errorMessage = self.transport:seekBeat(snappedBeat)
+    if not seeked then return nil, errorMessage end
+    self.anchorBeat = snappedBeat
+    return true, nil
 end
 
 function EditorSession:resetTimeline()
@@ -120,6 +129,7 @@ function EditorSession:replaceStage(project, document)
     self.project = project
     self.document = document
     self.transport = transport
+    self.anchorBeat = 0
     self.timelineStartBeat = 0
     return true, nil
 end
@@ -221,6 +231,11 @@ end
 function EditorSession:play()
     if not self.document then return nil, "No Stage is open." end
     if self:isPlaying() then return true, nil end
+
+    if math.abs(self.transport:getBeat() - self.anchorBeat) > 0.000001 then
+        local seeked, seekError = self.transport:seekBeat(self.anchorBeat)
+        if not seeked then return nil, seekError end
+    end
 
     local mixtape = self.document:getMixtape()
     local editorSettings = self.document:getEditorSettings()

@@ -46,19 +46,19 @@ New는 Project, Stage ID, Name과 BPM으로 `events: []`인 schemaVersion 2 Stag
 
 첫 소리 분석은 Project Music을 청크 단위로 읽고 채널 평균 10ms RMS가 Onset Threshold보다 큰 구간이 20ms 이상 이어지는 첫 위치를 사용한다. 순간 노이즈는 줄이지만 음악적 첫 박자를 찾는 기능은 아니다. 분석 실패나 유효한 소리를 찾지 못하면 Music 선택은 유지하고 Offset은 바꾸지 않은 채 오류 모달을 표시한다.
 
-Timeline 위의 wheel zoom은 커서가 가리키는 beat를 화면의 같은 x에 유지한다. 일시정지 상태에서는 번호가 표시되는 Timeline 상단을 좌클릭하면 가장 가까운 Snap beat로 재생 바가 즉시 이동하며, 누른 채 drag하면 계속 이동한다. 좌우 끝 32px 안에서 drag를 유지하면 기본 초당 8박에 마우스와 재생 바의 수평 거리 1박당 초당 8박을 더한 속도로 보이는 구간과 재생 바가 함께 이동하며 최대 속도는 초당 64박이다. Timeline 안을 마우스 중간 버튼으로 드래그하면 보이는 구간을 이동하며 시작 beat는 0 아래로 내려가지 않는다. zoom과 구간 이동은 Play 중에도 사용할 수 있으며 직접 Scale Value를 편집할 때는 현재 Timeline 시작 beat를 바꾸지 않는다. 재생 바 이동과 구간 이동은 Stage 저장 데이터와 dirty 상태를 바꾸지 않는다.
+Timeline 위의 wheel zoom은 커서가 가리키는 beat를 화면의 같은 x에 유지한다. 일시정지 상태에서는 번호가 표시되는 Timeline 상단을 좌클릭하면 주황색 기준 바가 가장 가까운 Snap beat로 즉시 이동하며, 누른 채 drag하면 계속 이동한다. 좌우 끝 32px 안에서 drag를 유지하면 기본 초당 8박에 마우스와 기준 바의 수평 거리 1박당 초당 8박을 더한 속도로 보이는 구간과 기준 바가 함께 이동하며 최대 속도는 초당 64박이다. Play 중에는 기준 바와 별도로 하늘색 재생 위치 바가 시간에 따라 이동하고, Pause하면 재생 위치 바만 사라진다. Timeline 안을 마우스 중간 버튼으로 드래그하면 보이는 구간을 이동하며 시작 beat는 0 아래로 내려가지 않는다. zoom과 구간 이동은 Play 중에도 사용할 수 있으며 직접 Scale Value를 편집할 때는 현재 Timeline 시작 beat를 바꾸지 않는다. 재생 바 이동과 구간 이동은 Stage 저장 데이터와 dirty 상태를 바꾸지 않는다.
 
-`F`는 Play와 Pause를 전환하고 `Ctrl+S`는 현재 Stage를 저장한다. `R`은 재생 중이면 먼저 Pause한 뒤 재생 바와 Timeline 시작 위치를 beat 0으로 되돌린다. Dialog나 숫자 Value를 편집 중일 때는 이 단축키를 실행하지 않으며 key repeat도 무시한다.
+`F`는 Play와 Pause를 전환하고 `Ctrl+S`는 현재 Stage를 저장한다. `R`은 재생 중이면 먼저 Pause한 뒤 기준 바와 Timeline 시작 위치를 beat 0으로 되돌린다. Dialog나 숫자 Value를 편집 중일 때는 이 단축키를 실행하지 않으며 key repeat도 무시한다.
 
 ## 5. Test Play
 
-Play는 현재 beat부터 다음 구성 요소를 함께 시작한다.
+Play는 클릭으로 지정한 기준 beat부터 다음 구성 요소를 함께 시작한다. Pause 뒤 다시 Play해도 직전 재생 위치에서 이어가지 않고 같은 기준 beat에서 새로 시작한다.
 
 - Core `PlaybackTransport`: 논리 시간, beat, Music Offset과 pitch
 - `TestPlayer`: Project Canvas와 Playback Rate가 적용된 update deltaTime
 - 선택한 경우 `MetronomePlayback`: 같은 BPM, 현재 beat와 Playback Rate
 
-Music이 `None`이어도 Transport와 Project preview는 정상 동작한다. 음수 Offset이면 음악 위치가 0이 될 때 시작하고, 양수 Offset이면 해당 위치부터 시작한다. 음악 duration이 끝나도 Timeline beat와 Project preview는 계속 진행한다. Pause는 현재 beat를 보존하고 모든 재생 구성 요소를 정지한 뒤 Properties/Values 편집 화면으로 돌아온다.
+Music이 `None`이어도 Transport와 Project preview는 정상 동작한다. 음수 Offset이면 음악 위치가 0이 될 때 시작하고, 양수 Offset이면 해당 위치부터 시작한다. 음악 duration이 끝나도 Timeline beat와 Project preview는 계속 진행한다. Pause는 기준 beat를 보존하고 모든 재생 구성 요소를 정지한 뒤 재생 위치 바를 숨기고 Properties/Values 편집 화면으로 돌아온다.
 
 decode, Source, preview 시작·update·draw가 실패하면 오류 모달을 표시하고 `EditorSession:pause()`를 통해 Transport, Metronome과 TestPlayer를 함께 정리한다. TestPlayer update 실패는 pause 뒤 이전 beat로 rollback한다.
 

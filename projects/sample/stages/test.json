@@ -6,7 +6,7 @@
   "bpm":163,
   "mixtape":{
     "music":"assets/audio/HifumiDaisuki.mp3",
-    "volume":0.1,
+    "volume":0.75,
     "beat0Offset":0.36
   },
   "editorSettings":{

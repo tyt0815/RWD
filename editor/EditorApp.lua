@@ -162,6 +162,8 @@ function EditorApp:getViewModel()
         valueEdit = self.valueEdit,
         dialog = self.dialog,
         beat = self.session:getBeat(),
+        anchorBeat = self.session:getAnchorBeat(),
+        playbackBeat = self.session:isPlaying() and self.session:getBeat() or nil,
         timelineStartBeat = self.session:getTimelineStartBeat(),
         scale = scale,
         metronomePeriod = metronomePeriod,

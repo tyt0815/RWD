@@ -393,24 +393,26 @@ return {
         end,
     },
     {
-        name = "Play와 Pause는 beat를 보존하고 TestPlayer를 전환한다",
+        name = "Pause 뒤 Play는 일시정지 위치가 아닌 기준 beat에서 다시 시작한다",
         run = function(test)
             local session, testPlayer, state = newSession()
             assert(session:createStage("sample", "preview", "Preview", 120))
+            assert(session:seekTimeline(4))
             assert(session:play())
             local firstGame = testPlayer.game
             assert(session:update(1, 16))
-            test.assertNear(session:getBeat(), 2, 0.000001)
+            test.assertNear(session:getBeat(), 6, 0.000001)
+            test.assertEqual(session:getAnchorBeat(), 4)
             test.assertEqual(testPlayer.playing, true)
             session:pause()
             assert(session:update(1, 16))
-            test.assertNear(session:getBeat(), 2, 0.000001)
+            test.assertNear(session:getBeat(), 6, 0.000001)
             test.assertEqual(testPlayer.playing, false)
 
             assert(session:play())
             test.assertEqual(state.startCount, 2)
             test.assertTrue(testPlayer.game ~= firstGame)
-            test.assertNear(session:getBeat(), 2, 0.000001)
+            test.assertNear(session:getBeat(), 4, 0.000001)
         end,
     },
     {

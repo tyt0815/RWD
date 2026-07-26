@@ -157,9 +157,10 @@ end
 
 function EditorLayout.getPlayheadHandle(timeline, viewModel)
     local pixelsPerBeat = EditorLayout.getPixelsPerBeat(viewModel.scale)
+    local anchorBeat = viewModel.anchorBeat or viewModel.beat
     return {
         x = EditorLayout.getTimelineBeatOriginX(timeline, viewModel.scale)
-            + (viewModel.beat - viewModel.timelineStartBeat) * pixelsPerBeat,
+            + (anchorBeat - viewModel.timelineStartBeat) * pixelsPerBeat,
         y = timeline.y,
         halfWidth = PLAYHEAD_HANDLE_HALF_WIDTH,
         height = PLAYHEAD_HANDLE_HEIGHT,
@@ -452,6 +453,20 @@ local function drawTimeline(timeline, viewModel)
             handle.x,
             handle.y + handle.height
         )
+
+        if viewModel.playing and viewModel.playbackBeat ~= nil then
+            local playbackX = beatOriginX
+                + (viewModel.playbackBeat - viewModel.timelineStartBeat)
+                    * pixelsPerBeat
+            love.graphics.setColor(0.35, 0.8, 1, 1)
+            love.graphics.rectangle(
+                "fill",
+                playbackX - 1,
+                timeline.y,
+                2,
+                timeline.height
+            )
+        end
     end
 end
 

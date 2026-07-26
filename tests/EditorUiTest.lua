@@ -172,6 +172,20 @@ local function assertPlayhead(test, recorder, layout, expectedCenterX)
     assertColor(test, playhead, { 1, 0.45, 0.2, 1 })
 end
 
+local function assertPlaybackHead(test, recorder, layout, expectedCenterX, visible)
+    local playbackHead = findRectangle(recorder, {
+        mode = "fill",
+        x = expectedCenterX - 1,
+        y = layout.timeline.y,
+        width = 2,
+        height = layout.timeline.height,
+    })
+    test.assertEqual(playbackHead ~= nil, visible)
+    if visible then
+        assertColor(test, playbackHead, { 0.35, 0.8, 1, 1 })
+    end
+end
+
 local function assertTimelineLabels(test, recorder, timeline, labels)
     local labelY = timeline.y + 8
     test.assertEqual(countPrintsAtY(recorder, labelY), #labels)
@@ -356,6 +370,8 @@ return {
                     properties = {},
                     valueEdit = nil,
                     beat = 6,
+                    anchorBeat = 5,
+                    playbackBeat = 6,
                     timelineStartBeat = 4,
                     scale = 1,
                     menuItems = playing,
@@ -381,7 +397,8 @@ return {
                 test.assertEqual(previewCalls[1].width, expectedPreview.width)
                 test.assertEqual(previewCalls[1].height, expectedPreview.height)
                 assertTimelineLabels(test, recorder, layout.timeline, { "4", "8" })
-                assertPlayhead(test, recorder, layout, 96)
+                assertPlayhead(test, recorder, layout, 64)
+                assertPlaybackHead(test, recorder, layout, 96, true)
             end)
         end,
     },

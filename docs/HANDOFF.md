@@ -255,3 +255,11 @@ Stage 계약은 schemaVersion 2, 최상위 `bpm`, 선택적 `mixtape`, 선택적
 - 기본 창 크기 1920×1080과 resizable 설정은 유지하고 최소 크기를 1280×720으로 변경했다. 종횡비는 제한하지 않는다.
 - RED: 높이와 최소 창 크기 테스트에서 `expected: 392, actual: 272`, `expected: 1280, actual: 800` 등 3건 실패를 확인했다.
 - GREEN: `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 220 tests`. 최종 정적 검사와 기동 smoke를 수행한다.
+
+## Timeline 기준 바와 재생 위치 바 분리 (2026-07-26)
+
+- Timeline 클릭으로 정한 주황색 기준 바의 beat를 Transport의 현재 beat와 분리했다. Play 중에는 하늘색 재생 위치 바가 시간에 따라 이동하고 Pause하면 재생 위치 바만 숨긴다.
+- Pause 뒤 다시 Play하면 직전 재생 위치를 이어가지 않고 보존된 기준 beat로 Transport를 seek한 뒤 Project preview, Music과 Metronome을 새로 시작한다. Core `PlaybackTransport`의 일반 pause/resume 계약은 변경하지 않았다.
+- RED: 기준 beat API, 두 바 렌더링과 Pause 후 재시작 통합 기대에서 3개 테스트 실패를 확인했다.
+- GREEN: `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 220 tests`.
+- 최종 검증: `git diff --check`와 Editor/Project의 Core 내부 require 검색은 출력 없음; Project JSON 문법 검사 `JSON_OK`; 숨김 창 기동 `LOVE_SMOKE_RUNNING=True`. 두 바의 실제 색상과 클릭·Pause·재시작 동작은 사람이 화면에서 수동 확인하지 못했다.
