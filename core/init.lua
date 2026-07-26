@@ -14,5 +14,9 @@ Core.MusicPlayback = require("core.MusicPlayback")
 Core.PlaybackTransport = require("core.PlaybackTransport")
 Core.MixtapeSettings = require("core.MixtapeSettings")
 Core.TempoMap = require("core.TempoMap")
+Core.UI = {
+    TextInput = require("core.ui.TextInput"),
+    ComboBox = require("core.ui.ComboBox"),
+}
 
 return Core

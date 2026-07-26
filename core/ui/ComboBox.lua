@@ -1,4 +1,4 @@
-local TextInput = require("editor.ui.TextInput")
+local TextInput = require("core.ui.TextInput")
 
 local ComboBox = {}
 ComboBox.__index = ComboBox

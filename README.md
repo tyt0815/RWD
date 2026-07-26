@@ -61,7 +61,7 @@ Timeline 위에 마우스를 두고 wheel을 돌리면 커서가 가리키는 be
 ## 구조
 
 ```text
-core/       공통 시간·음악·리듬게임 API
+core/       공통 시간·음악·리듬게임과 스타일 독립 UI API
 editor/     Stage 에디터와 Editor 전용 재생 도구
 launcher/   개발용 모드 및 프로젝트 선택
 projects/   서로 독립적인 게임 프로젝트

@@ -7,7 +7,7 @@ local ProjectCatalog = require("editor.project.ProjectCatalog")
 local PropertyCatalog = require("editor.properties.PropertyCatalog")
 local StageStore = require("editor.stage.StageStore")
 local TestPlayer = require("editor.playback.TestPlayer")
-local TextInput = require("editor.ui.TextInput")
+local TextInput = require("core").UI.TextInput
 
 local EditorApp = {}
 EditorApp.__index = EditorApp

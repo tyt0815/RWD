@@ -1,5 +1,7 @@
-local ComboBox = require("editor.ui.ComboBox")
-local TextInput = require("editor.ui.TextInput")
+local Core = require("core")
+
+local ComboBox = Core.UI.ComboBox
+local TextInput = Core.UI.TextInput
 
 local EditorDialog = {}
 EditorDialog.__index = EditorDialog

@@ -9,16 +9,17 @@ Launcher → Editor → Core 공개 API
 Editor → Project Manifest·assets/audio
 ```
 
-Core는 Editor와 Project를 알지 못한다. Project는 Editor를 알지 못하며, `editor/`와 `projects/`는 `require("core")` 공개 진입점만 사용한다. Project 상대 Music 경로를 실제 경로로 바꾸고 Editor 전용 설정을 적용하는 책임은 Editor에 있다.
+Core는 Editor와 Project를 알지 못한다. Project는 Editor를 알지 못하며, `editor/`와 `projects/`는 `require("core")` 공개 진입점만 사용한다. 스타일 독립적인 공통 UI 동작은 Core가 제공하고 Editor와 Project가 각자 스타일·배치와 도메인 동작을 조합한다. Project 상대 Music 경로를 실제 경로로 바꾸고 Editor 전용 설정을 적용하는 책임은 Editor에 있다.
 
 ## Core
 
-`core/init.lua`는 유일한 공개 진입점이다. `CORE_API_VERSION`, `JudgmentResult`, `PlaybackClock`과 함께 `MixtapeSettings`, `TempoMap`, `MusicPlayback`, `PlaybackTransport`를 공개한다.
+`core/init.lua`는 유일한 공개 진입점이다. `CORE_API_VERSION`, `JudgmentResult`, `PlaybackClock`과 함께 `MixtapeSettings`, `TempoMap`, `MusicPlayback`, `PlaybackTransport`, `UI`를 공개한다.
 
 - `MixtapeSettings`는 Music, Volume과 Beat 0 Offset을 검증하고 기본값을 해석하거나 희소 객체로 줄인다.
 - `TempoMap`은 양수 유한 BPM 하나를 소유하고 beat와 논리 seconds를 상호 변환한다. Stage 형식과 독립적이므로 이후 BPM 변화 구조를 이 경계 뒤에서 확장할 수 있다.
 - `MusicPlayback`은 LÖVE stream Source의 생성, Volume, seek, pitch, play/pause/stop, duration 종료와 1초 간격 drift 보정을 감싼다. Source 오류를 문자열로 바꾸고 내부 Source를 정리한다.
 - `PlaybackTransport`는 논리 seconds, beat, Mixtape Offset과 Music 시작 상태를 함께 소유한다. `play(rate)`의 rate 생략값은 실제 게임 경로의 `1.0`이며, Editor만 Stage의 Playback Rate를 명시적으로 전달한다. 음악 duration이 끝나도 Transport의 논리 시간과 beat는 계속 진행한다.
+- `UI.TextInput`은 UTF-8 텍스트·커서, 삽입·삭제와 깜빡임 상태를, `UI.ComboBox`는 TextInput 기반 검색·필터·선택과 키보드 탐색 상태를 제공한다. 두 모듈은 색상, 좌표와 LÖVE graphics 호출을 포함하지 않는다.
 
 `Core.PlaybackTransport:seekBeat(beat)`는 재생 중 호출을 거부하는 paused-only 경계다. `EditorSession:update`에서 TestPlayer update가 실패하면 먼저 `pause()`로 Transport, Metronome과 TestPlayer를 모두 정지한 뒤 이전 beat로 rollback할 때만 이 API를 사용한다. rollback도 실패하면 원래 preview 오류와 rollback 오류를 함께 반환한다. 이 순서는 재생 중 Source와 논리 시간을 동시에 이동시키지 않도록 보장한다.
 
@@ -36,7 +37,7 @@ Editor는 `Menu | Categories | Events | Properties | Values` 상단 영역과 Sc
 
 `MetronomePlayback`은 0.012초 길이의 1760Hz 강박과 880Hz 일반박 SoundData·정적 Source를 각각 하나만 만든다. Source는 반복하지 않으며, `EditorSession:update`가 Transport의 현재 beat를 전달하면 새 정수 beat crossing을 처리한다. 한 프레임에서 여러 beat를 건너뛰면 과거 클릭을 몰아서 재생하지 않고 두 Source를 정지한 뒤 마지막 crossed beat의 클릭 하나만 재생한다. Period의 배수 beat에는 강박을, 나머지 beat에는 일반박을 재생하므로 처리 시간과 오디오 메모리는 건너뛴 beat 수, BPM, Period와 무관하다. Core와 Project는 이 Editor 내부 구현 세부를 알지 못한다.
 
-`EditorApp`은 Session을 Menu, Music 모달, Properties/Values, Timeline wheel zoom과 오류 dialog에 연결한다. `editor.ui.TextInput`은 Values와 Dialog가 함께 사용하는 UTF-8 커서 이동, 중간 삽입·삭제와 커서 깜빡임 상태를 소유하며, Values만 숫자 필터를 적용한다. 모든 입력은 첫 포커스부터 현재 커서 위치에 문자를 삽입한다. `editor.ui.ComboBox`는 Project, Stage와 Music 선택이 함께 사용하는 선택값, 드롭다운, TextInput 기반 검색 필터와 키보드 탐색 상태를 소유한다. 향후 Project UI와 공유할 때는 Project가 Editor를 의존하지 않도록 중립적인 공용 UI 경계를 먼저 분리한다. 숫자 편집은 유효한 값을 확정할 때만 Session에 전달하고, boolean은 즉시 전환한다. Timeline zoom은 cursor beat를 고정하며 Play 중에도 허용된다.
+`EditorApp`은 Session을 Menu, Music 모달, Properties/Values, Timeline wheel zoom과 오류 dialog에 연결한다. Values와 Dialog는 `Core.UI.TextInput`을 조합하고 Values만 숫자 필터를 적용한다. Project, Stage와 Music 선택은 `Core.UI.ComboBox`를 조합한다. Editor의 색상, 좌표, 셀·Dialog 렌더링과 Stage 검증 연결은 `editor/ui/`에 남으며 Core UI는 이를 알지 못한다. 숫자 편집은 유효한 값을 확정할 때만 Session에 전달하고, boolean은 즉시 전환한다. Timeline zoom은 cursor beat를 고정하며 Play 중에도 허용된다.
 
 `TestPlayer`는 Launcher가 주입한 `ProjectLoader.createGame`으로 프로젝트 앱을 만들고 Project의 `update(deltaTime)`과 `draw(width, height)`를 preview Canvas 안에서 실행한다. Editor는 Playback Rate가 적용된 deltaTime을 전달한다. Stage Event와 Project 입력은 아직 TestPlayer에 전달하지 않는다.
 
@@ -44,7 +45,7 @@ Editor는 `Menu | Categories | Events | Properties | Values` 상단 영역과 Sc
 
 각 `projects/<projectId>/project.lua`는 `id`, `title`, `coreApiVersion`, `entryModule`을 제공한다. Launcher는 `coreApiVersion`이 `Core.CORE_API_VERSION`과 같은 프로젝트만 연다.
 
-프로젝트는 Pattern, 게임 화면, UI/UX, 사운드, 연출, `assets/audio` 리소스와 Stage를 소유한다. 프로젝트 앱의 렌더링 계약은 `draw(width, height)`다. Launcher는 전체 창 크기를, TestPlayer는 preview Canvas 크기를 전달한다.
+프로젝트는 Pattern, 게임 화면, UI/UX, 사운드, 연출, `assets/audio` 리소스와 Stage를 소유한다. 공통 입력 동작이 필요하면 Editor를 불러오지 않고 `Core.UI`를 기반으로 Project 전용 스타일과 동작을 조합한다. 프로젝트 앱의 렌더링 계약은 `draw(width, height)`다. Launcher는 전체 창 크기를, TestPlayer는 preview Canvas 크기를 전달한다.
 
 ## 데이터 흐름
 

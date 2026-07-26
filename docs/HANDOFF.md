@@ -144,3 +144,10 @@ Stage 계약은 schemaVersion 2, 최상위 `bpm`, 선택적 `mixtape`, 선택적
 - ComboBox를 열었을 때 선택값 행 아래에 별도 검색 행을 추가하던 구조를 제거했다. 이제 선택값 행 자체가 빈 검색 입력으로 전환되고 필터 결과가 바로 아래에 표시된다.
 - RED: Music ComboBox를 연 직후 입력 행의 `expected: ""`, `actual: "assets/audio/b.wav"` 실패를 확인했다.
 - GREEN: 인라인 검색 행과 커서 렌더링을 포함해 `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 196 tests`; `git diff --check` 출력 없음; 숨김 창 기동은 `LOVE_SMOKE_RUNNING=True`.
+
+## Core.UI 공통 경계 이동 (2026-07-26)
+
+- 스타일 독립적인 `TextInput`과 `ComboBox`를 `editor/ui/`에서 `core/ui/`로 이동하고 `require("core").UI.TextInput/ComboBox`로 공개했다. Editor는 Core 공개 API만 사용하며 색상, 좌표, Dialog·Values 렌더링은 계속 `editor/`가 소유한다.
+- Project도 향후 Editor 의존 없이 같은 Core.UI를 기반으로 Project 전용 UI를 조합할 수 있다. `AGENTS.md`에 Core UI와 화면별 스타일의 책임, 공개 API 사용, 직접 재구현 금지 지침을 반영했다.
+- RED: ComboBox 테스트를 Core 공개 API로 전환한 뒤 `attempt to index field 'UI' (a nil value)` 2건을 확인했다.
+- GREEN: Core.UI 공개와 Editor 연결 후 `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 196 tests`; `git diff --check`, Editor/Project의 Core 내부 경로 require 검색, Core UI의 Editor·Project·graphics 의존 검색은 출력 없음; 숨김 창 기동은 `LOVE_SMOKE_RUNNING=True`.

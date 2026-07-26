@@ -2,7 +2,7 @@ return {
     {
         name = "ComboBox는 입력으로 목록을 필터링하고 선택한다",
         run = function(test)
-            local ComboBox = require("editor.ui.ComboBox")
+            local ComboBox = require("core").UI.ComboBox
             local comboBox = ComboBox.new({
                 { value = "alpha", label = "Alpha" },
                 { value = "sample", label = "Sample Project" },
@@ -24,7 +24,7 @@ return {
     {
         name = "ComboBox는 키보드 이동과 Escape 닫기를 지원한다",
         run = function(test)
-            local ComboBox = require("editor.ui.ComboBox")
+            local ComboBox = require("core").UI.ComboBox
             local comboBox = ComboBox.new({
                 { value = "one", label = "One" },
                 { value = "two", label = "Two" },
