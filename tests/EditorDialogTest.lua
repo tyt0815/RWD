@@ -78,6 +78,9 @@ return {
             test.assertEqual(layout.modal.y, 140)
             test.assertEqual(layout.modal.width, 560)
             test.assertEqual(layout.modal.height, 420)
+            test.assertEqual(#layout.selectorBoxes, 1)
+            test.assertEqual(layout.selectorBoxes[1].label, "Alpha")
+            test.assertEqual(#layout.selectorOptions, 0)
 
             withGraphicsRecorder(function(recorder)
                 dialog:draw(1000, 700)
@@ -175,6 +178,9 @@ return {
                 { value = "two", label = "two" },
             }), true)
             local layout = dialog:getLayout(1000, 700)
+            local stageBox = findRect(layout.selectorBoxes, "selectorId", "stageId")
+            test.assertEqual(clickCenter(dialog, stageBox), true)
+            layout = dialog:getLayout(1000, 700)
             local secondStageOption
             for _, rect in ipairs(layout.selectorOptions) do
                 if rect.selectorId == "stageId" and rect.optionIndex == 2 then
@@ -206,6 +212,31 @@ return {
             test.assertEqual(dialog.selectors[1].options[3].value, "assets/audio/b.wav")
             test.assertEqual(dialog.selectors[1].options[3].label, "assets/audio/b.wav")
             test.assertEqual(dialog:getSelection("music"), "assets/audio/b.wav")
+
+            local layout = dialog:getLayout(1000, 700)
+            local musicBox = findRect(layout.selectorBoxes, "selectorId", "music")
+            test.assertEqual(clickCenter(dialog, musicBox), true)
+            layout = dialog:getLayout(1000, 700)
+            test.assertEqual(layout.selectorBoxes[1].label, "")
+            test.assertEqual(layout.comboSearch, nil)
+
+            dialog:textinput("a.ogg")
+            layout = dialog:getLayout(1000, 700)
+            test.assertEqual(layout.selectorBoxes[1].label, "a.ogg")
+            test.assertEqual(#layout.selectorOptions, 1)
+            test.assertEqual(layout.selectorOptions[1].label, "assets/audio/a.ogg")
+            withGraphicsRecorder(function(recorder)
+                dialog:draw(1000, 700)
+                local cursorCount = 0
+                for _, rectangle in ipairs(recorder.rectangles) do
+                    if rectangle.mode == "fill" and rectangle.width == 1 then
+                        cursorCount = cursorCount + 1
+                    end
+                end
+                test.assertEqual(cursorCount, 1)
+            end)
+            test.assertEqual(clickCenter(dialog, layout.selectorOptions[1]), true)
+            test.assertEqual(dialog:getSelection("music"), "assets/audio/a.ogg")
         end,
     },
     {
@@ -236,15 +267,20 @@ return {
             end
             local dialog = EditorDialog.music(files, nil)
             local layout = dialog:getLayout(1000, 700)
+            test.assertEqual(#layout.selectorOptions, 0)
+            test.assertEqual(clickCenter(dialog, layout.selectorBoxes[1]), true)
+            layout = dialog:getLayout(1000, 700)
+            test.assertEqual(#layout.selectorOptions, 6)
 
-            test.assertEqual(#layout.selectorOptions, 8)
             for _ = 1, 9 do
                 dialog:keypressed("down")
             end
-            test.assertEqual(dialog:getSelection("music"), files[9])
             layout = dialog:getLayout(1000, 700)
-            test.assertEqual(layout.selectorOptions[8].optionIndex, 10)
+            test.assertEqual(layout.selectorOptions[6].optionIndex, 10)
+            dialog:keypressed("return")
+            test.assertEqual(dialog:getSelection("music"), files[9])
 
+            layout = dialog:getLayout(1000, 700)
             local confirm = findRect(layout.buttons, "buttonId", "confirm")
             test.assertEqual(clickCenter(dialog, confirm), true)
             local result = dialog:consumeResult()

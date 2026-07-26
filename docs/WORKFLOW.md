@@ -24,7 +24,7 @@ Project audio 배치 → New/Open → Mixtape Properties에서 Music 선택
 → wheel로 Timeline Scale 조정 → Save/Save As → Test Play → Pause
 ```
 
-New는 Project, Stage ID, Name과 BPM으로 `events: []`인 schemaVersion 2 Stage를 만든다. New와 Save As의 텍스트 필드는 Values와 같은 공통 입력 모듈을 사용해 UTF-8 중간 삽입·삭제, 좌우 커서 이동과 커서 깜빡임을 지원한다. Open, Save와 Save As는 선택한 Project의 `stages` 폴더 안에서만 동작한다. 수정된 Stage의 Menu에는 `Save*`가 보이고 New, Open, Quit은 Save/Discard/Cancel 확인을 거친다.
+New는 Project, Stage ID, Name과 BPM으로 `events: []`인 schemaVersion 2 Stage를 만든다. New와 Save As의 텍스트 필드는 Values와 같은 공통 입력 모듈을 사용해 UTF-8 중간 삽입·삭제, 좌우 커서 이동과 커서 깜빡임을 지원한다. New/Open의 Project·Stage와 Music 선택은 공통 ComboBox를 사용하며, 클릭해 선택값 한 줄을 검색 입력으로 전환하고 아래 목록을 검색어로 필터링한 뒤 마우스 또는 위·아래 방향키와 Enter로 선택한다. Open, Save와 Save As는 선택한 Project의 `stages` 폴더 안에서만 동작한다. 수정된 Stage의 Menu에는 `Save*`가 보이고 New, Open, Quit은 Save/Discard/Cancel 확인을 거친다.
 
 `Mixtape Properties`는 다음 순서다.
 

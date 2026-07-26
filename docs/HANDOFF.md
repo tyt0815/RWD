@@ -130,3 +130,17 @@ Stage 계약은 schemaVersion 2, 최상위 `bpm`, 선택적 `mixtape`, 선택적
 - Values에만 남아 있던 최초 입력 전체 대체 옵션을 제거했다. 이제 처음 포커스한 직후에도 Dialog와 동일하게 현재 커서 위치에서 입력을 이어간다.
 - RED: 값 `1`에 최초로 `2`를 입력했을 때 `expected: 12`, `actual: 2`로 실패함을 확인했다.
 - GREEN: 기존 값 변경 테스트를 Backspace 삭제 후 입력 흐름으로 갱신했으며 `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 194 tests`; `git diff --check`와 잔존 대체 옵션 검색은 출력 없음; 숨김 창 기동은 `LOVE_SMOKE_RUNNING=True`.
+
+## 검색 ComboBox 통합 (2026-07-26)
+
+- `editor/ui/ComboBox.lua`가 선택값, 열림 상태, TextInput 기반 검색어, 부분 문자열 필터, 강조·스크롤 위치와 키보드 선택을 공통으로 소유한다.
+- New/Open의 Project·Stage와 Music 선택은 닫힌 상태에서 한 줄만 표시하고, 클릭하면 검색 입력과 최대 6개 결과를 드롭다운으로 표시한다. 마우스와 위·아래 방향키·Enter로 선택하고 Escape로 목록만 닫는다.
+- `AGENTS.md`에 Editor 입력 UI는 TextInput/ComboBox를 직접 재구현하지 않고 공통 모듈로 조합하며, 향후 Project 공유 시 중립 UI 경계를 먼저 설계한다는 지침을 추가했다. RadioButton 등은 구현하지 않았다.
+- RED: ComboBox 테스트 2개가 `module 'editor.ui.ComboBox' not found`로 실패함을 확인했다.
+- GREEN: 필터·키보드 단위 테스트와 Dialog Project/Stage/Music 렌더링·통합 테스트를 포함해 `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 196 tests`; `git diff --check`와 Core 내부 require 경계 검색은 출력 없음; 숨김 창 기동은 `LOVE_SMOKE_RUNNING=True`.
+
+## ComboBox 인라인 검색 행 (2026-07-26)
+
+- ComboBox를 열었을 때 선택값 행 아래에 별도 검색 행을 추가하던 구조를 제거했다. 이제 선택값 행 자체가 빈 검색 입력으로 전환되고 필터 결과가 바로 아래에 표시된다.
+- RED: Music ComboBox를 연 직후 입력 행의 `expected: ""`, `actual: "assets/audio/b.wav"` 실패를 확인했다.
+- GREEN: 인라인 검색 행과 커서 렌더링을 포함해 `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 196 tests`; `git diff --check` 출력 없음; 숨김 창 기동은 `LOVE_SMOKE_RUNNING=True`.

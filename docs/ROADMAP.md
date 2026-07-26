@@ -31,7 +31,7 @@
 
 - [x] Project와 Stage 선택
 - [x] EditorSession의 Stage 생성, 열기와 저장 상태
-- [x] Dialog와 Values 공통 TextInput·깜빡이는 커서 편집
+- [x] Dialog와 Values 공통 TextInput·Project/Stage/Music 인라인 검색 ComboBox
 - [x] Project Music 재귀 검색과 선택 모달
 - [x] Scale 기반 Timeline과 cursor anchor wheel zoom
 - [ ] Project Events와 Categories 목록

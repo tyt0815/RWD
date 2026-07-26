@@ -36,7 +36,7 @@ Editor는 `Menu | Categories | Events | Properties | Values` 상단 영역과 Sc
 
 `MetronomePlayback`은 0.012초 길이의 1760Hz 강박과 880Hz 일반박 SoundData·정적 Source를 각각 하나만 만든다. Source는 반복하지 않으며, `EditorSession:update`가 Transport의 현재 beat를 전달하면 새 정수 beat crossing을 처리한다. 한 프레임에서 여러 beat를 건너뛰면 과거 클릭을 몰아서 재생하지 않고 두 Source를 정지한 뒤 마지막 crossed beat의 클릭 하나만 재생한다. Period의 배수 beat에는 강박을, 나머지 beat에는 일반박을 재생하므로 처리 시간과 오디오 메모리는 건너뛴 beat 수, BPM, Period와 무관하다. Core와 Project는 이 Editor 내부 구현 세부를 알지 못한다.
 
-`EditorApp`은 Session을 Menu, Music 모달, Properties/Values, Timeline wheel zoom과 오류 dialog에 연결한다. `editor.ui.TextInput`은 Values와 Dialog가 함께 사용하는 UTF-8 커서 이동, 중간 삽입·삭제와 커서 깜빡임 상태를 소유하며, Values만 숫자 필터를 적용한다. 모든 입력은 첫 포커스부터 현재 커서 위치에 문자를 삽입한다. 숫자 편집은 유효한 값을 확정할 때만 Session에 전달하고, boolean은 즉시 전환한다. Timeline zoom은 cursor beat를 고정하며 Play 중에도 허용된다.
+`EditorApp`은 Session을 Menu, Music 모달, Properties/Values, Timeline wheel zoom과 오류 dialog에 연결한다. `editor.ui.TextInput`은 Values와 Dialog가 함께 사용하는 UTF-8 커서 이동, 중간 삽입·삭제와 커서 깜빡임 상태를 소유하며, Values만 숫자 필터를 적용한다. 모든 입력은 첫 포커스부터 현재 커서 위치에 문자를 삽입한다. `editor.ui.ComboBox`는 Project, Stage와 Music 선택이 함께 사용하는 선택값, 드롭다운, TextInput 기반 검색 필터와 키보드 탐색 상태를 소유한다. 향후 Project UI와 공유할 때는 Project가 Editor를 의존하지 않도록 중립적인 공용 UI 경계를 먼저 분리한다. 숫자 편집은 유효한 값을 확정할 때만 Session에 전달하고, boolean은 즉시 전환한다. Timeline zoom은 cursor beat를 고정하며 Play 중에도 허용된다.
 
 `TestPlayer`는 Launcher가 주입한 `ProjectLoader.createGame`으로 프로젝트 앱을 만들고 Project의 `update(deltaTime)`과 `draw(width, height)`를 preview Canvas 안에서 실행한다. Editor는 Playback Rate가 적용된 deltaTime을 전달한다. Stage Event와 Project 입력은 아직 TestPlayer에 전달하지 않는다.
 
