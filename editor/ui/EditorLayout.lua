@@ -127,6 +127,15 @@ function EditorLayout.getPropertyActionRect(layout, rowIndex, scrollOffset)
     }
 end
 
+function EditorLayout.getComboBoxOptionRect(valueRect, optionPosition)
+    return {
+        x = valueRect.x + 4,
+        y = valueRect.y + optionPosition * valueRect.height,
+        width = valueRect.width - 8,
+        height = valueRect.height,
+    }
+end
+
 function EditorLayout.getPixelsPerBeat(scale)
     return BASE_BEAT_WIDTH * scale
 end
@@ -181,12 +190,31 @@ function EditorLayout.getTimelineEventRect(timeline, event, viewModel)
 end
 
 function EditorLayout.hitTestTimelineEvent(timeline, events, viewModel, x, y)
+    local pixelsPerBeat = EditorLayout.getPixelsPerBeat(viewModel.scale)
     for index = #events, 1, -1 do
         local event = events[index]
         local rect = EditorLayout.getTimelineEventRect(timeline, event, viewModel)
-        if x >= rect.x and x < rect.x + rect.width
-            and y >= rect.y and y < rect.y + rect.height then
+        local insideY = y >= rect.y and y < rect.y + rect.height
+        if insideY and event.timelineStyle == "connector" then
+            for _, segment in ipairs(event.collisionSegments or {}) do
+                local segmentX = rect.x + segment.offsetBeats * pixelsPerBeat
+                if x >= segmentX
+                    and x < segmentX + segment.widthBeats * pixelsPerBeat then
+                    return event
+                end
+            end
+        elseif insideY and x >= rect.x and x < rect.x + rect.width then
             return event
+        end
+    end
+    for index = #events, 1, -1 do
+        local event = events[index]
+        if event.timelineStyle == "connector" then
+            local rect = EditorLayout.getTimelineEventRect(timeline, event, viewModel)
+            if x >= rect.x and x < rect.x + rect.width
+                and y >= rect.y and y < rect.y + rect.height then
+                return event
+            end
         end
     end
     return nil
@@ -378,6 +406,10 @@ local function drawPanelContent(layout, viewModel)
                 and viewModel.valueEdit.propertyId == property.id
             if editing then
                 valueText = viewModel.valueEdit.text
+            elseif property.comboBox then
+                valueText = property.comboBox:isOpen()
+                    and property.comboBox.queryInput:getText()
+                    or property.comboBox:getLabel()
             elseif property.kind == "music" and property.value == nil then
                 valueText = "None"
             else
@@ -442,6 +474,41 @@ local function drawPanelContent(layout, viewModel)
                 )
             end
         end
+        for rowIndex, property in ipairs(viewModel.properties) do
+            local comboBox = property.comboBox
+            if comboBox and comboBox:isOpen() then
+                local valueRect = EditorLayout.getPropertyValueRect(
+                    layout,
+                    rowIndex,
+                    propertyOffset
+                )
+                for optionPosition, option in ipairs(comboBox:getVisibleOptions()) do
+                    local optionRect = EditorLayout.getComboBoxOptionRect(
+                        valueRect,
+                        optionPosition
+                    )
+                    love.graphics.setColor(
+                        option.highlighted and 0.3 or 0.2,
+                        option.highlighted and 0.31 or 0.21,
+                        option.highlighted and 0.34 or 0.23,
+                        1
+                    )
+                    love.graphics.rectangle(
+                        "fill",
+                        optionRect.x,
+                        optionRect.y,
+                        optionRect.width,
+                        optionRect.height
+                    )
+                    love.graphics.setColor(0.9, 0.91, 0.93, 1)
+                    love.graphics.print(
+                        option.label,
+                        optionRect.x + 8,
+                        optionRect.y + 3
+                    )
+                end
+            end
+        end
         love.graphics.setScissor()
     end
 
@@ -450,6 +517,21 @@ local function drawPanelContent(layout, viewModel)
     if not viewModel.playing then
         drawScrollbar(layout.panels[5], scrollAreas.properties)
     end
+end
+
+local EVENT_LABEL_OUTLINE_OFFSETS = {
+    { -1, -1 }, { 0, -1 }, { 1, -1 },
+    { -1, 0 },             { 1, 0 },
+    { -1, 1 },  { 0, 1 },  { 1, 1 },
+}
+
+local function drawTimelineEventLabel(text, x, y)
+    love.graphics.setColor(0.05, 0.05, 0.06, 0.9)
+    for _, offset in ipairs(EVENT_LABEL_OUTLINE_OFFSETS) do
+        love.graphics.print(text, x + offset[1], y + offset[2])
+    end
+    love.graphics.setColor(0.95, 0.95, 0.97, 1)
+    love.graphics.print(text, x, y)
 end
 
 local function drawTimeline(timeline, viewModel)
@@ -505,6 +587,7 @@ local function drawTimeline(timeline, viewModel)
             love.graphics.rectangle("fill", timeline.x, y, timeline.width, 1)
         end
 
+        local hoveredLabel
         for _, event in ipairs(viewModel.timelineEvents or {}) do
             local rect = EditorLayout.getTimelineEventRect(timeline, event, viewModel)
             local selectedIds = viewModel.selectedTimelineEventIds or {}
@@ -519,11 +602,45 @@ local function drawTimeline(timeline, viewModel)
                 color = event.color or { 0.8, 0.8, 0.8, 1 }
             end
             love.graphics.setColor(color[1], color[2], color[3], color[4])
-            love.graphics.rectangle("fill", rect.x, rect.y, rect.width, rect.height)
-            if event.id == viewModel.hoveredTimelineEventId then
-                love.graphics.setColor(0.95, 0.95, 0.97, 1)
-                love.graphics.print(event.label, rect.x + rect.width + 4, rect.y)
+            if event.timelineStyle == "connector" then
+                local endpointWidth = pixelsPerBeat
+                    * (event.endpointWidthBeats or 1)
+                local responseX = rect.x
+                    + (event.responseBeatOffset or 0) * pixelsPerBeat
+                love.graphics.setColor(color[1], color[2], color[3], color[4] * 0.18)
+                love.graphics.rectangle("fill", rect.x, rect.y, rect.width, rect.height)
+                love.graphics.setColor(color[1], color[2], color[3], color[4] * 0.9)
+                love.graphics.rectangle("line", rect.x, rect.y, rect.width, rect.height)
+                local startColor = not collisionIds[event.id]
+                    and not selectedIds[event.id]
+                    and event.endpointStartColor or color
+                local endColor = not collisionIds[event.id]
+                    and not selectedIds[event.id]
+                    and event.endpointEndColor or color
+                love.graphics.setColor(
+                    startColor[1], startColor[2], startColor[3], startColor[4]
+                )
+                love.graphics.rectangle("fill", rect.x, rect.y, endpointWidth, rect.height)
+                love.graphics.setColor(endColor[1], endColor[2], endColor[3], endColor[4])
+                love.graphics.rectangle("fill", responseX, rect.y, endpointWidth, rect.height)
+            else
+                love.graphics.rectangle("fill", rect.x, rect.y, rect.width, rect.height)
             end
+            if event.id == viewModel.hoveredTimelineEventId then
+                hoveredLabel = {
+                    text = event.label,
+                    x = rect.x + 4,
+                    y = rect.y,
+                }
+            else
+                love.graphics.setScissor(rect.x, rect.y, rect.width, rect.height)
+                drawTimelineEventLabel(event.label, rect.x + 4, rect.y)
+                love.graphics.setScissor()
+            end
+        end
+
+        if hoveredLabel then
+            drawTimelineEventLabel(hoveredLabel.text, hoveredLabel.x, hoveredLabel.y)
         end
 
         if viewModel.timelineSelectionBox then

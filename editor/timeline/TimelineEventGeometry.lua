@@ -12,13 +12,38 @@ function TimelineEventGeometry.getWidthBeats(event)
     return NON_RHYTHMIC_WIDTHS[event.type] or DEFAULT_GAMEPLAY_WIDTH_BEATS
 end
 
+local function getCollisionSegments(event)
+    if type(event.collisionSegments) == "table" then
+        local segments = {}
+        for _, segment in ipairs(event.collisionSegments) do
+            table.insert(segments, {
+                startBeat = event.startBeat + (segment.offsetBeats or 0),
+                widthBeats = segment.widthBeats,
+            })
+        end
+        return segments
+    end
+    return {
+        {
+            startBeat = event.startBeat,
+            widthBeats = TimelineEventGeometry.getWidthBeats(event),
+        },
+    }
+end
+
 local function eventsOverlap(first, second)
     if first.track ~= second.track then return false end
-    local firstEnd = first.startBeat
-        + TimelineEventGeometry.getWidthBeats(first)
-    local secondEnd = second.startBeat
-        + TimelineEventGeometry.getWidthBeats(second)
-    return first.startBeat < secondEnd and second.startBeat < firstEnd
+    for _, firstSegment in ipairs(getCollisionSegments(first)) do
+        local firstEnd = firstSegment.startBeat + firstSegment.widthBeats
+        for _, secondSegment in ipairs(getCollisionSegments(second)) do
+            local secondEnd = secondSegment.startBeat + secondSegment.widthBeats
+            if firstSegment.startBeat < secondEnd
+                and secondSegment.startBeat < firstEnd then
+                return true
+            end
+        end
+    end
+    return false
 end
 
 function TimelineEventGeometry.findCollisionIds(events, relevantIds)

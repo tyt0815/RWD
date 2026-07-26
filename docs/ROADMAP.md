@@ -15,13 +15,13 @@
 - [x] 고정 BPM beat와 seconds 변환 `TempoMap`
 - [x] Source 생성·duration·active seek·drift를 감싼 `MusicPlayback`
 - [x] Offset과 Playback Rate를 조정하는 공통 `PlaybackTransport`
-- [ ] Tap Note 판정
+- [x] beat 판정창 기반 Tap Note GOOD/BAD/MISS/EMPTY_INPUT 판정
 - [ ] Long Note 판정 방식 설계 및 구현
-- [ ] `GOOD`, `BAD`, `MISS`, `EMPTY_INPUT` 판정 테스트
+- [x] `GOOD`, `BAD`, `MISS`, `EMPTY_INPUT` 판정 테스트
 
 ## 2. Pattern과 Stage 런타임
 
-- [ ] Project Event 등록 계약
+- [x] Project Event Category·number Property 등록 계약
 - [x] Stage JSON 검증과 로딩, sourceRoot 입출력 경계와 JSON 종류·null 보존
 - [x] 최상위 BPM, Mixtape와 Editor 설정의 schemaVersion 2 전환
 - [ ] Pattern 참조와 파라미터 전개
@@ -37,24 +37,27 @@
 - [x] 권장 Threshold 기본값 `0.01`의 Music 첫 소리 검출과 Beat 0 Offset 자동·수동 설정
 - [x] Scale 기반 Timeline, 빈 첫 칸과 Period 경계 눈금, 공통 Snap, 상단 click·adaptive edge-scroll drag, cursor anchor wheel zoom, 중간 버튼 pan과 F·R 재생 단축키
 - [x] 내장 Game Manager Category와 End·Set Input Enabled 목록
-- [ ] Project Events와 Categories 등록 목록
+- [x] Project Events와 Categories 등록 목록
 - [x] Set Input Enabled 노드별 Properties 편집 모달
-- [ ] Project Event의 Properties와 Values 편집
+- [x] Project Event number Properties 기본값과 노드별 편집, Cue & Response 중립색 연결 영역
 - [x] Timeline Event 충돌 방지 우클릭 배치·error toast와 Snap·Track 이동
 - [x] Timeline Event 클릭·marquee 다중 선택, 충돌 preview 그룹 이동과 Delete 삭제
+- [x] Timeline Event 박스 내부 1px 윤곽선 이름과 hover 전체 이름 표시
 - [x] JSON 저장과 불러오기
 
 ## 4. TestPlayer와 Editor 재생
 
-- [x] 기본 Project Canvas 렌더링
+- [x] 기본 Project Canvas 렌더링과 Stage별 Preview 종횡비 설정
 - [x] Core PlaybackTransport 기반 Timeline과 Music 동기화
 - [x] 기준 바와 재생 위치 바 분리, 기준 beat 재시작, 오류 rollback과 자동 playhead 추적
 - [x] Editor 전용 Playback Rate와 Metronome
+- [x] None·Good·Bad·Miss Project 판정 Auto Play
 - [x] 고정 메모리 동적 BPM beat 클릭과 Metronome Period 강박 그룹
 - [x] Music 없음, Offset, duration 종료와 희소 설정 통합 경로
 - [x] 단일 Game Manager End·Set Input Enabled 실행과 End 없는 Music 자동 종료
 - [ ] Project Pattern Event 실행
-- [ ] Project 입력 전달
+- [x] 입력 활성 상태를 반영한 Space와 현재 beat 전달
+- [x] Sample Sprite 상태 피드백과 Core BeatTween 기반 0.5박 Turn 이동
 
 ## 5. 배포와 엔진 버전 관리
 

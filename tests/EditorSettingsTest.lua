@@ -9,7 +9,10 @@ return {
             test.assertEqual(settings.onsetThreshold, 0.01)
             test.assertEqual(settings.scale, 1)
             test.assertEqual(settings.playbackRate, 1)
+            test.assertEqual(settings.autoPlay, "none")
             test.assertEqual(settings.trackCount, 10)
+            test.assertEqual(settings.previewAspectWidth, 16)
+            test.assertEqual(settings.previewAspectHeight, 9)
         end,
     },
     {
@@ -22,7 +25,10 @@ return {
                 onsetThreshold = 0.01,
                 scale = 2,
                 playbackRate = 1,
+                autoPlay = "good",
                 trackCount = 10,
+                previewAspectWidth = 16,
+                previewAspectHeight = 9,
             })
             test.assertEqual(compact.metronome, true)
             test.assertEqual(compact.metronomePeriod, nil)
@@ -30,7 +36,10 @@ return {
             test.assertEqual(compact.onsetThreshold, nil)
             test.assertEqual(compact.scale, 2)
             test.assertEqual(compact.playbackRate, nil)
+            test.assertEqual(compact.autoPlay, "good")
             test.assertEqual(compact.trackCount, nil)
+            test.assertEqual(compact.previewAspectWidth, nil)
+            test.assertEqual(compact.previewAspectHeight, nil)
 
             local explicitZero = require("editor.stage.EditorSettings").compact({
                 onsetThreshold = 0,
@@ -56,9 +65,14 @@ return {
             test.assertContains(validate({ scale = 8.01 }), "scale")
             test.assertContains(validate({ playbackRate = 0.24 }), "playbackRate")
             test.assertContains(validate({ playbackRate = 4.01 }), "playbackRate")
+            test.assertContains(validate({ autoPlay = "perfect" }), "autoPlay")
+            test.assertContains(validate({ autoPlay = true }), "autoPlay")
             test.assertContains(validate({ trackCount = 0 }), "trackCount")
             test.assertContains(validate({ trackCount = 33 }), "trackCount")
             test.assertContains(validate({ trackCount = 1.5 }), "trackCount")
+            test.assertContains(validate({ previewAspectWidth = 0 }), "previewAspectWidth")
+            test.assertContains(validate({ previewAspectHeight = -1 }), "previewAspectHeight")
+            test.assertContains(validate({ previewAspectWidth = "16" }), "previewAspectWidth")
             test.assertEqual(validate({
                 metronome = true,
                 metronomePeriod = 5,
@@ -66,7 +80,10 @@ return {
                 onsetThreshold = 0.02,
                 scale = 2,
                 playbackRate = 0.5,
+                autoPlay = "miss",
                 trackCount = 12,
+                previewAspectWidth = 4,
+                previewAspectHeight = 3,
             }), nil)
         end,
     },

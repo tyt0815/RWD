@@ -18,7 +18,7 @@ function TestPlayer.new(options)
     }, TestPlayer)
 end
 
-function TestPlayer:start(project)
+function TestPlayer:start(project, stage, startBeat, autoPlay)
     self:stop()
 
     if type(self.createGame) ~= "function" then
@@ -33,6 +33,29 @@ function TestPlayer:start(project)
     if type(game) ~= "table" then
         return nil, "Project preview creation failed: "
             .. tostring(errorMessage or "createGame(project) must return a game table.")
+    end
+
+    if game.setAutoPlay then
+        local autoPlaySet, autoPlayError = pcall(
+            game.setAutoPlay,
+            game,
+            autoPlay or "none"
+        )
+        if not autoPlaySet then
+            return nil, "Project Auto Play setup failed: " .. tostring(autoPlayError)
+        end
+    end
+
+    if stage and game.startStage then
+        local stageStarted, stageError = pcall(
+            game.startStage,
+            game,
+            stage,
+            startBeat or 0
+        )
+        if not stageStarted then
+            return nil, "Project Stage start failed: " .. tostring(stageError)
+        end
     end
 
     self.game = game
@@ -52,16 +75,37 @@ function TestPlayer:isPlaying()
     return self.playing
 end
 
-function TestPlayer:update(deltaTime)
+function TestPlayer:update(deltaTime, beat)
     if not self.playing or not self.game or not self.game.update then
         return true, nil
     end
 
-    local succeeded, errorMessage = pcall(self.game.update, self.game, deltaTime)
+    local succeeded, errorMessage = pcall(
+        self.game.update,
+        self.game,
+        deltaTime,
+        beat
+    )
     if not succeeded then
         return nil, "Project preview update failed: " .. tostring(errorMessage)
     end
 
+    return true, nil
+end
+
+function TestPlayer:keypressed(key, beat)
+    if not self.playing or not self.game or not self.game.keypressed then
+        return true, nil
+    end
+    local succeeded, errorMessage = pcall(
+        self.game.keypressed,
+        self.game,
+        key,
+        beat
+    )
+    if not succeeded then
+        return nil, "Project preview input failed: " .. tostring(errorMessage)
+    end
     return true, nil
 end
 

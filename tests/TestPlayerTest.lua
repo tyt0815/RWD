@@ -102,6 +102,30 @@ return {
         end,
     },
     {
+        name = "TestPlayer는 Auto Play 선택을 Stage 시작 전에 Project 게임에 전달한다",
+        run = function(test)
+            local TestPlayer = require("editor.playback.TestPlayer")
+            local calls = {}
+            local player = TestPlayer.new({
+                createGame = function()
+                    return {
+                        setAutoPlay = function(_, value)
+                            table.insert(calls, "auto:" .. value)
+                        end,
+                        startStage = function()
+                            table.insert(calls, "stage")
+                        end,
+                    }, nil
+                end,
+                graphics = newGraphics(),
+            })
+
+            assert(player:start({ id = "sample" }, { events = {} }, 0, "bad"))
+            test.assertEqual(calls[1], "auto:bad")
+            test.assertEqual(calls[2], "stage")
+        end,
+    },
+    {
         name = "TestPlayer update forwards deltaTime to the Project game",
         run = function(test)
             local TestPlayer = require("editor.playback.TestPlayer")

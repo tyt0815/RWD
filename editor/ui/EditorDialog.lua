@@ -147,7 +147,10 @@ end
 
 function EditorDialog.timelineEventProperties(event, definition)
     local selectors = {}
+    local fields = {}
     for _, property in ipairs(definition.nodeProperties or {}) do
+        local value = event.type == "projectEvent"
+            and event.params[property.id] or event[property.id]
         if property.kind == "boolean" then
             table.insert(selectors, {
                 id = property.id,
@@ -156,14 +159,24 @@ function EditorDialog.timelineEventProperties(event, definition)
                     { value = "false", label = "false" },
                     { value = "true", label = "true" },
                 },
-                selectedIndex = event[property.id] and 2 or 1,
+                selectedIndex = value and 2 or 1,
+            })
+        elseif property.kind == "number" then
+            table.insert(fields, {
+                id = property.id,
+                label = property.label,
+                value = tostring(value),
             })
         end
     end
     return newDialog({
         kind = "timelineEventProperties",
         title = definition.label .. " Properties",
-        context = { eventId = event.id },
+        context = {
+            eventId = event.id,
+            properties = definition.nodeProperties,
+        },
+        fields = fields,
         selectors = selectors,
         buttons = {
             { id = "confirm", label = "Apply", default = true },

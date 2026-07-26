@@ -4,9 +4,9 @@
 
 LÖVE2D 11.5 Launcher에서 Sample Project와 Stage 에디터를 열 수 있다. 에디터는 schemaVersion 2 Stage를 만들고 열고 원자 저장하며, Project 음악을 Core `PlaybackTransport`에 연결해 Project Canvas와 함께 미리 재생한다.
 
-`Editor Properties`는 Snap, Scale, Playback Rate, Metronome, Metronome Period를, `Mixtape Properties`는 Music, Volume, Beat 0 Offset, Onset Threshold, BPM을 순서대로 제공한다. 숫자 직접 편집, boolean 전환, Project Music 선택 모달, cursor anchor wheel zoom, 상단 click·adaptive edge-scroll 재생 바 drag, F·Ctrl+S·R 단축키, 재생 오류 정리와 beat rollback이 연결되었다. 기본값은 Stage JSON에서 희소화된다.
+`Editor Properties`는 Snap, Scale, Playback Rate, Auto Play, Metronome, Metronome Period, Track, Preview Aspect Width, Preview Aspect Height를, `Mixtape Properties`는 Music, Volume, Beat 0 Offset, Onset Threshold, BPM을 순서대로 제공한다. 숫자 직접 편집, boolean 전환, Project Music 선택 모달, cursor anchor wheel zoom, 상단 click·adaptive edge-scroll 재생 바 drag, F·Ctrl+S·R 단축키, 재생 오류 정리와 beat rollback이 연결되었다. 기본값은 Stage JSON에서 희소화된다.
 
-Game Manager의 End와 Set Input Enabled Event는 Timeline에 배치·이동·편집하고 EditorSession에서 실행 상태를 처리한다. Project Pattern 실행, 리듬 판정과 실제 Project 입력 전달은 아직 구현하지 않았다.
+Game Manager의 End와 Set Input Enabled Event를 처리한다. Project Event Category·number Property 등록, 현재 Stage의 Project 전달과 활성 상태의 Space 입력 전달을 지원한다. Sample Project는 Spawn Actors와 Cue & Response, Core beat 기반 Tap 판정과 결과별 화면·사운드를 구현했다. 일반 Pattern 실행과 Long Note 판정은 아직 구현하지 않았다.
 
 ## 이번 기능 범위와 커밋
 
@@ -28,6 +28,9 @@ Game Manager의 End와 Set Input Enabled Event는 Timeline에 배치·이동·�
 
 `require("core")`가 다음 API를 공개한다.
 
+- `Core.TapJudgment.new`; `addNote`, `input`, `update`
+- `Core.BeatTween.new`; `start`, `moveTo`, `getValue`, `isActive`
+- `Core.ProjectEvents.validate`, `getCategories`, `getEvent`, `getDefaultParams`, `validateParams`
 - `Core.MixtapeSettings.validate`, `resolve`, `compact`
 - `Core.TempoMap.new`; `beatToSeconds`, `secondsToBeat`, `getBpm`
 - `Core.MusicPlayback.new`; `prepare`, `play`, `update`, `pause`, `stop`
@@ -78,15 +81,52 @@ Stage 계약은 schemaVersion 2, 최상위 `bpm`, 선택적 `mixtape`, 선택적
 
 ## 다음 작업
 
-다음 개발 단위는 Project Event 등록 계약과 Pattern Event 실행을 정의하는 작업이다. 등록되지 않은 `patternId`의 오류 보고 기준과 EditorSession의 입력 활성 상태를 실제 Project 입력 전달에 연결할 범위를 함께 결정한다.
+다음 개발 단위는 일반 Pattern Event 등록·전개와 Long Note 판정 방식을 정의하는 작업이다. Sample의 임시 beat 판정창을 프로젝트 요구에 따라 ms 기반으로 확장할지도 함께 결정한다.
 
 ## 현재 범위 밖인 기능
 
-- 실제 리듬 판정
+- Long Note 판정
 - Pattern 등록 및 참조 전개
-- Project Pattern Event 실행과 Project Event 등록
-- TestPlayer의 실제 Project 입력 전달
+- Project Pattern Event 실행
+- 독립 실행용 Stage 선택 흐름
 - 독립 게임 패키징
+
+## Sample 게임플레이 노드 (2026-07-27)
+
+- Core 공개 API에 `TapJudgment`와 `ProjectEvents`를 추가했다. Sample은 manifest에 `Spawn Actors` singleton과 `Cue & Response`의 `Response Delay (Beats)`를 등록한다.
+- Editor Play는 현재 Stage와 기준 beat를 Project `startStage`에 전달하고, update에 현재 beat를 제공하며 입력이 활성화된 동안 Space를 `keypressed(key, beat)`로 전달한다.
+- Cue & Response Timeline 노드는 파란 cue 끝점, 반투명 초록 연결 영역과 주황 response 끝점을 사용한다. 연결 가운데는 충돌에서 제외하고 양 끝만 충돌시켜 다른 노드가 겹쳐도 선택·가시성을 유지한다.
+- Sample Stage 화면은 기본 검정이며 Spawn Actors 이후 좌우 Sprite 액터를 표시한다. cue는 왼쪽 액터를 기본 `웃피키`에서 `스피키`로 잠시 바꾸고 beep를 낸다. Space의 GOOD·EMPTY_INPUT은 오른쪽을 `스피키`, BAD·MISS는 `스피키_네르기`로 바꾼 뒤 기본으로 복원하며 오른쪽은 항상 좌우 반전한다. 임시 판정창은 GOOD `±0.1 beat`, BAD `±0.25 beat`다.
+- 새 Project 제작 문서는 `docs/PROJECT_NODES_TUTORIAL.md`, Sample 참고 주석은 `projects/sample/project.lua`와 `projects/sample/game/SampleGame.lua`에 있다. 같은 책임 분리를 `AGENTS.md`에 추가했다.
+- RED: Core 테스트 추가 후 `TapJudgment`와 `ProjectEvents` 공개 API 부재로 3건 실패했다.
+- GREEN: Core 판정, 등록, Project Event Stage 왕복, 연결형 충돌, Stage·beat·Space 전달과 Sample 판정을 포함해 `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 250 tests`.
+- 최종 검증: `git diff --check`와 Editor/Project의 Core 내부 require 검색은 출력 없음, Project JSON은 PowerShell `ConvertFrom-Json` 통과, 숨김 창 기동은 `LOVE_SMOKE_RUNNING=True`였다. 실제 화면 색과 생성 tone 청취는 사람이 수동 확인하지 못했다.
+
+## Cue 배치·Sprite·Turn 후속 수정 (2026-07-27)
+
+- Response Delay 8을 UI 기본값으로 설정해도 우클릭 생성 충돌 검사는 등록 기본값 4를 사용하고 생성 뒤 8로 바꾸던 순서 오류를 수정했다. 이제 현재 Properties params를 `addTimelineEvent`에 전달해 생성과 이동이 같은 geometry로 충돌 판정한다.
+- Core 공개 API에 선형 `BeatTween`을 추가했다. Sample Guide Turn은 왼쪽을 생성 위치에 두고 오른쪽을 오른쪽 밖으로, Player Turn은 반대로 0.5박 동안 이동한다.
+- Sample 네모 렌더링을 `웃피키.png`, `스피키.png`, `스피키_네르기.png` Sprite 상태로 교체하고 오른쪽 액터를 음수 x scale로 좌우 반전했다.
+- RED: Response Delay 8에서 0~4 beat 우클릭 배치 기대가 `expected: 5, actual: 4`로 실패했고 BeatTween API 부재 2건이 실패했다.
+- GREEN: 배치 회귀, BeatTween 재시작, Turn 중간값, Sprite 판정 상태와 오른쪽 반전을 포함해 `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 255 tests`.
+- 최종 검증: `git diff --check`와 Core 내부 경로 require 검색은 출력 없음, Project JSON은 `ConvertFrom-Json` 통과, 숨김 창 기동은 `LOVE_SMOKE_RUNNING=True`였다. 실제 Sprite 전환과 이동은 자동 상태 테스트로 검증했으며 사람이 화면에서 수동 확인하지는 못했다.
+
+## Cue·Response 끝점 1박 폭 (2026-07-27)
+
+- Sample `Cue & Response`의 `geometry.endpointWidthBeats`를 `0.25`에서 `1`로 변경해 파란 Cue와 주황 Response 블록이 각각 Timeline 한 박 너비를 사용한다.
+- 끝점 크기는 Project 노드 의미이므로 `projects/sample/project.lua`가 소유한다. Editor는 `EditorSession`이 전달한 값을 사용하며 `EditorLayout`의 기존 `0.25` 하드코딩을 제거했다.
+- RED: Sample 등록 geometry 테스트에서 `expected: 1, actual: 0.25` 실패를 확인했다.
+- GREEN: `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 255 tests`.
+- 최종 검증: `git diff --check`와 Core 내부 경로 require 검색은 출력 없음, Project JSON은 `ConvertFrom-Json` 통과, 숨김 창 기동은 `LOVE_SMOKE_RUNNING=True`였다.
+
+## Editor Auto Play (2026-07-27)
+
+- Editor Properties에 기존 `Core.UI.ComboBox`를 조합한 Auto Play를 추가했다. 선택지는 `None`, `Good`, `Bad`, `Miss`이고 기본값 `none`은 Stage JSON에서 희소화된다.
+- EditorSession은 Play 시 선택값을 TestPlayer에 전달하고, TestPlayer는 Project의 선택적 `setAutoPlay(value)`를 `startStage` 전에 호출한다. 구체적인 판정 시점은 Project가 소유한다.
+- Sample은 Good을 목표 beat, Bad를 목표보다 0.2 beat 늦은 BAD 창 안에서 입력하며 Miss는 수동 입력을 막고 기존 TapJudgment의 시간 경과 MISS를 사용한다.
+- RED: EditorSettings, Property 순서·ComboBox 선택, TestPlayer 전달과 Sample 판정 테스트에서 9건 실패를 확인했다.
+- GREEN: `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 260 tests`.
+- 최종 검증: `git diff --check`와 Editor/Project의 Core 내부 require 검색은 출력 없음, Project JSON은 PowerShell `ConvertFrom-Json` 통과, 숨김 창 기동은 `LOVE_SMOKE_RUNNING=True`였다. 실제 ComboBox 클릭 화면과 소리·Sprite 판정 연출은 사람이 수동 확인하지 못했다.
 
 ## 세션 재개 순서
 
@@ -275,3 +315,32 @@ Stage 계약은 schemaVersion 2, 최상위 `bpm`, 선택적 `mixtape`, 선택적
 - RED: 기준 beat API, 두 바 렌더링과 Pause 후 재시작 통합 기대에서 3개 테스트 실패를 확인했다.
 - GREEN: `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 220 tests`.
 - 최종 검증: `git diff --check`와 Editor/Project의 Core 내부 require 검색은 출력 없음; Project JSON 문법 검사 `JSON_OK`; 숨김 창 기동 `LOVE_SMOKE_RUNNING=True`. 두 바의 실제 색상과 클릭·Pause·재시작 동작은 사람이 화면에서 수동 확인하지 못했다.
+
+## Timeline 노드 이름 기본 표시 (2026-07-26)
+
+- Timeline Event 이름을 노드 박스 안쪽에서 항상 렌더링한다. 이름이 박스 폭보다 길면 scissor로 넘는 부분을 자르고, hover한 노드는 같은 시작 위치에서 scissor 없이 전체 이름을 최상단에 표시한다.
+- RED: 기존 hover 이름이 박스 오른쪽에서 시작해 내부 시작 위치 기대가 `expected: 228`, `actual: 236`으로 실패함을 확인했다.
+- GREEN: `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 255 tests`; `git diff --check` → 출력 없음; 숨김 창 기동 → `LOVE_SMOKE_RUNNING=True`. 실제 hover 화면은 사람이 수동 확인하지 못했다.
+
+## Editor Play Preview 종횡비 (2026-07-27)
+
+- Global > Editor Properties에 `Preview Aspect Width`, `Preview Aspect Height`를 추가했다. 기본값은 각각 `16`, `9`이며 0보다 큰 유한 수만 허용한다. 기본값은 Stage JSON에서 희소화되고 변경값은 `editorSettings.previewAspectWidth`, `previewAspectHeight`에 저장된다.
+- Play 중 Project Canvas는 설정 비율을 유지하면서 기존 Properties·Values preview 영역 안에 들어가는 최대 정수 픽셀 크기로 계산되고 가로·세로 여백의 중앙에 표시된다.
+- schemaVersion은 2를 유지했다. 두 필드는 실제 게임 규칙을 바꾸지 않는 선택적 Editor 전용 설정 확장이다.
+- RED: 설정 기본값·검증, Property 목록·view model, preview 맞춤 테스트를 추가한 뒤 필드 부재와 기존 전체 영역 전달로 5건 실패했다.
+- GREEN 및 최종 검증: `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 256 tests`; `git diff --check`와 Editor/Project Core 내부 require 검색은 출력 없음; Project JSON은 PowerShell `ConvertFrom-Json` 통과; 숨김 창 기동은 `LOVE_SMOKE_RUNNING=True`였다.
+- 종횡비에 따른 Canvas 좌우·상하 중앙 맞춤은 자동 테스트로 검증했다. 실제 화면의 여백과 크기는 사람이 수동 확인하지 못했다.
+
+## Cue & Response 연결 영역 중립색 (2026-07-27)
+
+- Sample `Cue & Response`의 기본색을 녹색 `{ 0.3, 0.85, 0.45, 1 }`에서 중립적인 밝은 회색 `{ 0.92, 0.94, 0.97, 1 }`로 변경했다. 기존 Editor connector 렌더링을 그대로 사용하므로 내부 채움은 최종 18% alpha, 1px 외곽선은 90% alpha다.
+- 파란 Cue와 주황 Response 끝점, 선택 흰색과 충돌 빨간색은 변경하지 않았다. 연결부만 무채색 계열이 되어 아래 Timeline 색의 색조를 덜 왜곡한다.
+- RED: Sample 등록 색상 기대를 먼저 바꾼 뒤 `expected: 0.92`, `actual: 0.3` 실패를 확인했다.
+- GREEN: `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 256 tests`; `git diff --check` → 출력 없음; 숨김 창 기동 → `LOVE_SMOKE_RUNNING=True`. 실제 화면 색은 사람이 수동 확인하지 못했다.
+
+## Timeline Event 이름 윤곽선 (2026-07-27)
+
+- 일반 노드 내부 이름과 hover 전체 이름 모두에 8방향 1px 윤곽선을 추가했다. 윤곽선은 거의 검정 `{ 0.05, 0.05, 0.06, 0.9 }`, 본문은 기존 `{ 0.95, 0.95, 0.97, 1 }`을 사용한다.
+- 일반 이름의 기존 노드 영역 scissor는 윤곽선에도 적용해 좁은 노드 밖으로 새지 않으며, hover 이름은 기존처럼 전체를 표시한다.
+- RED: 일반·hover 이름별 윤곽선 8회와 본문 색을 기대한 UI 테스트에서 `expected: 8`, `actual: 0` 실패를 확인했다.
+- GREEN: `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 256 tests`; `git diff --check` → 출력 없음; 숨김 창 기동 → `LOVE_SMOKE_RUNNING=True`. 실제 글자 가독성은 사람이 수동 확인하지 못했다.

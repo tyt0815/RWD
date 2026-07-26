@@ -12,7 +12,7 @@
 
 Pattern은 여러 beat에 걸친 신호와 플레이어 반응을 코드로 묶는 재사용 단위다. Core가 판정할 원시 노트 종류는 Tap Note와 Long Note이며, Pattern은 실행 시 이 두 노트의 일정을 생성한다.
 
-내장 `Game Manager` Category는 `End`와 `Set Input Enabled` Event를 제공한다. Project가 미니게임별 Categories와 Pattern을 등록하는 계약은 아직 구현하지 않았다.
+내장 `Game Manager` Category는 `End`와 `Set Input Enabled` Event를 제공한다. Project는 manifest의 `eventCategories`로 Project 전용 Category, Event, number 프로퍼티와 Timeline geometry를 등록한다. 자세한 제작 순서는 `docs/PROJECT_NODES_TUTORIAL.md`를 따른다. 일반 Pattern 등록과 전개는 아직 구현하지 않았다.
 
 ## 4. Stage 생성과 재생 속성 편집
 
@@ -24,7 +24,7 @@ Project audio 배치 → New/Open → Mixtape Properties에서 Music 선택
 → wheel zoom·Snap 재생 바 이동·중간 버튼 pan으로 Timeline 탐색 → Save/Save As → Test Play → Pause
 ```
 
-New는 Project, Stage ID, Name과 BPM으로 `events: []`인 schemaVersion 2 Stage를 만든다. New와 Save As의 텍스트 필드는 Values와 같은 공통 입력 모듈을 사용해 UTF-8 중간 삽입·삭제, 좌우 커서 이동과 커서 깜빡임을 지원한다. New/Open의 Project·Stage와 Music 선택은 공통 ComboBox를 사용하며, 클릭해 선택값 한 줄을 검색 입력으로 전환하고 아래 목록을 검색어로 필터링한 뒤 마우스 또는 위·아래 방향키와 Enter로 선택한다. Open, Save와 Save As는 선택한 Project의 `stages` 폴더 안에서만 동작한다. 수정된 Stage의 Menu에는 `Save*`가 보이고 New, Open, Quit은 Save/Discard/Cancel 확인을 거친다.
+New는 Project, Stage ID, Name과 BPM으로 `events: []`인 schemaVersion 2 Stage를 만든다. New와 Save As의 텍스트 필드는 Values와 같은 공통 입력 모듈을 사용해 UTF-8 중간 삽입·삭제, 좌우 커서 이동과 커서 깜빡임을 지원한다. New/Open의 Project·Stage, Music과 Auto Play 선택은 공통 ComboBox를 사용하며, 클릭해 선택값 한 줄을 검색 입력으로 전환하고 아래 목록을 검색어로 필터링한 뒤 마우스 또는 위·아래 방향키와 Enter로 선택한다. Open, Save와 Save As는 선택한 Project의 `stages` 폴더 안에서만 동작한다. 수정된 Stage의 Menu에는 `Save*`가 보이고 New, Open, Quit은 Save/Discard/Cancel 확인을 거친다.
 
 `Mixtape Properties`는 다음 순서다.
 
@@ -39,9 +39,12 @@ New는 Project, Stage ID, Name과 BPM으로 `events: []`인 schemaVersion 2 Stag
 1. Snap: Timeline 재생 바와 향후 Event 노드를 맞출 박자 간격 `1~32`. 값 1은 한 박, 값 4는 4박 단위다.
 2. Scale: Timeline 확대 배율 `0.25~8.0`
 3. Playback Rate: Editor preview 속도 `0.25~4.0`
-4. Metronome: Editor 디버깅 click 사용 여부
-5. Metronome Period: BPM 한 박마다 울리는 클릭을 몇 박 단위로 강박 그룹화할지 지정한다. 값 4는 `강 약 약 약`을 반복한다.
-6. Track: Timeline Track 수 `1~32`. 기본값은 `10`이며 현재 노드가 있는 Track보다 작게 줄일 수 없다.
+4. Auto Play: 기본값 `None`. `Good`, `Bad`, `Miss` 선택 시 Play 중 Project가 해당 판정을 자동 실행한다.
+5. Metronome: Editor 디버깅 click 사용 여부
+6. Metronome Period: BPM 한 박마다 울리는 클릭을 몇 박 단위로 강박 그룹화할지 지정한다. 값 4는 `강 약 약 약`을 반복한다.
+7. Track: Timeline Track 수 `1~32`. 기본값은 `10`이며 현재 노드가 있는 Track보다 작게 줄일 수 없다.
+8. Preview Aspect Width: Editor Play 화면 비율의 너비. 기본값은 `16`이며 0보다 커야 한다.
+9. Preview Aspect Height: Editor Play 화면 비율의 높이. 기본값은 `9`이며 0보다 커야 한다.
 
 숫자 Value는 셀을 클릭하면 값 끝에 깜빡이는 커서가 바로 표시된다. 공통 입력 모듈에 숫자 필터를 적용하며 첫 입력부터 현재 커서 위치에 이어서 입력한다. 좌우 방향키로 커서를 옮겨 중간 삽입하고 Backspace/Delete로 커서 주변 문자를 삭제할 수 있다. Enter 또는 다른 영역 클릭은 유효한 값을 확정하며 Escape는 취소한다. boolean은 클릭 즉시 바뀐다. 기본값과 같은 선택 속성은 저장 JSON에서 제거된다.
 
@@ -61,11 +64,11 @@ Play는 클릭으로 지정한 기준 beat부터 다음 구성 요소를 함께 
 - `TestPlayer`: Project Canvas와 Playback Rate가 적용된 update deltaTime
 - 선택한 경우 `MetronomePlayback`: 같은 BPM, 현재 beat와 Playback Rate
 
-Music이 `None`이어도 Transport와 Project preview는 정상 동작한다. 음수 Offset이면 음악 위치가 0이 될 때 시작하고, 양수 Offset이면 해당 위치부터 시작한다. End Event가 있으면 음악 duration 이후에도 Timeline beat와 Project preview는 End까지 계속 진행한다. End가 없으면 Music duration에서 자동 종료한다. Pause는 기준 beat를 보존하고 모든 재생 구성 요소를 정지한 뒤 재생 위치 바를 숨기고 Properties/Values 편집 화면으로 돌아온다.
+Music이 `None`이어도 Transport와 Project preview는 정상 동작한다. Project preview는 Preview Aspect Width와 Height의 비율을 유지하면서 Properties·Values 영역 안에 들어가는 최대 크기로 중앙 정렬된다. 음수 Offset이면 음악 위치가 0이 될 때 시작하고, 양수 Offset이면 해당 위치부터 시작한다. End Event가 있으면 음악 duration 이후에도 Timeline beat와 Project preview는 End까지 계속 진행한다. End가 없으면 Music duration에서 자동 종료한다. Pause는 기준 beat를 보존하고 모든 재생 구성 요소를 정지한 뒤 재생 위치 바를 숨기고 Properties/Values 편집 화면으로 돌아온다.
 
 decode, Source, preview 시작·update·draw가 실패하면 오류 모달을 표시하고 `EditorSession:pause()`를 통해 Transport, Metronome과 TestPlayer를 함께 정리한다. TestPlayer update 실패는 pause 뒤 이전 beat로 rollback한다.
 
-현재 preview는 Project 화면, 음악, Metronome, Timeline과 재생 속성에 더해 Game Manager Event를 처리한다. 입력 상태는 기본 true이고 `Set Input Enabled` Event 도달 시 노드 값으로 바뀌며, `End` Event 도달 시 해당 beat에서 재생을 끝낸다. End가 없고 Music이 있으면 정확한 Music duration에서 자동 종료하고 정보 toast를 추가한다. Music과 End가 모두 없으면 자동 종료하지 않는다. 이 상태를 실제 Project 입력 전달에 연결하는 작업, Pattern 실행과 판정은 후속 작업이다.
+현재 preview는 현재 Stage와 기준 beat를 Project의 `startStage`에 전달한다. Auto Play가 `None`이 아니고 Project가 선택적 `setAutoPlay(value)`를 구현하면 Stage 시작 전에 `good`, `bad`, `miss` 중 선택값을 전달한다. 입력 상태는 기본 true이고 `Set Input Enabled` 도달 시 바뀌며, 활성 상태의 Space를 현재 beat와 함께 Project `keypressed`로 전달한다. `End` 도달 시 해당 beat에서 끝나고, End가 없고 Music이 있으면 Music duration에서 자동 종료한다. Sample은 검은 Stage 화면에서 Sprite 기반 Spawn Actors와 Cue & Response를 실행하고 Core TapJudgment로 GOOD/BAD/MISS/EMPTY_INPUT을 판정한다. Guide Turn과 Player Turn은 Core BeatTween을 조합해 반대편 액터를 0.5박 동안 화면 밖으로 이동시키며 오른쪽 액터는 좌우 반전한다. 일반 Pattern 실행과 Long Note 판정은 후속 작업이다.
 
 ## 6. 게임 연출
 

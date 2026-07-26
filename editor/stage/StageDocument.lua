@@ -92,9 +92,9 @@ local function deepCopy(value, seen)
     return setmetatable(copy, getmetatable(value))
 end
 
-local function normalizeEmptyPatternParams(data)
+local function normalizeEmptyEventParams(data)
     for _, event in ipairs(data.events) do
-        if event.type == "pattern"
+        if (event.type == "pattern" or event.type == "projectEvent")
             and event.params ~= nil
             and next(event.params) == nil
             and getmetatable(event.params) == nil then
@@ -141,6 +141,14 @@ local function validateEvent(event, index, trackCount)
         if not isFiniteNumber(event.durationBeats) or event.durationBeats <= 0 then
             return path .. ".durationBeats must be a positive finite number."
         end
+    elseif event.type == "projectEvent" then
+        if event.track == nil then return path .. ".track is required." end
+        if type(event.eventId) ~= "string" or event.eventId == "" then
+            return path .. ".eventId must be a non-empty string."
+        end
+        if not isObject(event.params) then
+            return path .. ".params must be an object."
+        end
     elseif event.type == "end" then
         if event.track == nil then return path .. ".track is required." end
     elseif event.type == "setInputEnabled" then
@@ -149,7 +157,7 @@ local function validateEvent(event, index, trackCount)
             return path .. ".enabled must be a boolean."
         end
     else
-        return path .. ".type must be pattern, tapNote, longNote, end, or setInputEnabled."
+        return path .. ".type must be pattern, tapNote, longNote, projectEvent, end, or setInputEnabled."
     end
     return nil
 end
@@ -223,7 +231,7 @@ local function newDocument(data, dirty)
     local documentData = deepCopy(data)
     documentData.mixtape = Core.MixtapeSettings.compact(documentData.mixtape)
     documentData.editorSettings = EditorSettings.compact(documentData.editorSettings)
-    normalizeEmptyPatternParams(documentData)
+    normalizeEmptyEventParams(documentData)
     return setmetatable({ data = documentData, dirty = dirty }, StageDocument), nil
 end
 
@@ -342,7 +350,7 @@ local function findEvent(document, eventId)
     return nil, nil
 end
 
-function StageDocument:addEvent(eventType, startBeat, track)
+function StageDocument:addEvent(eventType, startBeat, track, projectEventId, params)
     if eventType == "end" then
         for _, event in ipairs(self.data.events) do
             if event.type == "end" then
@@ -365,6 +373,13 @@ function StageDocument:addEvent(eventType, startBeat, track)
         track = track,
     }
     if eventType == "setInputEnabled" then event.enabled = false end
+    if eventType == "projectEvent" then
+        event.eventId = projectEventId
+        event.params = deepCopy(params or {})
+        if next(event.params) == nil and getmetatable(event.params) == nil then
+            setmetatable(event.params, { __jsontype = "object" })
+        end
+    end
     local eventError = validateEvent(event, #self.data.events + 1, trackCount)
     if eventError then return nil, eventError end
     table.insert(self.data.events, event)
@@ -426,19 +441,28 @@ end
 function StageDocument:setEventProperty(eventId, propertyId, value)
     local event, index = findEvent(self, eventId)
     if not event then return nil, "Unknown Timeline Event: " .. tostring(eventId) end
-    if event.type ~= "setInputEnabled" or propertyId ~= "enabled" then
+    local candidate = deepCopy(event)
+    if event.type == "setInputEnabled" and propertyId == "enabled" then
+        candidate.enabled = value
+    elseif event.type == "projectEvent" and event.params[propertyId] ~= nil then
+        candidate.params[propertyId] = value
+    else
         return nil, "Unknown Timeline Event property: " .. tostring(propertyId)
     end
-    local candidate = deepCopy(event)
-    candidate.enabled = value
     local eventError = validateEvent(
         candidate,
         index,
         self:getEditorSettings().trackCount
     )
     if eventError then return nil, eventError end
-    if event.enabled ~= value then
-        event.enabled = value
+    local currentValue = event.type == "projectEvent"
+        and event.params[propertyId] or event[propertyId]
+    if currentValue ~= value then
+        if event.type == "projectEvent" then
+            event.params[propertyId] = value
+        else
+            event[propertyId] = value
+        end
         self.dirty = true
     end
     return true, nil

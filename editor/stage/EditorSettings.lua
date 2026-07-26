@@ -7,7 +7,10 @@ local DEFAULTS = {
     onsetThreshold = 0.01,
     scale = 1,
     playbackRate = 1,
+    autoPlay = "none",
     trackCount = 10,
+    previewAspectWidth = 16,
+    previewAspectHeight = 9,
 }
 
 local ALLOWED_KEYS = {
@@ -17,7 +20,10 @@ local ALLOWED_KEYS = {
     onsetThreshold = true,
     scale = true,
     playbackRate = true,
+    autoPlay = true,
     trackCount = true,
+    previewAspectWidth = true,
+    previewAspectHeight = true,
 }
 
 local function isFiniteNumber(value)
@@ -68,12 +74,29 @@ function EditorSettings.validate(value)
             or value.playbackRate > 4) then
         return "$.editorSettings.playbackRate must be between 0.25 and 4."
     end
+    if value.autoPlay ~= nil
+        and value.autoPlay ~= "none"
+        and value.autoPlay ~= "good"
+        and value.autoPlay ~= "bad"
+        and value.autoPlay ~= "miss" then
+        return "$.editorSettings.autoPlay must be one of: none, good, bad, miss."
+    end
     if value.trackCount ~= nil
         and (not isFiniteNumber(value.trackCount)
             or value.trackCount % 1 ~= 0
             or value.trackCount < 1
             or value.trackCount > 32) then
         return "$.editorSettings.trackCount must be an integer between 1 and 32."
+    end
+    if value.previewAspectWidth ~= nil
+        and (not isFiniteNumber(value.previewAspectWidth)
+            or value.previewAspectWidth <= 0) then
+        return "$.editorSettings.previewAspectWidth must be a positive number."
+    end
+    if value.previewAspectHeight ~= nil
+        and (not isFiniteNumber(value.previewAspectHeight)
+            or value.previewAspectHeight <= 0) then
+        return "$.editorSettings.previewAspectHeight must be a positive number."
     end
     return nil
 end
@@ -89,7 +112,10 @@ function EditorSettings.resolve(value)
         onsetThreshold = value.onsetThreshold or DEFAULTS.onsetThreshold,
         scale = value.scale or DEFAULTS.scale,
         playbackRate = value.playbackRate or DEFAULTS.playbackRate,
+        autoPlay = value.autoPlay or DEFAULTS.autoPlay,
         trackCount = value.trackCount or DEFAULTS.trackCount,
+        previewAspectWidth = value.previewAspectWidth or DEFAULTS.previewAspectWidth,
+        previewAspectHeight = value.previewAspectHeight or DEFAULTS.previewAspectHeight,
     }
 end
 

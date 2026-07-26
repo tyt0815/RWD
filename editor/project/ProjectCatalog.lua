@@ -30,7 +30,7 @@ local function validateProject(project, expectedCoreApiVersion)
         )
     end
 
-    return nil
+    return Core.ProjectEvents.validate(project)
 end
 
 function ProjectCatalog.new(options)

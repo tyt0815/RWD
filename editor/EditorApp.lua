@@ -12,6 +12,7 @@ local StageStore = require("editor.stage.StageStore")
 local TestPlayer = require("editor.playback.TestPlayer")
 local Core = require("core")
 local TextInput = Core.UI.TextInput
+local ComboBox = Core.UI.ComboBox
 local Button = Core.UI.Button
 local ScrollArea = Core.UI.ScrollArea
 
@@ -24,9 +25,15 @@ local TIMELINE_EDGE_SCROLL_ACCELERATION = 8
 local TIMELINE_EDGE_SCROLL_MAX_BEATS_PER_SECOND = 64
 local TOAST_DURATION = 3
 local MAX_TOAST_COUNT = 5
+local AUTO_PLAY_OPTIONS = {
+    { value = "none", label = "None" },
+    { value = "good", label = "Good" },
+    { value = "bad", label = "Bad" },
+    { value = "miss", label = "Miss" },
+}
 
-local function getCategories()
-    return PropertyCatalog.getCategories()
+local function getCategories(project)
+    return PropertyCatalog.getCategories(project)
 end
 
 function EditorApp.new(options)
@@ -71,6 +78,9 @@ function EditorApp.new(options)
             label = "Auto",
             enabled = false,
         }),
+        autoPlayComboBox = ComboBox.new(AUTO_PLAY_OPTIONS, {
+            maxVisibleOptions = 4,
+        }),
         timelineDrag = nil,
         scrollAreas = {
             categories = ScrollArea.new({ step = EditorLayout.getRowHeight() }),
@@ -103,11 +113,12 @@ function EditorApp:updatePanelScrollAreas()
     local viewportHeight = EditorLayout.getPanelContentRect(
         self.layout.panels[2]
     ).height
+    local project = self.session:getProject()
     local categoryCount = self.session:hasStage()
-        and #PropertyCatalog.getCategories() or 0
+        and #PropertyCatalog.getCategories(project) or 0
     local eventCount = self.session:hasStage()
-        and #PropertyCatalog.getEvents(self.selectedCategoryId) or 0
-    local selectedEvent = PropertyCatalog.getEvent(self.selectedEventId)
+        and #PropertyCatalog.getEvents(self.selectedCategoryId, project) or 0
+    local selectedEvent = PropertyCatalog.getEvent(self.selectedEventId, project)
     local propertyCount = self.session:hasStage() and selectedEvent
         and #selectedEvent.properties or 0
 
@@ -125,6 +136,20 @@ function EditorApp:updatePanelScrollAreas()
     )
 end
 
+function EditorApp:getEventDefaults(definition)
+    local defaults = self.eventDefaults[definition.timelineType]
+    if not defaults and definition.projectEventId then
+        defaults = Core.ProjectEvents.getDefaultParams(
+            Core.ProjectEvents.getEvent(
+                self.session:getProject(),
+                definition.projectEventId
+            )
+        )
+        self.eventDefaults[definition.timelineType] = defaults
+    end
+    return defaults
+end
+
 function EditorApp:getViewModel()
     self:updatePanelScrollAreas()
     local properties = {}
@@ -139,14 +164,17 @@ function EditorApp:getViewModel()
         )
         trackCount = self.session:getProperty("editorProperties", "trackCount")
     end
-    local selectedEvent = PropertyCatalog.getEvent(self.selectedEventId)
+    local project = self.session:getProject()
+    local selectedEvent = PropertyCatalog.getEvent(self.selectedEventId, project)
     self:updateBeat0AutoButton()
     if selectedEvent then
         for _, property in ipairs(selectedEvent.properties) do
-            local groupId = property.groupId or selectedEvent.id
+            local groupId = property.groupId
+                or selectedEvent.timelineType
+                or selectedEvent.id
             local value
             if selectedEvent.timelineType then
-                local defaults = self.eventDefaults[selectedEvent.timelineType]
+                local defaults = self:getEventDefaults(selectedEvent)
                 if defaults then value = defaults[property.id] end
             elseif self.session:hasStage() then
                 value = self.session:getProperty(groupId, property.id)
@@ -161,6 +189,12 @@ function EditorApp:getViewModel()
             if selectedEvent.id == "mixtapeProperties"
                 and property.id == "beat0Offset" then
                 viewProperty.actionButton = self.beat0AutoButton
+            elseif selectedEvent.id == "editorProperties"
+                and property.id == "autoPlay" then
+                if self.autoPlayComboBox:getValue() ~= value then
+                    self.autoPlayComboBox:select(value)
+                end
+                viewProperty.comboBox = self.autoPlayComboBox
             end
             table.insert(properties, viewProperty)
         end
@@ -196,7 +230,7 @@ function EditorApp:getViewModel()
         end
     end
     for _, event in ipairs(timelineEvents) do
-        local definition = PropertyCatalog.getTimelineEvent(event.type)
+        local definition = PropertyCatalog.getTimelineEvent(event, project)
         event.label = definition and definition.label or event.type
         event.color = definition and definition.color or nil
     end
@@ -205,9 +239,9 @@ function EditorApp:getViewModel()
         hasStage = self.session:hasStage(),
         playing = self.session:isPlaying(),
         dirty = self.session:isDirty(),
-        categories = self.session:hasStage() and getCategories() or {},
+        categories = self.session:hasStage() and getCategories(project) or {},
         selectedCategoryId = self.selectedCategoryId,
-        propertyEvents = PropertyCatalog.getEvents(self.selectedCategoryId),
+        propertyEvents = PropertyCatalog.getEvents(self.selectedCategoryId, project),
         selectedEventId = self.selectedEventId,
         properties = properties,
         valueEdit = self.valueEdit,
@@ -272,7 +306,13 @@ function EditorApp:showToast(message, kind)
 end
 
 function EditorApp:beginValueEdit(groupId, propertyId)
-    local text = tostring(self.session:getProperty(groupId, propertyId))
+    local value
+    if type(groupId) == "string" and groupId:match("^project:") then
+        value = self.eventDefaults[groupId][propertyId]
+    else
+        value = self.session:getProperty(groupId, propertyId)
+    end
+    local text = tostring(value)
     self.valueEdit = TextInput.new(text, {
         filter = function(input)
             return input:gsub("[^%d%.%-]", "")
@@ -286,11 +326,30 @@ end
 function EditorApp:commitValueEdit()
     if not self.valueEdit then return true end
 
-    local changed, errorMessage = self.session:setProperty(
-        self.valueEdit.groupId,
-        self.valueEdit.propertyId,
-        tonumber(self.valueEdit.text)
-    )
+    local changed, errorMessage
+    local value = tonumber(self.valueEdit.text)
+    if self.valueEdit.groupId:match("^project:") then
+        local eventId = self.valueEdit.groupId:match("^project:(.+)$")
+        local definition = Core.ProjectEvents.getEvent(
+            self.session:getProject(),
+            eventId
+        )
+        local params = self.eventDefaults[self.valueEdit.groupId]
+        local candidate = {}
+        for key, item in pairs(params) do candidate[key] = item end
+        candidate[self.valueEdit.propertyId] = value
+        errorMessage = Core.ProjectEvents.validateParams(definition, candidate)
+        if not errorMessage then
+            params[self.valueEdit.propertyId] = value
+            changed = true
+        end
+    else
+        changed, errorMessage = self.session:setProperty(
+            self.valueEdit.groupId,
+            self.valueEdit.propertyId,
+            value
+        )
+    end
     if not changed then
         self.valueEdit.invalid = true
         return nil, errorMessage
@@ -387,13 +446,24 @@ function EditorApp:processDialogResult()
     end
 
     if kind == "timelineEventProperties" and result.buttonId == "confirm" then
-        local changed, errorMessage = self.session:setTimelineEventProperty(
-            result.context.eventId,
-            "enabled",
-            result.selections.enabled == "true"
-        )
+        local errorMessage
+        for _, property in ipairs(result.context.properties or {}) do
+            local value
+            if property.kind == "boolean" then
+                value = result.selections[property.id] == "true"
+            else
+                value = tonumber(result.values[property.id])
+            end
+            local changed
+            changed, errorMessage = self.session:setTimelineEventProperty(
+                result.context.eventId,
+                property.id,
+                value
+            )
+            if not changed then break end
+        end
         self.dialog = nil
-        if not changed then self:showError(errorMessage) end
+        if errorMessage then self:showError(errorMessage) end
     elseif kind == "newStage" and result.buttonId == "confirm" then
         local created, errorMessage = self.session:createStage(
             result.selections.projectId,
@@ -687,6 +757,7 @@ function EditorApp:update(deltaTime)
     if self.valueEdit and not self.session:isPlaying() then
         self.valueEdit:update(deltaTime)
     end
+    self.autoPlayComboBox:update(deltaTime)
     local scale = self.session:hasStage()
         and self.session:getProperty("editorProperties", "scale")
         or 1
@@ -826,23 +897,28 @@ function EditorApp:mousepressed(x, y, button, _, presses)
     end
     if button == 2 and self.session:hasStage()
         and not self.session:isPlaying() and insideTimeline then
-        local selectedEvent = PropertyCatalog.getEvent(self.selectedEventId)
+        local selectedEvent = PropertyCatalog.getEvent(
+            self.selectedEventId,
+            self.session:getProject()
+        )
         local beat, track = self:getTimelinePosition(x, y)
         if selectedEvent and selectedEvent.timelineType and beat and track then
+            local defaults = self:getEventDefaults(selectedEvent)
             local added, errorMessage, errorCode = self.session:addTimelineEvent(
                 selectedEvent.timelineType,
                 beat,
-                track
+                track,
+                defaults
             )
             if not added then
                 if errorCode == "TIMELINE_EVENT_OVERLAP"
-                    or errorCode == "END_EVENT_EXISTS" then
+                    or errorCode == "END_EVENT_EXISTS"
+                    or errorCode == "PROJECT_EVENT_EXISTS" then
                     self:showToast(errorMessage, "error")
                 else
                     self:showError(errorMessage)
                 end
             else
-                local defaults = self.eventDefaults[selectedEvent.timelineType]
                 if defaults then
                     for propertyId, value in pairs(defaults) do
                         local changed, propertyError =
@@ -876,7 +952,10 @@ function EditorApp:mousepressed(x, y, button, _, presses)
             if not self.selectedTimelineEventIds[timelineEvent.id] then
                 self.selectedTimelineEventIds = { [timelineEvent.id] = true }
             end
-            local definition = PropertyCatalog.getTimelineEvent(timelineEvent.type)
+            local definition = PropertyCatalog.getTimelineEvent(
+                timelineEvent,
+                self.session:getProject()
+            )
             if (presses or 1) >= 2 and definition
                 and #definition.nodeProperties > 0 then
                 self.dialog = EditorDialog.timelineEventProperties(
@@ -914,7 +993,10 @@ function EditorApp:mousepressed(x, y, button, _, presses)
         self:seekTimelineAtX(x)
         return true
     end
-    local selectedEvent = PropertyCatalog.getEvent(self.selectedEventId)
+    local selectedEvent = PropertyCatalog.getEvent(
+        self.selectedEventId,
+        self.session:getProject()
+    )
     local propertyCount = selectedEvent and #selectedEvent.properties or 0
     local propertyOffset = self.scrollAreas.properties:getOffset()
     local propertyRow = EditorLayout.hitTestPropertyValue(
@@ -925,6 +1007,39 @@ function EditorApp:mousepressed(x, y, button, _, presses)
         propertyOffset
     )
     self:updateBeat0AutoButton()
+    if self.autoPlayComboBox:isOpen() and button == 1 then
+        local autoPlayRow
+        for rowIndex, property in ipairs(selectedEvent and selectedEvent.properties or {}) do
+            if property.id == "autoPlay" then autoPlayRow = rowIndex break end
+        end
+        if autoPlayRow then
+            local valueRect = EditorLayout.getPropertyValueRect(
+                self.layout,
+                autoPlayRow,
+                propertyOffset
+            )
+            for optionPosition, option in ipairs(
+                self.autoPlayComboBox:getVisibleOptions()
+            ) do
+                local optionRect = EditorLayout.getComboBoxOptionRect(
+                    valueRect,
+                    optionPosition
+                )
+                if x >= optionRect.x and x < optionRect.x + optionRect.width
+                    and y >= optionRect.y and y < optionRect.y + optionRect.height then
+                    self.autoPlayComboBox:chooseOption(option.optionIndex)
+                    local changed, errorMessage = self.session:setProperty(
+                        "editorProperties",
+                        "autoPlay",
+                        option.value
+                    )
+                    if not changed then self:showError(errorMessage) end
+                    return true
+                end
+            end
+        end
+        self.autoPlayComboBox:close()
+    end
     local actionClicked = false
     if self.selectedEventId == "mixtapeProperties" and button == 1 then
         local actionRect = EditorLayout.getPropertyActionRect(
@@ -961,7 +1076,8 @@ function EditorApp:mousepressed(x, y, button, _, presses)
     end
 
     if self.session:hasStage() then
-        local categories = PropertyCatalog.getCategories()
+        local project = self.session:getProject()
+        local categories = PropertyCatalog.getCategories(project)
         local categoryRow = EditorLayout.hitTestCategory(
             self.layout,
             #categories,
@@ -971,14 +1087,17 @@ function EditorApp:mousepressed(x, y, button, _, presses)
         )
         if categoryRow then
             self.selectedCategoryId = categories[categoryRow].id
-            local events = PropertyCatalog.getEvents(self.selectedCategoryId)
+            local events = PropertyCatalog.getEvents(self.selectedCategoryId, project)
             self.selectedEventId = events[1] and events[1].id or nil
             self.scrollAreas.events:setOffset(0)
             self.scrollAreas.properties:setOffset(0)
             return true
         end
 
-        local propertyEvents = PropertyCatalog.getEvents(self.selectedCategoryId)
+        local propertyEvents = PropertyCatalog.getEvents(
+            self.selectedCategoryId,
+            self.session:getProject()
+        )
         local eventRow = EditorLayout.hitTestEvent(
             self.layout,
             #propertyEvents,
@@ -995,12 +1114,14 @@ function EditorApp:mousepressed(x, y, button, _, presses)
 
     if self.session:hasStage() and not self.session:isPlaying() and propertyRow then
         local property = selectedEvent.properties[propertyRow]
-        local groupId = property.groupId or selectedEvent.id
+        local groupId = property.groupId
+            or selectedEvent.timelineType
+            or selectedEvent.id
         if property.kind == "number" then
             self:beginValueEdit(groupId, property.id)
         elseif property.kind == "boolean" then
             if selectedEvent.timelineType then
-                local defaults = self.eventDefaults[selectedEvent.timelineType]
+                local defaults = self:getEventDefaults(selectedEvent)
                 defaults[property.id] = not defaults[property.id]
             else
                 local currentValue = self.session:getProperty(groupId, property.id)
@@ -1013,6 +1134,8 @@ function EditorApp:mousepressed(x, y, button, _, presses)
             end
         elseif property.kind == "music" then
             self:openMusicDialog()
+        elseif property.kind == "choice" and property.id == "autoPlay" then
+            self.autoPlayComboBox:toggle()
         end
         return true
     end
@@ -1049,6 +1172,8 @@ end
 function EditorApp:textinput(text)
     if self.dialog then
         self.dialog:textinput(text)
+    elseif self.autoPlayComboBox:isOpen() and not self.session:isPlaying() then
+        self.autoPlayComboBox:textinput(text)
     elseif self.valueEdit and not self.session:isPlaying() then
         if self.valueEdit:textinput(text) then
             self.valueEdit.invalid = false
@@ -1060,6 +1185,16 @@ end
 function EditorApp:keypressed(key, _, isRepeat)
     if self.dialog then
         self.dialog:keypressed(key)
+    elseif self.autoPlayComboBox:isOpen() and not self.session:isPlaying() then
+        local result = self.autoPlayComboBox:keypressed(key)
+        if result == "selected" then
+            local changed, errorMessage = self.session:setProperty(
+                "editorProperties",
+                "autoPlay",
+                self.autoPlayComboBox:getValue()
+            )
+            if not changed then self:showError(errorMessage) end
+        end
     elseif self.valueEdit and not self.session:isPlaying() then
         if self.valueEdit:keypressed(key) then
             if key == "backspace" or key == "delete" then
@@ -1082,6 +1217,9 @@ function EditorApp:keypressed(key, _, isRepeat)
         else
             self:showError(errorMessage)
         end
+    elseif not isRepeat and key == "space" and self.session:isPlaying() then
+        local handled, errorMessage = self.session:handleInput("space")
+        if not handled then self:showError(errorMessage) end
     elseif not isRepeat and key == "s" and self.isControlDown()
         and self.session:hasStage() then
         self:executeAction("save")

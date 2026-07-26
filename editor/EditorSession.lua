@@ -19,6 +19,82 @@ local function resolveProjectMusicPath(project, music)
     return "projects/" .. project.id .. "/" .. music
 end
 
+local function fitPreviewRect(rect, aspectWidth, aspectHeight)
+    if type(rect.width) ~= "number" or type(rect.height) ~= "number" then
+        return rect
+    end
+    local aspect = aspectWidth / aspectHeight
+    local width
+    local height
+    if rect.width / rect.height > aspect then
+        height = math.max(1, math.floor(rect.height))
+        width = math.max(1, math.floor(height * aspect))
+    else
+        width = math.max(1, math.floor(rect.width))
+        height = math.max(1, math.floor(width / aspect))
+    end
+    return {
+        x = rect.x + math.floor((rect.width - width) / 2),
+        y = rect.y + math.floor((rect.height - height) / 2),
+        width = width,
+        height = height,
+    }
+end
+
+local function getProjectEventDefinition(project, eventId)
+    return Core.ProjectEvents.getEvent(project, eventId)
+end
+
+local function validateProjectEventData(project, document)
+    local singletonCounts = {}
+    for _, event in ipairs(document:getEvents()) do
+        if event.type == "projectEvent" then
+            local definition = getProjectEventDefinition(project, event.eventId)
+            if not definition then
+                return "Unknown Project Event: " .. tostring(event.eventId)
+            end
+            local paramsError = Core.ProjectEvents.validateParams(
+                definition,
+                event.params
+            )
+            if paramsError then return paramsError end
+            if definition.singleton then
+                singletonCounts[event.eventId] = (singletonCounts[event.eventId] or 0) + 1
+                if singletonCounts[event.eventId] > 1 then
+                    return definition.label .. " allows only one Event."
+                end
+            end
+        end
+    end
+    return nil
+end
+
+local function decorateProjectEvent(event, definition)
+    if event.type ~= "projectEvent" or not definition then return event end
+    event.projectDefinition = definition
+    local geometry = definition.geometry or {}
+    local duration = geometry.durationProperty
+        and event.params[geometry.durationProperty] or nil
+    if type(duration) == "number" then
+        local endpointWidth = geometry.endpointWidthBeats or 0.25
+        event.widthBeats = duration + endpointWidth
+        if geometry.connector then
+            event.collisionSegments = {
+                { offsetBeats = 0, widthBeats = endpointWidth },
+                { offsetBeats = duration, widthBeats = endpointWidth },
+            }
+            event.timelineStyle = "connector"
+            event.responseBeatOffset = duration
+            event.endpointWidthBeats = endpointWidth
+            event.endpointStartColor = geometry.startColor
+            event.endpointEndColor = geometry.endColor
+        end
+    elseif type(geometry.widthBeats) == "number" then
+        event.widthBeats = geometry.widthBeats
+    end
+    return event
+end
+
 function EditorSession.new(options)
     assert(options and options.projectCatalog, "projectCatalog is required")
     assert(options.stageStore, "stageStore is required")
@@ -128,6 +204,8 @@ function EditorSession:listStages(projectId)
 end
 
 function EditorSession:replaceStage(project, document)
+    local projectEventError = validateProjectEventData(project, document)
+    if projectEventError then return nil, projectEventError end
     local transport, transportError = self.transportFactory(document:getBpm())
     if not transport then return nil, transportError end
 
@@ -211,15 +289,42 @@ end
 
 function EditorSession:getTimelineEvents()
     if not self.document then return {} end
-    return self.document:getEvents()
+    local events = self.document:getEvents()
+    for _, event in ipairs(events) do
+        if event.type == "projectEvent" then
+            decorateProjectEvent(
+                event,
+                getProjectEventDefinition(self.project, event.eventId)
+            )
+        end
+    end
+    return events
 end
 
-function EditorSession:addTimelineEvent(eventType, beat, track)
+function EditorSession:addTimelineEvent(eventType, beat, track, params)
     if not self.document then return nil, "No Stage is open." end
     if self:isPlaying() then return nil, "Pause before placing Timeline Events." end
+    local projectEventId = type(eventType) == "string"
+        and eventType:match("^project:(.+)$") or nil
+    local projectDefinition
+    if projectEventId then
+        projectDefinition = getProjectEventDefinition(self.project, projectEventId)
+        if not projectDefinition then return nil, "Unknown Project Event: " .. projectEventId end
+        params = params or Core.ProjectEvents.getDefaultParams(projectDefinition)
+        local paramsError = Core.ProjectEvents.validateParams(projectDefinition, params)
+        if paramsError then return nil, paramsError end
+        if projectDefinition.singleton then
+            for _, event in ipairs(self.document:getEvents()) do
+                if event.type == "projectEvent" and event.eventId == projectEventId then
+                    return nil, projectDefinition.label .. " allows only one Event.", "PROJECT_EVENT_EXISTS"
+                end
+            end
+        end
+        eventType = "projectEvent"
+    end
     local snap = self.document:getEditorSettings().snap
     local snappedBeat = TimelineSnap.snapBeat(beat, snap)
-    local events = self.document:getEvents()
+    local events = self:getTimelineEvents()
     if eventType == "end" then
         for _, event in ipairs(events) do
             if event.type == "end" then
@@ -239,6 +344,11 @@ function EditorSession:addTimelineEvent(eventType, beat, track)
         startBeat = snappedBeat,
         track = track,
     }
+    if projectEventId then
+        candidate.eventId = projectEventId
+        candidate.params = params
+        decorateProjectEvent(candidate, projectDefinition)
+    end
     table.insert(events, candidate)
     local collisions = TimelineEventGeometry.findCollisionIds(
         events,
@@ -249,7 +359,13 @@ function EditorSession:addTimelineEvent(eventType, beat, track)
             "Cannot place Timeline Event because its area would overlap another node.",
             "TIMELINE_EVENT_OVERLAP"
     end
-    return self.document:addEvent(eventType, snappedBeat, track)
+    return self.document:addEvent(
+        eventType,
+        snappedBeat,
+        track,
+        projectEventId,
+        params
+    )
 end
 
 function EditorSession:moveTimelineEvents(positions)
@@ -297,6 +413,16 @@ end
 function EditorSession:setTimelineEventProperty(eventId, propertyId, value)
     if not self.document then return nil, "No Stage is open." end
     if self:isPlaying() then return nil, "Pause before editing Timeline Events." end
+    for _, event in ipairs(self.document:getEvents()) do
+        if event.id == eventId and event.type == "projectEvent" then
+            local definition = getProjectEventDefinition(self.project, event.eventId)
+            local params = event.params
+            params[propertyId] = value
+            local paramsError = Core.ProjectEvents.validateParams(definition, params)
+            if paramsError then return nil, paramsError end
+            break
+        end
+    end
     return self.document:setEventProperty(eventId, propertyId, value)
 end
 
@@ -357,7 +483,12 @@ function EditorSession:play()
         return nil, configureError
     end
 
-    local gameStarted, gameError = self.testPlayer:start(self.project)
+    local gameStarted, gameError = self.testPlayer:start(
+        self.project,
+        self.document:toTable(),
+        self.anchorBeat,
+        editorSettings.autoPlay
+    )
     if not gameStarted then
         self:pause()
         return nil, gameError
@@ -454,7 +585,10 @@ function EditorSession:update(deltaTime, visibleBeatCount)
     end
 
     local playbackRate = self.document:getEditorSettings().playbackRate
-    local updated, errorMessage = self.testPlayer:update(deltaTime * playbackRate)
+    local updated, errorMessage = self.testPlayer:update(
+        deltaTime * playbackRate,
+        self.transport:getBeat()
+    )
     if not updated then
         self:pause()
         local rolledBack, rollbackError = self.transport:seekBeat(previousBeat)
@@ -474,8 +608,21 @@ function EditorSession:update(deltaTime, visibleBeatCount)
     return true, nil
 end
 
+function EditorSession:handleInput(key)
+    if not self:isPlaying() or not self.inputEnabled then return true, nil end
+    local handled, errorMessage = self.testPlayer:keypressed(key, self:getBeat())
+    if not handled then self:pause() end
+    return handled, errorMessage
+end
+
 function EditorSession:drawPreview(rect)
-    local drawn, errorMessage = self.testPlayer:draw(rect)
+    local settings = self.document:getEditorSettings()
+    local previewRect = fitPreviewRect(
+        rect,
+        settings.previewAspectWidth,
+        settings.previewAspectHeight
+    )
+    local drawn, errorMessage = self.testPlayer:draw(previewRect)
     if not drawn then
         self:pause()
         return nil, errorMessage

@@ -1,0 +1,173 @@
+# Project 게임플레이 노드 제작 튜토리얼
+
+이 문서는 Sample Project를 참고해 새 Project에 게임플레이 노드를 등록하고 실행하는 방법을 설명한다. Editor나 다른 Project를 직접 `require`하지 않고 `require("core")` 공개 API만 사용한다.
+
+## 1. 역할 분리
+
+- Core: 프로젝트와 무관한 판정 규칙과 Project Event 등록 형식
+- Editor: 등록된 Category/Event 표시, Stage 저장, 배치와 재생
+- Project: 노드 이름·프로퍼티, 화면, Sprite, 색, 사운드, 입력 결과 연출
+
+Project 기능을 만들기 전에는 `require("core")`가 이미 제공하는 판정·시간·UI API를 먼저 확인한다. 기존 Core 객체를 Project가 조합하는 방식을 우선하고, 여러 Project에서 동일하게 쓸 스타일 독립 규칙이 없을 때만 Core 공개 API와 테스트를 추가한다. Core를 확장해 새 제작법이 생기면 이 문서도 함께 갱신한다.
+
+Sample 참고 파일:
+
+- 등록: `projects/sample/project.lua`
+- 실행·화면·입력: `projects/sample/game/SampleGame.lua`
+- 사운드: `projects/sample/game/SampleSounds.lua`
+- Sprite 로딩: `projects/sample/game/SampleSprites.lua`
+
+## 2. Project Event 등록
+
+`project.lua`의 `eventCategories`에 Category와 Event를 선언한다.
+
+```lua
+return {
+    id = "mygame",
+    title = "My Game",
+    coreApiVersion = 1,
+    entryModule = "projects.mygame.game.MyGame",
+    eventCategories = {
+        {
+            id = "gameplay",
+            label = "Gameplay",
+            events = {
+                {
+                    id = "cueResponse",
+                    label = "Cue & Response",
+                    color = { 0.92, 0.94, 0.97, 1 },
+                    properties = {
+                        {
+                            id = "responseDelayBeats",
+                            label = "Response Delay (Beats)",
+                            kind = "number",
+                            default = 4,
+                            min = 0.25,
+                            max = 64,
+                        },
+                    },
+                    geometry = {
+                        durationProperty = "responseDelayBeats",
+                        endpointWidthBeats = 1,
+                        connector = true,
+                    },
+                },
+            },
+        },
+    },
+}
+```
+
+현재 프로퍼티는 유한 `number`를 지원한다. `singleton = true`이면 Stage에 같은 Event를 하나만 배치할 수 있다. `geometry.widthBeats`는 고정 폭이다. `geometry.endpointWidthBeats`는 연결형 노드의 시작·끝 블록이 차지하는 beat 폭이며 Sample의 `1`은 각각 한 박을 뜻한다. 이 의미와 값은 Project가 선언하고 Editor가 Timeline 배율에 맞춰 렌더링·충돌 판정한다. `connector = true`이면 연결 영역은 기본 색의 18% alpha로 채우고 90% alpha 외곽선을 그리며, 시작·끝 상자만 충돌에 참여하므로 가운데에 다른 노드를 놓을 수 있다. 다른 노드의 색조를 덜 왜곡하려면 Sample처럼 중립적인 밝은 회색을 기본 색으로 사용하는 것이 좋다.
+
+## 3. 저장 형식
+
+등록한 노드는 Stage에 일반 `projectEvent`로 저장된다.
+
+```json
+{
+  "id": "event-003",
+  "type": "projectEvent",
+  "eventId": "cueResponse",
+  "startBeat": 4,
+  "track": 2,
+  "params": {
+    "responseDelayBeats": 4
+  }
+}
+```
+
+`eventId`는 Project 등록 ID와 같아야 한다. Project별 값은 `params` 안에 둔다.
+
+## 4. Stage 실행
+
+게임 객체에 `startStage(stage, startBeat)`를 구현하면 Editor Play가 현재 Stage를 전달한다.
+
+```lua
+local Core = require("core")
+
+function MyGame:startStage(stage, startBeat)
+    self.stage = stage
+    self.judgment = Core.TapJudgment.new({
+        goodWindowBeats = 0.1,
+        badWindowBeats = 0.25,
+    })
+
+    for _, event in ipairs(stage.events) do
+        if event.type == "projectEvent" and event.eventId == "cueResponse" then
+            local targetBeat = event.startBeat + event.params.responseDelayBeats
+            self.judgment:addNote(event.id, targetBeat)
+        end
+    end
+end
+```
+
+`update(deltaTime, beat)`에는 재생 속도가 적용된 delta와 현재 Timeline beat가 전달된다. cue 발생과 MISS 처리는 이 beat를 기준으로 한다.
+
+```lua
+function MyGame:update(deltaTime, beat)
+    for _, result in ipairs(self.judgment:update(beat)) do
+        self:showResult(result)
+    end
+end
+```
+
+## 5. Editor Auto Play
+
+Editor Properties의 Auto Play를 지원하려면 게임 객체에 선택적 `setAutoPlay(value)`를 구현한다. TestPlayer는 `startStage`보다 먼저 `none`, `good`, `bad`, `miss` 중 하나를 전달한다. Core는 Project별 판정창과 노트 일정을 모르므로, 목표 beat 입력과 MISS 처리 시점은 Project가 기존 판정기를 조합해 구현한다.
+
+```lua
+function MyGame:setAutoPlay(value)
+    self.autoPlay = value or "none"
+end
+```
+
+`good`은 목표 beat에 입력하고, `bad`는 GOOD 창 밖이면서 BAD 창 안인 시점에 입력한다. `miss`는 자동 입력 없이 MISS 갱신을 진행하며 수동 입력이 결과를 바꾸지 않게 막는다. `none`만 수동 입력을 허용한다. Sample 구현은 `projects/sample/game/SampleGame.lua`를 참고한다.
+
+## 6. Space 입력과 판정
+
+Editor는 입력이 활성화된 동안 `keypressed(key, beat)`로 Space와 입력 beat를 전달한다.
+
+```lua
+function MyGame:keypressed(key, beat)
+    if key == "space" then
+        self:showResult(self.judgment:input(beat))
+    end
+end
+```
+
+`Core.TapJudgment`의 현재 기본 샘플 판정은 다음과 같다.
+
+- 목표에서 `±0.1 beat`: `GOOD`
+- 목표에서 `±0.25 beat`: `BAD`
+- BAD 창이 끝날 때까지 무입력: `MISS`
+- 판정 가능한 노트가 없을 때 입력: `EMPTY_INPUT`
+
+일반 상용 리듬게임은 BPM과 무관한 ms 판정창을 자주 사용한다. 이 샘플은 초기 제작 편의를 위해 beat 기반 임시값을 명시적으로 전달한다. 결과 색, 사운드와 점멸은 Core가 아니라 Project에서 구현한다.
+
+## 7. Beat 기반 액터 이동
+
+`Core.BeatTween`은 BPM을 직접 알 필요 없이 현재 beat로 값을 선형 보간한다. Sample의 Guide Turn과 Player Turn은 이를 상속하지 않고 좌우 액터마다 하나씩 조합한다.
+
+```lua
+self.leftMovement = Core.BeatTween.new(0)
+self.rightMovement = Core.BeatTween.new(0)
+
+-- 0은 생성 위치, 1은 화면 바깥 위치다.
+self.rightMovement:moveTo(1, event.startBeat, 0.5)
+local progress = self.rightMovement:getValue(currentBeat)
+```
+
+0.5박 이동은 BPM이 높을수록 실제 seconds가 짧아진다. 어느 방향으로 움직이는지, 화면 안·밖 좌표, easing과 Sprite 렌더링은 Project 연출 책임이다. Sample 오른쪽 액터는 같은 Sprite를 음수 x scale로 그려 좌우 반전한다.
+
+## 8. 새 노드 체크리스트
+
+1. `project.lua`에 고유 Category/Event ID와 프로퍼티를 등록한다.
+2. 게임의 `startStage`에서 해당 `eventId`를 런타임 상태로 전개한다.
+3. `update`에서 beat 도달 및 MISS를 처리한다.
+4. Auto Play를 지원하면 `setAutoPlay`에서 선택값을 받고 Project 판정창에 맞춰 자동 입력한다.
+5. `keypressed`에서 필요한 입력만 Core 판정기로 전달한다.
+6. 기존 Core API 조합으로 가능한지 확인한 뒤 Project 안에서 화면과 사운드를 구현한다.
+7. 공통 규칙을 Core에 추가했다면 공개 API 테스트와 이 튜토리얼을 갱신한다.
+8. Event 등록, Stage 왕복, 판정과 연출 상태를 테스트한다.
+9. Stage 필드 계약을 바꾸면 `docs/STAGE_FORMAT.md`도 갱신한다.

@@ -11,8 +11,9 @@ local JSON_KEY_ORDER = {
     "mixtape", "editorSettings", "events",
     "music", "volume", "beat0Offset",
     "snap", "scale", "playbackRate", "metronome", "metronomePeriod",
-    "onsetThreshold",
-    "id", "startBeat", "type", "patternId", "params", "durationBeats",
+    "onsetThreshold", "previewAspectWidth", "previewAspectHeight",
+    "id", "startBeat", "type", "eventId", "patternId", "params", "durationBeats",
+    "responseDelayBeats",
 }
 
 local function validateId(value, fieldName)

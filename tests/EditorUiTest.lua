@@ -14,6 +14,7 @@ end
 local function withGraphicsRecorder(run)
     local previousLove = _G.love
     local currentColor = { 1, 1, 1, 1 }
+    local currentScissor = nil
     local recorder = {
         prints = {},
         rectangles = {},
@@ -57,6 +58,12 @@ local function withGraphicsRecorder(run)
             limit = limit,
             align = align,
             color = copyColor(currentColor),
+            scissor = currentScissor and {
+                x = currentScissor.x,
+                y = currentScissor.y,
+                width = currentScissor.width,
+                height = currentScissor.height,
+            } or nil,
         })
     end
 
@@ -89,12 +96,13 @@ local function withGraphicsRecorder(run)
     end
 
     function graphics.setScissor(x, y, width, height)
-        table.insert(recorder.scissors, {
+        currentScissor = x and {
             x = x,
             y = y,
             width = width,
             height = height,
-        })
+        } or nil
+        table.insert(recorder.scissors, currentScissor or {})
     end
 
     _G.love = { graphics = graphics }
@@ -211,9 +219,12 @@ return {
                 "Snap",
                 "Scale",
                 "Playback Rate",
+                "Auto Play",
                 "Metronome",
                 "Metronome Period",
                 "Track",
+                "Preview Aspect Width",
+                "Preview Aspect Height",
             }
             local mixtapeLabels = {
                 "Music",
@@ -228,7 +239,8 @@ return {
             for index, label in ipairs(mixtapeLabels) do
                 test.assertEqual(events[2].properties[index].label, label)
             end
-            test.assertEqual(events[1].properties[4].kind, "boolean")
+            test.assertEqual(events[1].properties[4].kind, "choice")
+            test.assertEqual(events[1].properties[5].kind, "boolean")
             test.assertEqual(events[2].properties[4].groupId, "editorProperties")
             test.assertEqual(events[2].properties[1].kind, "music")
             test.assertEqual(events[2].properties[3].kind, "number")
@@ -621,7 +633,7 @@ return {
         end,
     },
     {
-        name = "Timeline Event 노드는 Track에 색상으로 표시되고 hover 이름을 보인다",
+        name = "Timeline Event 노드 이름은 박스 안에서 잘리고 hover하면 전체를 보인다",
         run = function(test)
             local EditorLayout = require("editor.ui.EditorLayout")
             withGraphicsRecorder(function(recorder)
@@ -726,8 +738,34 @@ return {
                     width = collisionRect.width,
                     height = collisionRect.height,
                 }), { 1, 0.12, 0.12, 1 })
-                test.assertEqual(countPrints(recorder, "Set Input Enabled"), 1)
-                test.assertEqual(countPrints(recorder, "End"), 0)
+                local hoveredMain
+                local hoveredOutlineCount = 0
+                local defaultMain
+                local defaultOutlineCount = 0
+                for _, call in ipairs(recorder.prints) do
+                    if call.text == "Set Input Enabled" then
+                        if call.x == inputRect.x + 4 and call.y == inputRect.y then
+                            hoveredMain = call
+                        else
+                            hoveredOutlineCount = hoveredOutlineCount + 1
+                            assertColor(test, call, { 0.05, 0.05, 0.06, 0.9 })
+                        end
+                        test.assertEqual(call.scissor, nil)
+                    elseif call.text == "End" and call.scissor
+                        and call.scissor.x == endRect.x then
+                        if call.x == endRect.x + 4 and call.y == endRect.y then
+                            defaultMain = call
+                        else
+                            defaultOutlineCount = defaultOutlineCount + 1
+                            assertColor(test, call, { 0.05, 0.05, 0.06, 0.9 })
+                        end
+                        test.assertEqual(call.scissor.width, endRect.width)
+                    end
+                end
+                assertColor(test, hoveredMain, { 0.95, 0.95, 0.97, 1 })
+                assertColor(test, defaultMain, { 0.95, 0.95, 0.97, 1 })
+                test.assertEqual(hoveredOutlineCount, 8)
+                test.assertEqual(defaultOutlineCount, 8)
             end)
         end,
     },

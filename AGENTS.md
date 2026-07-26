@@ -22,6 +22,9 @@
 - `projects/`는 `editor/`를 불러오지 않는다.
 - `launcher/`는 모듈을 조립하지만 게임 규칙이나 에디터 기능을 구현하지 않는다.
 - 프로젝트별 코드와 리소스는 `projects/<projectId>/` 안에 둔다.
+- 게임플레이 노드는 공통 판정·등록 계약처럼 재사용 가능한 규칙만 Core 공개 API에 두고, 노드 정의·화면·색·사운드·연출은 해당 Project에 둔다.
+- Project 기능을 구현하기 전에 Core 공개 API를 검색하고, 기존 Core 인스턴스 조합으로 해결할지 공통 기능을 Core에 추가할지 판단한다. Lua에서는 상속보다 조합을 우선하며 선택 근거가 불명확하면 구현 전에 질문한다.
+- 공통 기능을 Core에 추가하면 공개 API와 Core 테스트를 함께 변경하고, 새 Project 제작자가 알아야 하는 경우 Sample 참고 주석과 `docs/PROJECT_NODES_TUTORIAL.md`도 갱신한다.
 
 ## 코드 컨벤션
 

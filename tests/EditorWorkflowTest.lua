@@ -6,7 +6,8 @@ local function newFixture(config)
         previewPlaying = false,
         musicListProjectId = nil,
     }
-    local project = { id = "sample", title = "Sample", entryModule = "sample.game" }
+    local project = config.project
+        or { id = "sample", title = "Sample", entryModule = "sample.game" }
     local catalog = {
         listProjects = function() return { project }, nil end,
         getProject = function(_, projectId)
@@ -168,10 +169,16 @@ return {
             test.assertEqual(viewModel.properties[1].value, 1)
             test.assertEqual(viewModel.properties[2].label, "Scale")
             test.assertEqual(viewModel.properties[3].label, "Playback Rate")
-            test.assertEqual(viewModel.properties[4].label, "Metronome")
-            test.assertEqual(viewModel.properties[5].label, "Metronome Period")
-            test.assertEqual(viewModel.properties[6].label, "Track")
-            test.assertEqual(viewModel.properties[6].value, 10)
+            test.assertEqual(viewModel.properties[4].label, "Auto Play")
+            test.assertEqual(viewModel.properties[4].value, "none")
+            test.assertEqual(viewModel.properties[5].label, "Metronome")
+            test.assertEqual(viewModel.properties[6].label, "Metronome Period")
+            test.assertEqual(viewModel.properties[7].label, "Track")
+            test.assertEqual(viewModel.properties[7].value, 10)
+            test.assertEqual(viewModel.properties[8].label, "Preview Aspect Width")
+            test.assertEqual(viewModel.properties[8].value, 16)
+            test.assertEqual(viewModel.properties[9].label, "Preview Aspect Height")
+            test.assertEqual(viewModel.properties[9].value, 9)
             test.assertEqual(viewModel.metronomePeriod, 4)
 
             local eventRect = EditorLayout.getEventRowRect(app.layout, 2)
@@ -318,6 +325,29 @@ return {
         end,
     },
     {
+        name = "Auto Play Property는 공통 ComboBox로 Good을 선택한다",
+        run = function(test)
+            local EditorLayout = require("editor.ui.EditorLayout")
+            local app = newFixture()
+            createStageThroughDialog(app, "auto-play-property")
+            app:executeAction("save")
+
+            local autoPlayRect = EditorLayout.getPropertyValueRect(app.layout, 4)
+            app:mousepressed(autoPlayRect.x + 8, autoPlayRect.y + 8, 1)
+            local comboBox = app:getViewModel().properties[4].comboBox
+            test.assertTrue(comboBox:isOpen())
+
+            local goodRect = EditorLayout.getComboBoxOptionRect(autoPlayRect, 2)
+            app:mousepressed(goodRect.x + 8, goodRect.y + 8, 1)
+            test.assertEqual(
+                app:getSession():getProperty("editorProperties", "autoPlay"),
+                "good"
+            )
+            test.assertEqual(comboBox:isOpen(), false)
+            test.assertEqual(app:getSession():isDirty(), true)
+        end,
+    },
+    {
         name = "boolean Property는 클릭 즉시 전환한다",
         run = function(test)
             local EditorLayout = require("editor.ui.EditorLayout")
@@ -329,7 +359,7 @@ return {
                 app:getSession():getProperty("editorProperties", "metronome"),
                 false
             )
-            local metronomeRect = EditorLayout.getPropertyValueRect(app.layout, 4)
+            local metronomeRect = EditorLayout.getPropertyValueRect(app.layout, 5)
             app:mousepressed(metronomeRect.x + 8, metronomeRect.y + 8, 1)
 
             test.assertEqual(
@@ -931,6 +961,33 @@ return {
             app:update(0)
 
             test.assertEqual(app:getSession():getTimelineEvents()[1].enabled, true)
+        end,
+    },
+    {
+        name = "Project Event 우클릭 배치는 현재 Response Delay 기본값으로 충돌 검사한다",
+        run = function(test)
+            local EditorLayout = require("editor.ui.EditorLayout")
+            local project = require("projects.sample.project")
+            local app = newFixture({ project = project })
+            createStageThroughDialog(app, "project-event-current-default")
+            app.selectedCategoryId = "sampleGameplay"
+            app.selectedEventId = "cueResponse"
+            app.eventDefaults["project:cueResponse"] = {
+                responseDelayBeats = 8,
+            }
+
+            local timeline = app.layout.timeline
+            local originX = EditorLayout.getTimelineBeatOriginX(timeline, 1)
+            local trackY = EditorLayout.getTimelineTrackCenterY(timeline, 1, 10)
+            for beat = 0, 4 do
+                app:mousepressed(originX + beat * 32 + 1, trackY, 2)
+            end
+
+            local events = app:getSession():getTimelineEvents()
+            test.assertEqual(#events, 5)
+            for _, event in ipairs(events) do
+                test.assertEqual(event.params.responseDelayBeats, 8)
+            end
         end,
     },
     {

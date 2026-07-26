@@ -36,7 +36,10 @@ Mixtape와 Editor 설정이 모두 기본값이면 `mixtape`와 `editorSettings`
     "onsetThreshold": 0.02,
     "scale": 2,
     "playbackRate": 0.5,
-    "trackCount": 12
+    "autoPlay": "bad",
+    "trackCount": 12,
+    "previewAspectWidth": 4,
+    "previewAspectHeight": 3
   },
   "events": [
     {
@@ -105,7 +108,14 @@ Mixtape와 Editor 설정이 모두 기본값이면 `mixtape`와 `editorSettings`
 | `onsetThreshold` | `0.01` | Music onset 검출 RMS 기준, `0.0~1.0` 유한 수 |
 | `scale` | `1.0` | `0.25~8.0` 유한 수 |
 | `playbackRate` | `1.0` | `0.25~4.0` 유한 수 |
+| `autoPlay` | `"none"` | `"none"`, `"good"`, `"bad"`, `"miss"` 중 하나 |
 | `trackCount` | `10` | Timeline Track 수, `1~32` 정수 |
+| `previewAspectWidth` | `16` | Editor Play 화면 종횡비의 너비, 0보다 큰 유한 수 |
+| `previewAspectHeight` | `9` | Editor Play 화면 종횡비의 높이, 0보다 큰 유한 수 |
+
+`autoPlay`는 Editor Test Play 전용 선택이다. `none`은 수동 입력을 유지하고 `good`, `bad`, `miss`는 Project의 선택적 Auto Play 계약으로 전달한다. 독립 게임 실행에는 적용하지 않는다.
+
+`previewAspectWidth`와 `previewAspectHeight`는 Editor Play 화면의 비율만 정한다. Preview는 이 비율을 유지하면서 Properties·Values 영역 안에 들어가는 최대 크기로 중앙 정렬되며, Project의 실제 게임 규칙에는 전달되지 않는다.
 
 `metronomePeriod`는 강박을 반복하는 BPM 박자 수다. 값 4는 beat 0, 4, 8, 12에서 강박이 울리고 BPM 클릭 간격 자체는 바뀌지 않는다.
 
@@ -124,12 +134,13 @@ Mixtape와 Editor 설정이 모두 기본값이면 `mixtape`와 `editorSettings`
 - `pattern`: 비어 있지 않은 `patternId`와 선택적 JSON 객체 `params`를 사용한다. `params`를 생략하면 빈 객체로 취급하며 내부 JSON null은 저장 왕복에서 보존한다. `params` 자체의 null이나 배열은 허용하지 않는다.
 - `tapNote`: 공통 필드만 사용한다.
 - `longNote`: 0보다 큰 유한 `durationBeats`를 추가한다.
+- `projectEvent`: 필수 `track`, 비어 있지 않은 `eventId`와 객체 `params`를 사용한다. `eventId`와 params의 구체적 계약은 현재 Project의 `eventCategories` 등록을 따른다. 연결형 노드는 가운데 표시 영역을 겹칠 수 있지만 등록된 시작·끝 충돌 영역은 다른 노드와 겹칠 수 없다.
 - `end`: 필수 `track`을 사용하며 Stage 전체에 최대 하나만 존재할 수 있다. 에디터 재생이 이 beat에 도달하면 재생을 끝낸다. End가 없고 Music이 설정된 Stage는 Music duration에 도달할 때 자동 종료한다.
 - `setInputEnabled`: 필수 `track`과 boolean `enabled`를 사용한다. 플레이어 입력 상태는 기본 `true`이며 재생 중 이 값으로 설정된다. 새 노드의 `enabled` 기본값은 `false`다.
 
 Timeline 영역 판정에서 `end`와 `setInputEnabled`는 beat 길이와 무관한 관리 노드로 `0.25 beat` 폭을 사용한다. 노드의 왼쪽이 `startBeat` 선에 놓인다. 게임플레이 노드는 명시된 `widthBeats` 또는 `durationBeats`를 사용하도록 확장하며 길이가 없으면 기본 `1 beat`다. 같은 Track에서 `[startBeat, startBeat + width)` 반개구간이 겹치면 충돌하므로 한 노드의 끝과 다른 노드의 시작이 같은 경우는 허용한다.
 
-Project Event 등록 계약이 아직 없으므로 로더는 `patternId`가 실제로 등록되었는지는 확인하지 않는다.
+Project Event 등록 계약은 `Core.ProjectEvents`가 Project manifest에서 검증한다. StageDocument는 Project와 독립적으로 projectEvent의 공통 구조를 검증하고, Editor가 배치·프로퍼티 편집 시 현재 Project 정의와 params 범위를 검증한다. `patternId` 등록 검증은 아직 구현하지 않았다.
 
 ## 파일 경계와 검증
 
@@ -147,4 +158,4 @@ Stage 파일 이름은 `<stageId>.json`이며 경로는 `projects/<projectId>/st
 
 ## 버전 호환 정책
 
-현재 로더는 버전 1 Stage를 자동 변환하지 않고 거부한다. 기존 파일은 schemaVersion 2의 최상위 `bpm`, 선택적 희소 설정과 `events` 구조로 명시적으로 변환해야 한다. `trackCount`, `track`, `end`, `setInputEnabled`는 기존 필드 의미를 바꾸지 않고 미구현 상태였던 Timeline Event 계약을 확장하므로 schemaVersion 2에 추가했다. 이후 기존 필드 의미를 호환되지 않게 바꾸는 경우에는 schemaVersion을 증가시키고 별도 변환 정책과 함께 도입한다.
+현재 로더는 버전 1 Stage를 자동 변환하지 않고 거부한다. 기존 파일은 schemaVersion 2의 최상위 `bpm`, 선택적 희소 설정과 `events` 구조로 명시적으로 변환해야 한다. `autoPlay`, `trackCount`, `previewAspectWidth`, `previewAspectHeight`, `track`, `end`, `setInputEnabled`, `projectEvent`는 기존 필드 의미를 바꾸지 않고 미구현 상태였던 Timeline Event 계약을 확장하므로 schemaVersion 2에 추가했다. 이후 기존 필드 의미를 호환되지 않게 바꾸는 경우에는 schemaVersion을 증가시키고 별도 변환 정책과 함께 도입한다.

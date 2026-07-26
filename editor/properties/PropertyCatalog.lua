@@ -1,3 +1,5 @@
+local Core = require("core")
+
 local PropertyCatalog = {}
 
 local CATEGORIES = {
@@ -12,9 +14,12 @@ local CATEGORIES = {
                     { id = "snap", label = "Snap", kind = "number" },
                     { id = "scale", label = "Scale", kind = "number" },
                     { id = "playbackRate", label = "Playback Rate", kind = "number" },
+                    { id = "autoPlay", label = "Auto Play", kind = "choice" },
                     { id = "metronome", label = "Metronome", kind = "boolean" },
                     { id = "metronomePeriod", label = "Metronome Period", kind = "number" },
                     { id = "trackCount", label = "Track", kind = "number" },
+                    { id = "previewAspectWidth", label = "Preview Aspect Width", kind = "number" },
+                    { id = "previewAspectHeight", label = "Preview Aspect Height", kind = "number" },
                 },
             },
             {
@@ -24,12 +29,7 @@ local CATEGORIES = {
                     { id = "music", label = "Music", kind = "music" },
                     { id = "volume", label = "Volume", kind = "number" },
                     { id = "beat0Offset", label = "Beat 0 Offset", kind = "number" },
-                    {
-                        id = "onsetThreshold",
-                        label = "Onset Threshold",
-                        kind = "number",
-                        groupId = "editorProperties",
-                    },
+                    { id = "onsetThreshold", label = "Onset Threshold", kind = "number", groupId = "editorProperties" },
                     { id = "bpm", label = "BPM", kind = "number" },
                 },
             },
@@ -40,15 +40,11 @@ local CATEGORIES = {
         label = "Game Manager",
         events = {
             {
-                id = "end",
-                label = "End",
-                timelineType = "end",
-                color = { 0.68, 0.32, 0.9, 1 },
-                properties = {},
+                id = "end", label = "End", timelineType = "end",
+                color = { 0.68, 0.32, 0.9, 1 }, properties = {},
             },
             {
-                id = "setInputEnabled",
-                label = "Set Input Enabled",
+                id = "setInputEnabled", label = "Set Input Enabled",
                 timelineType = "setInputEnabled",
                 color = { 0.12, 0.72, 0.62, 1 },
                 properties = {
@@ -70,64 +66,83 @@ local function copyProperties(properties)
             label = property.label,
             kind = property.kind,
             groupId = property.groupId,
+            default = property.default,
+            min = property.min,
+            max = property.max,
         })
     end
     return result
 end
 
-local function copyEvent(event)
+local function copyEvent(event, isProjectEvent)
     local color
-    if event.color then
-        color = { event.color[1], event.color[2], event.color[3], event.color[4] }
-    end
+    if event.color then color = { event.color[1], event.color[2], event.color[3], event.color[4] } end
+    local properties = copyProperties(event.properties)
     return {
         id = event.id,
         label = event.label,
-        timelineType = event.timelineType,
+        timelineType = isProjectEvent and ("project:" .. event.id) or event.timelineType,
+        projectEventId = isProjectEvent and event.id or nil,
         color = color,
-        properties = copyProperties(event.properties),
-        nodeProperties = copyProperties(event.nodeProperties),
+        properties = properties,
+        nodeProperties = copyProperties(event.nodeProperties or (isProjectEvent and event.properties)),
+        singleton = event.singleton == true,
+        geometry = event.geometry,
     }
 end
 
-function PropertyCatalog.getCategories()
-    local categories = {}
-    for _, category in ipairs(CATEGORIES) do
-        table.insert(categories, { id = category.id, label = category.label })
+local function eachCategory(project, callback)
+    for _, category in ipairs(CATEGORIES) do callback(category, false) end
+    for _, category in ipairs(Core.ProjectEvents.getCategories(project)) do
+        callback(category, true)
     end
+end
+
+function PropertyCatalog.getCategories(project)
+    local categories = {}
+    eachCategory(project, function(category)
+        table.insert(categories, { id = category.id, label = category.label })
+    end)
     return categories
 end
 
-function PropertyCatalog.getEvents(categoryId)
+function PropertyCatalog.getEvents(categoryId, project)
     categoryId = categoryId or "global"
-    for _, category in ipairs(CATEGORIES) do
+    local result = {}
+    eachCategory(project, function(category, isProject)
         if category.id == categoryId then
-            local events = {}
-            for _, event in ipairs(category.events) do
-                table.insert(events, copyEvent(event))
+            for _, event in ipairs(category.events or {}) do
+                table.insert(result, copyEvent(event, isProject))
             end
-            return events
         end
-    end
-    return {}
+    end)
+    return result
 end
 
-function PropertyCatalog.getEvent(eventId)
-    for _, category in ipairs(CATEGORIES) do
-        for _, event in ipairs(category.events) do
-            if event.id == eventId then return copyEvent(event) end
+function PropertyCatalog.getEvent(eventId, project)
+    local found
+    eachCategory(project, function(category, isProject)
+        for _, event in ipairs(category.events or {}) do
+            if event.id == eventId then found = copyEvent(event, isProject) end
         end
-    end
-    return nil
+    end)
+    return found
 end
 
-function PropertyCatalog.getTimelineEvent(eventType)
-    for _, category in ipairs(CATEGORIES) do
-        for _, event in ipairs(category.events) do
-            if event.timelineType == eventType then return copyEvent(event) end
-        end
+function PropertyCatalog.getTimelineEvent(event, project)
+    local eventType = type(event) == "table" and event.type or event
+    local projectEventId = type(event) == "table" and event.eventId or nil
+    if eventType == "projectEvent" then
+        local definition = Core.ProjectEvents.getEvent(project, projectEventId)
+        return definition and copyEvent(definition, true) or nil
     end
-    return nil
+    local found
+    eachCategory(nil, function(category)
+        for _, definition in ipairs(category.events or {}) do
+            if definition.timelineType == eventType then found = copyEvent(definition, false) end
+        end
+    end)
+    return found
 end
 
 return PropertyCatalog

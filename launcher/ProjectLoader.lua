@@ -1,3 +1,5 @@
+local Core = require("core")
+
 local ProjectLoader = {}
 
 local function validateProject(project, expectedCoreApiVersion)
@@ -20,7 +22,7 @@ local function validateProject(project, expectedCoreApiVersion)
         )
     end
 
-    return nil
+    return Core.ProjectEvents.validate(project)
 end
 
 function ProjectLoader.loadProject(projectId, coreApiVersion)

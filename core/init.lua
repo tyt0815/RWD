@@ -10,6 +10,9 @@ Core.JudgmentResult = {
 }
 
 Core.PlaybackClock = require("core.PlaybackClock")
+Core.TapJudgment = require("core.TapJudgment")
+Core.BeatTween = require("core.BeatTween")
+Core.ProjectEvents = require("core.ProjectEvents")
 Core.MusicPlayback = require("core.MusicPlayback")
 Core.PlaybackTransport = require("core.PlaybackTransport")
 Core.MixtapeSettings = require("core.MixtapeSettings")

@@ -60,8 +60,12 @@ local function newFixture(options)
     options.testPlayerState = testPlayerState
     local testPlayer = {
         playing = false,
-        start = function(self)
+        start = function(self, projectValue, stage, startBeat, autoPlay)
             if options.previewError then return nil, options.previewError end
+            testPlayerState.project = projectValue
+            testPlayerState.stage = stage
+            testPlayerState.startBeat = startBeat
+            testPlayerState.autoPlay = autoPlay
             options.startCount = (options.startCount or 0) + 1
             testPlayerState.startCount = (testPlayerState.startCount or 0) + 1
             self.game = { instance = options.startCount }
@@ -78,7 +82,8 @@ local function newFixture(options)
             if options.updateError then return nil, options.updateError end
             return true, nil
         end,
-        draw = function()
+        draw = function(_, rect)
+            testPlayerState.drawRect = rect
             if options.drawError then return nil, options.drawError end
             return true, nil
         end,
@@ -419,6 +424,28 @@ return {
         end,
     },
     {
+        name = "Project preview는 Editor 설정 종횡비로 영역 중앙에 맞춘다",
+        run = function(test)
+            local session, _, state = newSession()
+            assert(session:createStage("sample", "aspect", "Aspect", 120))
+            assert(session:setProperty("editorProperties", "previewAspectWidth", 4))
+            assert(session:setProperty("editorProperties", "previewAspectHeight", 3))
+            assert(session:play())
+
+            assert(session:drawPreview({ x = 100, y = 20, width = 500, height = 200 }))
+            test.assertEqual(state.testPlayerState.drawRect.x, 217)
+            test.assertEqual(state.testPlayerState.drawRect.y, 20)
+            test.assertEqual(state.testPlayerState.drawRect.width, 266)
+            test.assertEqual(state.testPlayerState.drawRect.height, 200)
+
+            assert(session:drawPreview({ x = 100, y = 20, width = 200, height = 500 }))
+            test.assertEqual(state.testPlayerState.drawRect.x, 100)
+            test.assertEqual(state.testPlayerState.drawRect.y, 195)
+            test.assertEqual(state.testPlayerState.drawRect.width, 200)
+            test.assertEqual(state.testPlayerState.drawRect.height, 150)
+        end,
+    },
+    {
         name = "Project preview 실패는 재생을 중지한다",
         run = function(test)
             local startSession = newSession({ previewError = "preview start failed" })
@@ -631,6 +658,18 @@ return {
             test.assertEqual(session:getProperty("mixtapeProperties", "volume"), 0.25)
             test.assertEqual(session:getProperty("mixtapeProperties", "bpm"), 90)
             test.assertEqual(session:isDirty(), true)
+        end,
+    },
+    {
+        name = "EditorSession은 선택된 Auto Play를 TestPlayer 시작에 전달한다",
+        run = function(test)
+            local session, _, state = newSession({ stored = VALID_STAGE })
+            assert(session:openStage("sample", "tutorial"))
+            assert(session:setProperty("editorProperties", "autoPlay", "bad"))
+            assert(session:play())
+
+            test.assertEqual(state.testPlayerState.autoPlay, "bad")
+            test.assertEqual(state.testPlayerState.startBeat, 0)
         end,
     },
     {
