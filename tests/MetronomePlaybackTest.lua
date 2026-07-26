@@ -1,4 +1,14 @@
 local SAMPLE_RATE = 44100
+local CLICK_SECONDS = 0.012
+local AMPLITUDE = 0.35
+
+local function expectedClickSample(frequency, offset)
+    local time = offset / SAMPLE_RATE
+    local envelope = 1 - time / CLICK_SECONDS
+    return AMPLITUDE
+        * envelope
+        * math.sin(2 * math.pi * frequency * time)
+end
 
 local function newFixture()
     local state = {
@@ -55,21 +65,52 @@ end
 
 return {
     {
-        name = "Metronome Period 4는 한 beat에 강박 하나와 일반박 셋을 만든다",
+        name = "Metronome Period 1은 BPM beat마다 강박을 반복한다",
+        run = function(test)
+            local metronome, state = newMetronome()
+            assert(metronome:play(120, 1, 0, 1))
+
+            test.assertEqual(state.sampleCount, SAMPLE_RATE / 2)
+            test.assertNear(state.samples[1], expectedClickSample(1760, 1), 0.000001)
+        end,
+    },
+    {
+        name = "Metronome Period 4는 BPM beat별 강박 하나와 일반박 셋을 만든다",
         run = function(test)
             local metronome, state = newMetronome()
             assert(metronome:play(120, 4, 0, 1))
 
-            test.assertEqual(state.sampleCount, SAMPLE_RATE / 2)
-            test.assertEqual(state.sampleRate, SAMPLE_RATE)
+            local beatSamples = SAMPLE_RATE / 2
+            test.assertEqual(state.sampleCount, beatSamples * 4)
+            test.assertNear(state.samples[1], expectedClickSample(1760, 1), 0.000001)
+            for beatIndex = 1, 3 do
+                local sampleIndex = beatIndex * beatSamples + 1
+                test.assertNear(
+                    state.samples[sampleIndex],
+                    expectedClickSample(880, 1),
+                    0.000001
+                )
+            end
+            for sampleIndex in pairs(state.samples) do
+                test.assertTrue(sampleIndex >= 0)
+                test.assertTrue(sampleIndex < state.sampleCount)
+            end
+        end,
+    },
+    {
+        name = "Metronome Period 5는 다섯 BPM beat 길이로 반복한다",
+        run = function(test)
+            local metronome, state = newMetronome()
+            assert(metronome:play(120, 5, 0, 1))
 
-            local firstTick = state.samples[1]
-            local secondTick = state.samples[5513]
-            local thirdTick = state.samples[11026]
-            local fourthTick = state.samples[16538]
-            test.assertTrue(math.abs(firstTick) > math.abs(secondTick))
-            test.assertNear(secondTick, thirdTick, 0.000001)
-            test.assertNear(thirdTick, fourthTick, 0.000001)
+            local beatSamples = SAMPLE_RATE / 2
+            test.assertEqual(state.sampleCount, beatSamples * 5)
+            test.assertNear(state.samples[1], expectedClickSample(1760, 1), 0.000001)
+            test.assertNear(
+                state.samples[4 * beatSamples + 1],
+                expectedClickSample(880, 1),
+                0.000001
+            )
         end,
     },
     {
@@ -85,12 +126,21 @@ return {
         end,
     },
     {
-        name = "Metronome은 중간 beat의 세부 위치에서 재개한다",
+        name = "Metronome Period 4는 beat 4에서 강박 위치로 돌아간다",
         run = function(test)
             local metronome, state = newMetronome()
-            assert(metronome:play(120, 4, 2.5, 1))
+            assert(metronome:play(120, 4, 4, 1))
 
-            test.assertNear(state.seekPosition, 0.25, 0.000001)
+            test.assertNear(state.seekPosition, 0, 0.000001)
+        end,
+    },
+    {
+        name = "Metronome은 Period 내 fractional beat 위치에서 재개한다",
+        run = function(test)
+            local metronome, state = newMetronome()
+            assert(metronome:play(120, 4, 6.5, 1))
+
+            test.assertNear(state.seekPosition, 1.25, 0.000001)
         end,
     },
     {

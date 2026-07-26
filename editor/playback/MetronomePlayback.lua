@@ -30,14 +30,15 @@ local function defaultSourceFactory(soundData, sourceType)
 end
 
 local function createSoundData(self, bpm, period)
-    local duration = 60 / bpm
-    local sampleCount = math.floor(duration * SAMPLE_RATE + 0.5)
+    local beatDuration = 60 / bpm
+    local loopDuration = beatDuration * period
+    local sampleCount = math.floor(loopDuration * SAMPLE_RATE + 0.5)
     local clickSampleCount = math.floor(CLICK_SECONDS * SAMPLE_RATE)
     local soundData = self.soundDataFactory(sampleCount, SAMPLE_RATE)
 
-    for subdivision = 0, period - 1 do
-        local frequency = subdivision == 0 and ACCENT_FREQUENCY or NORMAL_FREQUENCY
-        local startSample = math.floor(subdivision * duration * SAMPLE_RATE / period)
+    for beatIndex = 0, period - 1 do
+        local frequency = beatIndex == 0 and ACCENT_FREQUENCY or NORMAL_FREQUENCY
+        local startSample = math.floor(beatIndex * beatDuration * SAMPLE_RATE)
         for offset = 0, clickSampleCount - 1 do
             local sampleIndex = startSample + offset
             if sampleIndex >= sampleCount then break end
@@ -50,7 +51,7 @@ local function createSoundData(self, bpm, period)
         end
     end
 
-    return soundData, duration
+    return soundData, loopDuration, beatDuration
 end
 
 function MetronomePlayback.new(options)
@@ -72,7 +73,12 @@ function MetronomePlayback:play(bpm, period, beat, playbackRate)
     local stopped, stopError = self:stop()
     if not stopped then return nil, stopError end
 
-    local soundCreated, soundData, duration = pcall(createSoundData, self, bpm, period)
+    local soundCreated, soundData, loopDuration, beatDuration = pcall(
+        createSoundData,
+        self,
+        bpm,
+        period
+    )
     if not soundCreated then return failureMessage(soundData) end
 
     local sourceCreated, source = pcall(self.sourceFactory, soundData, "static")
@@ -84,7 +90,7 @@ function MetronomePlayback:play(bpm, period, beat, playbackRate)
     local sought, seekError = callSource(
         source,
         "seek",
-        (beat - math.floor(beat)) * duration
+        (beat % period) * beatDuration
     )
     if not sought then return fail(self, source, seekError) end
     local pitchSet, pitchError = callSource(source, "setPitch", playbackRate)
