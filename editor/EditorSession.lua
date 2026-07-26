@@ -2,6 +2,7 @@ local Core = require("core")
 local StageDocument = require("editor.stage.StageDocument")
 local MetronomePlayback = require("editor.playback.MetronomePlayback")
 local TimelineSnap = require("editor.timeline.TimelineSnap")
+local TimelineEventGeometry = require("editor.timeline.TimelineEventGeometry")
 
 local EditorSession = {}
 EditorSession.__index = EditorSession
@@ -34,6 +35,7 @@ function EditorSession.new(options)
         transport = nil,
         anchorBeat = 0,
         timelineStartBeat = 0,
+        inputEnabled = true,
     }, EditorSession)
 end
 
@@ -71,6 +73,10 @@ end
 
 function EditorSession:getTimelineStartBeat()
     return self.timelineStartBeat
+end
+
+function EditorSession:isInputEnabled()
+    return self.inputEnabled
 end
 
 function EditorSession:seekTimeline(beat)
@@ -131,6 +137,7 @@ function EditorSession:replaceStage(project, document)
     self.transport = transport
     self.anchorBeat = 0
     self.timelineStartBeat = 0
+    self.inputEnabled = true
     return true, nil
 end
 
@@ -202,6 +209,70 @@ function EditorSession:setBpm(bpm)
     return self.document:setBpm(bpm)
 end
 
+function EditorSession:getTimelineEvents()
+    if not self.document then return {} end
+    return self.document:getEvents()
+end
+
+function EditorSession:addTimelineEvent(eventType, beat, track)
+    if not self.document then return nil, "No Stage is open." end
+    if self:isPlaying() then return nil, "Pause before placing Timeline Events." end
+    local snap = self.document:getEditorSettings().snap
+    return self.document:addEvent(
+        eventType,
+        TimelineSnap.snapBeat(beat, snap),
+        track
+    )
+end
+
+function EditorSession:moveTimelineEvents(positions)
+    if not self.document then return nil, "No Stage is open." end
+    if self:isPlaying() then return nil, "Pause before moving Timeline Events." end
+
+    local movingIds = {}
+    for eventId in pairs(positions) do movingIds[eventId] = true end
+
+    local proposedEvents = self.document:getEvents()
+    for _, event in ipairs(proposedEvents) do
+        local position = positions[event.id]
+        if position then
+            event.startBeat = position.startBeat
+            event.track = position.track
+        end
+    end
+    local collisions = TimelineEventGeometry.findCollisionIds(
+        proposedEvents,
+        movingIds
+    )
+    if next(collisions) ~= nil then
+        return nil, "Timeline Events cannot overlap.", collisions
+    end
+    return self.document:moveEvents(positions)
+end
+
+function EditorSession:moveTimelineEvent(eventId, beat, track)
+    if not self.document then return nil, "No Stage is open." end
+    local snap = self.document:getEditorSettings().snap
+    return self:moveTimelineEvents({
+        [eventId] = {
+            startBeat = TimelineSnap.snapBeat(beat, snap),
+            track = track,
+        },
+    })
+end
+
+function EditorSession:deleteTimelineEvents(eventIds)
+    if not self.document then return nil, "No Stage is open." end
+    if self:isPlaying() then return nil, "Pause before deleting Timeline Events." end
+    return self.document:deleteEvents(eventIds)
+end
+
+function EditorSession:setTimelineEventProperty(eventId, propertyId, value)
+    if not self.document then return nil, "No Stage is open." end
+    if self:isPlaying() then return nil, "Pause before editing Timeline Events." end
+    return self.document:setEventProperty(eventId, propertyId, value)
+end
+
 function EditorSession:getProperty(groupId, propertyId)
     if not self.document then return nil, "No Stage is open." end
 
@@ -235,6 +306,17 @@ function EditorSession:play()
     if math.abs(self.transport:getBeat() - self.anchorBeat) > 0.000001 then
         local seeked, seekError = self.transport:seekBeat(self.anchorBeat)
         if not seeked then return nil, seekError end
+    end
+
+    self.inputEnabled = true
+    local latestInputBeat = -math.huge
+    for _, event in ipairs(self.document:getEvents()) do
+        if event.type == "setInputEnabled"
+            and event.startBeat <= self.anchorBeat
+            and event.startBeat >= latestInputBeat then
+            self.inputEnabled = event.enabled
+            latestInputBeat = event.startBeat
+        end
     end
 
     local mixtape = self.document:getMixtape()
@@ -292,6 +374,38 @@ function EditorSession:update(deltaTime, visibleBeatCount)
     if not transportUpdated then
         self:pause()
         return nil, transportError
+    end
+
+    local currentBeat = self.transport:getBeat()
+    local reachedEndBeat
+    local events = self.document:getEvents()
+    for _, event in ipairs(events) do
+        if event.type == "end"
+            and event.startBeat >= previousBeat
+            and event.startBeat <= currentBeat
+            and (reachedEndBeat == nil or event.startBeat < reachedEndBeat) then
+            reachedEndBeat = event.startBeat
+        end
+    end
+
+    local eventCutoffBeat = reachedEndBeat or currentBeat
+    local latestInputBeat = -math.huge
+    local latestInputEnabled
+    for _, event in ipairs(events) do
+        if event.type == "setInputEnabled"
+            and event.startBeat > previousBeat
+            and event.startBeat <= eventCutoffBeat
+            and event.startBeat >= latestInputBeat then
+            latestInputBeat = event.startBeat
+            latestInputEnabled = event.enabled
+        end
+    end
+    if latestInputEnabled ~= nil then self.inputEnabled = latestInputEnabled end
+    if reachedEndBeat ~= nil then
+        self:pause()
+        local seeked, seekError = self.transport:seekBeat(reachedEndBeat)
+        if not seeked then return nil, seekError end
+        return true, nil
     end
 
     if self.document:getEditorSettings().metronome then

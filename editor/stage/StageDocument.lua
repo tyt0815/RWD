@@ -109,7 +109,7 @@ function StageDocument.isSafeId(value)
         and not isWindowsReservedBasename(value)
 end
 
-local function validateEvent(event, index)
+local function validateEvent(event, index, trackCount)
     local path = "$.events[" .. index .. "]"
     if not isObject(event) then
         return path .. " must be an object."
@@ -119,6 +119,14 @@ local function validateEvent(event, index)
     end
     if not isFiniteNumber(event.startBeat) or event.startBeat < 0 then
         return path .. ".startBeat must be a non-negative finite number."
+    end
+    if event.track ~= nil
+        and (not isFiniteNumber(event.track)
+            or event.track % 1 ~= 0
+            or event.track < 1
+            or event.track > trackCount) then
+        return path .. ".track must be an integer between 1 and "
+            .. trackCount .. "."
     end
     if event.type == "pattern" then
         if type(event.patternId) ~= "string" or event.patternId == "" then
@@ -133,8 +141,15 @@ local function validateEvent(event, index)
         if not isFiniteNumber(event.durationBeats) or event.durationBeats <= 0 then
             return path .. ".durationBeats must be a positive finite number."
         end
+    elseif event.type == "end" then
+        if event.track == nil then return path .. ".track is required." end
+    elseif event.type == "setInputEnabled" then
+        if event.track == nil then return path .. ".track is required." end
+        if type(event.enabled) ~= "boolean" then
+            return path .. ".enabled must be a boolean."
+        end
     else
-        return path .. ".type must be pattern, tapNote, or longNote."
+        return path .. ".type must be pattern, tapNote, longNote, end, or setInputEnabled."
     end
     return nil
 end
@@ -179,8 +194,9 @@ function StageDocument.validate(data)
         return "$.events must be an array."
     end
     local eventIds = {}
+    local trackCount = EditorSettings.resolve(data.editorSettings).trackCount
     for index, event in ipairs(data.events) do
-        local eventError = validateEvent(event, index)
+        local eventError = validateEvent(event, index, trackCount)
         if eventError then
             return eventError
         end
@@ -290,7 +306,128 @@ function StageDocument:setMixtapeValue(key, value)
 end
 
 function StageDocument:setEditorSetting(key, value)
+    if key == "trackCount" then
+        local candidateSettings = self:getEditorSettings()
+        candidateSettings.trackCount = value
+        local settingsError = EditorSettings.validate(candidateSettings)
+        if settingsError then return nil, settingsError end
+        for index, event in ipairs(self.data.events) do
+            if event.track ~= nil and event.track > value then
+                return nil, "$.events[" .. index .. "].track exceeds Track."
+            end
+        end
+    end
     return setSparseValue(self, "editorSettings", key, value, EditorSettings)
+end
+
+function StageDocument:getEvents()
+    local events = deepCopy(self.data.events)
+    for _, event in ipairs(events) do
+        if event.track == nil then event.track = 1 end
+    end
+    return events
+end
+
+local function findEvent(document, eventId)
+    for index, event in ipairs(document.data.events) do
+        if event.id == eventId then return event, index end
+    end
+    return nil, nil
+end
+
+function StageDocument:addEvent(eventType, startBeat, track)
+    local trackCount = self:getEditorSettings().trackCount
+    local sequence = 1
+    local eventId
+    repeat
+        eventId = string.format("event-%03d", sequence)
+        sequence = sequence + 1
+    until findEvent(self, eventId) == nil
+
+    local event = {
+        id = eventId,
+        type = eventType,
+        startBeat = startBeat,
+        track = track,
+    }
+    if eventType == "setInputEnabled" then event.enabled = false end
+    local eventError = validateEvent(event, #self.data.events + 1, trackCount)
+    if eventError then return nil, eventError end
+    table.insert(self.data.events, event)
+    self.dirty = true
+    return deepCopy(event), nil
+end
+
+function StageDocument:moveEvents(positions)
+    local candidates = {}
+    for eventId, position in pairs(positions) do
+        local event, index = findEvent(self, eventId)
+        if not event then
+            return nil, "Unknown Timeline Event: " .. tostring(eventId)
+        end
+        local candidate = deepCopy(event)
+        candidate.startBeat = position.startBeat
+        candidate.track = position.track
+        local eventError = validateEvent(
+            candidate,
+            index,
+            self:getEditorSettings().trackCount
+        )
+        if eventError then return nil, eventError end
+        candidates[eventId] = candidate
+    end
+
+    local changed = false
+    for eventId, candidate in pairs(candidates) do
+        local event = findEvent(self, eventId)
+        if event.startBeat ~= candidate.startBeat
+            or event.track ~= candidate.track then
+            event.startBeat = candidate.startBeat
+            event.track = candidate.track
+            changed = true
+        end
+    end
+    if changed then self.dirty = true end
+    return true, nil
+end
+
+function StageDocument:moveEvent(eventId, startBeat, track)
+    return self:moveEvents({
+        [eventId] = { startBeat = startBeat, track = track },
+    })
+end
+
+function StageDocument:deleteEvents(eventIds)
+    local deletedCount = 0
+    for index = #self.data.events, 1, -1 do
+        if eventIds[self.data.events[index].id] then
+            table.remove(self.data.events, index)
+            deletedCount = deletedCount + 1
+        end
+    end
+    if deletedCount > 0 then self.dirty = true end
+    return deletedCount, nil
+end
+
+function StageDocument:setEventProperty(eventId, propertyId, value)
+    local event, index = findEvent(self, eventId)
+    if not event then return nil, "Unknown Timeline Event: " .. tostring(eventId) end
+    if event.type ~= "setInputEnabled" or propertyId ~= "enabled" then
+        return nil, "Unknown Timeline Event property: " .. tostring(propertyId)
+    end
+    local candidate = deepCopy(event)
+    candidate.enabled = value
+    local eventError = validateEvent(
+        candidate,
+        index,
+        self:getEditorSettings().trackCount
+    )
+    if eventError then return nil, eventError end
+    if event.enabled ~= value then
+        event.enabled = value
+        self.dirty = true
+    end
+    return true, nil
 end
 
 function StageDocument:cloneAs(stageId, name)

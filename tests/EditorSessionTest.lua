@@ -842,6 +842,91 @@ return {
         end,
     },
     {
+        name = "End Event에 도달하면 정확한 beat에서 에디터 재생을 끝낸다",
+        run = function(test)
+            local stage = {
+                schemaVersion = 2,
+                projectId = "sample",
+                stageId = "ending",
+                name = "Ending",
+                bpm = 120,
+                events = {
+                    { id = "event-001", type = "end", startBeat = 2, track = 1 },
+                },
+            }
+            local session, testPlayer = newSession({ stored = stage })
+            assert(session:openStage("sample", "ending"))
+            assert(session:play())
+
+            assert(session:update(2, 16))
+
+            test.assertEqual(session:isPlaying(), false)
+            test.assertEqual(testPlayer.playing, false)
+            test.assertNear(session:getBeat(), 2, 0.000001)
+        end,
+    },
+    {
+        name = "Set Input Enabled Event는 기본 true 입력 상태를 노드 값으로 변경한다",
+        run = function(test)
+            local stage = {
+                schemaVersion = 2,
+                projectId = "sample",
+                stageId = "input-state",
+                name = "Input State",
+                bpm = 120,
+                events = {
+                    {
+                        id = "event-001",
+                        type = "setInputEnabled",
+                        startBeat = 2,
+                        track = 1,
+                        enabled = false,
+                    },
+                    {
+                        id = "event-002",
+                        type = "setInputEnabled",
+                        startBeat = 4,
+                        track = 1,
+                        enabled = true,
+                    },
+                },
+            }
+            local session = newSession({ stored = stage })
+            assert(session:openStage("sample", "input-state"))
+            test.assertEqual(session:isInputEnabled(), true)
+            assert(session:play())
+            assert(session:update(1, 16))
+            test.assertEqual(session:isInputEnabled(), false)
+            assert(session:update(1, 16))
+            test.assertEqual(session:isInputEnabled(), true)
+
+            session:pause()
+            assert(session:seekTimeline(3))
+            assert(session:play())
+            test.assertEqual(session:isInputEnabled(), false)
+        end,
+    },
+    {
+        name = "Timeline Event API는 Snap과 Track 범위를 적용한다",
+        run = function(test)
+            local session = newSession({ stored = VALID_STAGE })
+            assert(session:openStage("sample", "tutorial"))
+            assert(session:setProperty("editorProperties", "snap", 4))
+
+            local event = assert(session:addTimelineEvent("setInputEnabled", 5.9, 3))
+            test.assertEqual(event.startBeat, 4)
+            test.assertEqual(event.track, 3)
+            assert(session:moveTimelineEvent(event.id, 10.1, 10))
+            local moved = session:getTimelineEvents()[1]
+            test.assertEqual(moved.startBeat, 12)
+            test.assertEqual(moved.track, 10)
+
+            local invalid, errorMessage = session:moveTimelineEvent(event.id, 4, 11)
+            test.assertEqual(invalid, nil)
+            test.assertContains(errorMessage, "track")
+        end,
+    },
+    {
         name = "Metronome false Play는 SoundData와 Source를 만들지 않는다",
         run = function(test)
             local state = { soundDataCount = 0, sourceCount = 0 }

@@ -1,4 +1,5 @@
 local EditorMenu = require("editor.menu.EditorMenu")
+local TimelineEventGeometry = require("editor.timeline.TimelineEventGeometry")
 
 local EditorLayout = {}
 
@@ -24,6 +25,7 @@ local PLAYHEAD_HANDLE_HEIGHT = 12
 local SCROLLBAR_WIDTH = 4
 local SCROLLBAR_MARGIN = 2
 local SCROLLBAR_MIN_LENGTH = 16
+local TIMELINE_TRACK_PADDING = 3
 
 function EditorLayout.getLayout(width, height)
     local topHeight = TOP_HEIGHT
@@ -148,6 +150,48 @@ function EditorLayout.getTimelineBeatOriginX(timeline, scale)
     return timeline.x + EditorLayout.getPixelsPerBeat(scale)
 end
 
+function EditorLayout.getTimelineTrackCenterY(timeline, track, trackCount)
+    local bodyY = timeline.y + HEADER_HEIGHT
+    local bodyHeight = math.max(0, timeline.height - HEADER_HEIGHT)
+    return bodyY + (track - 0.5) * bodyHeight / trackCount
+end
+
+function EditorLayout.getTimelineTrackAtY(timeline, y, trackCount)
+    local bodyY = timeline.y + HEADER_HEIGHT
+    local bodyHeight = math.max(0, timeline.height - HEADER_HEIGHT)
+    if bodyHeight <= 0 or y < bodyY or y >= bodyY + bodyHeight then return nil end
+    return math.min(trackCount, math.floor((y - bodyY) / bodyHeight * trackCount) + 1)
+end
+
+function EditorLayout.getTimelineEventRect(timeline, event, viewModel)
+    local pixelsPerBeat = EditorLayout.getPixelsPerBeat(viewModel.scale)
+    local trackCount = viewModel.trackCount or 10
+    local bodyHeight = math.max(0, timeline.height - HEADER_HEIGHT)
+    local trackHeight = bodyHeight / trackCount
+    local eventX = EditorLayout.getTimelineBeatOriginX(timeline, viewModel.scale)
+        + (event.startBeat - viewModel.timelineStartBeat) * pixelsPerBeat
+    return {
+        x = eventX,
+        y = timeline.y + HEADER_HEIGHT + (event.track - 1) * trackHeight
+            + TIMELINE_TRACK_PADDING,
+        width = pixelsPerBeat
+            * TimelineEventGeometry.getWidthBeats(event),
+        height = math.max(1, trackHeight - TIMELINE_TRACK_PADDING * 2),
+    }
+end
+
+function EditorLayout.hitTestTimelineEvent(timeline, events, viewModel, x, y)
+    for index = #events, 1, -1 do
+        local event = events[index]
+        local rect = EditorLayout.getTimelineEventRect(timeline, event, viewModel)
+        if x >= rect.x and x < rect.x + rect.width
+            and y >= rect.y and y < rect.y + rect.height then
+            return event
+        end
+    end
+    return nil
+end
+
 function EditorLayout.getVisibleBeatCount(layout, scale)
     local pixelsPerBeat = EditorLayout.getPixelsPerBeat(scale)
     return math.max(1, math.floor(
@@ -189,6 +233,18 @@ local function hitTestRows(getRect, panel, layout, rowCount, x, y, scrollOffset)
         end
     end
     return nil
+end
+
+function EditorLayout.hitTestCategory(layout, categoryCount, x, y, scrollOffset)
+    return hitTestRows(
+        EditorLayout.getCategoryRowRect,
+        layout.panels[2],
+        layout,
+        categoryCount,
+        x,
+        y,
+        scrollOffset
+    )
 end
 
 function EditorLayout.hitTestEvent(layout, eventCount, x, y, scrollOffset)
@@ -277,7 +333,8 @@ local function drawPanelContent(layout, viewModel)
             rowIndex,
             categoryOffset
         )
-        local prefix = category.id == "global" and "> " or "  "
+        local selectedCategoryId = viewModel.selectedCategoryId or "global"
+        local prefix = category.id == selectedCategoryId and "> " or "  "
         love.graphics.print(prefix .. category.label, rect.x + 12, rect.y + 3)
     end
     love.graphics.setScissor()
@@ -440,6 +497,55 @@ local function drawTimeline(timeline, viewModel)
     end
 
     if viewModel.hasStage then
+        local trackCount = viewModel.trackCount or 10
+        local bodyHeight = math.max(0, timeline.height - HEADER_HEIGHT)
+        love.graphics.setColor(0.28, 0.29, 0.31, 1)
+        for track = 1, trackCount - 1 do
+            local y = timeline.y + HEADER_HEIGHT + bodyHeight * track / trackCount
+            love.graphics.rectangle("fill", timeline.x, y, timeline.width, 1)
+        end
+
+        for _, event in ipairs(viewModel.timelineEvents or {}) do
+            local rect = EditorLayout.getTimelineEventRect(timeline, event, viewModel)
+            local selectedIds = viewModel.selectedTimelineEventIds or {}
+            local draggingIds = viewModel.draggingTimelineEventIds or {}
+            local collisionIds = viewModel.collisionTimelineEventIds or {}
+            local color
+            if collisionIds[event.id] then
+                color = { 1, 0.12, 0.12, 1 }
+            elseif selectedIds[event.id] then
+                color = { 1, 1, 1, draggingIds[event.id] and 0.55 or 1 }
+            else
+                color = event.color or { 0.8, 0.8, 0.8, 1 }
+            end
+            love.graphics.setColor(color[1], color[2], color[3], color[4])
+            love.graphics.rectangle("fill", rect.x, rect.y, rect.width, rect.height)
+            if event.id == viewModel.hoveredTimelineEventId then
+                love.graphics.setColor(0.95, 0.95, 0.97, 1)
+                love.graphics.print(event.label, rect.x + rect.width + 4, rect.y)
+            end
+        end
+
+        if viewModel.timelineSelectionBox then
+            local selection = viewModel.timelineSelectionBox
+            love.graphics.setColor(0.35, 0.8, 1, 0.18)
+            love.graphics.rectangle(
+                "fill",
+                selection.x,
+                selection.y,
+                selection.width,
+                selection.height
+            )
+            love.graphics.setColor(0.35, 0.8, 1, 0.9)
+            love.graphics.rectangle(
+                "line",
+                selection.x,
+                selection.y,
+                selection.width,
+                selection.height
+            )
+        end
+
         local handle = EditorLayout.getPlayheadHandle(timeline, viewModel)
         local playheadX = handle.x
         love.graphics.setColor(1, 0.45, 0.2, 1)

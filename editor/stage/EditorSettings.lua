@@ -7,6 +7,7 @@ local DEFAULTS = {
     onsetThreshold = 0.01,
     scale = 1,
     playbackRate = 1,
+    trackCount = 10,
 }
 
 local ALLOWED_KEYS = {
@@ -16,6 +17,7 @@ local ALLOWED_KEYS = {
     onsetThreshold = true,
     scale = true,
     playbackRate = true,
+    trackCount = true,
 }
 
 local function isFiniteNumber(value)
@@ -66,6 +68,13 @@ function EditorSettings.validate(value)
             or value.playbackRate > 4) then
         return "$.editorSettings.playbackRate must be between 0.25 and 4."
     end
+    if value.trackCount ~= nil
+        and (not isFiniteNumber(value.trackCount)
+            or value.trackCount % 1 ~= 0
+            or value.trackCount < 1
+            or value.trackCount > 32) then
+        return "$.editorSettings.trackCount must be an integer between 1 and 32."
+    end
     return nil
 end
 
@@ -80,6 +89,7 @@ function EditorSettings.resolve(value)
         onsetThreshold = value.onsetThreshold or DEFAULTS.onsetThreshold,
         scale = value.scale or DEFAULTS.scale,
         playbackRate = value.playbackRate or DEFAULTS.playbackRate,
+        trackCount = value.trackCount or DEFAULTS.trackCount,
     }
 end
 

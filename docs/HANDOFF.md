@@ -6,7 +6,7 @@ LÖVE2D 11.5 Launcher에서 Sample Project와 Stage 에디터를 열 수 있다.
 
 `Editor Properties`는 Snap, Scale, Playback Rate, Metronome, Metronome Period를, `Mixtape Properties`는 Music, Volume, Beat 0 Offset, Onset Threshold, BPM을 순서대로 제공한다. 숫자 직접 편집, boolean 전환, Project Music 선택 모달, cursor anchor wheel zoom, 상단 click·adaptive edge-scroll 재생 바 drag, F·Ctrl+S·R 단축키, 재생 오류 정리와 beat rollback이 연결되었다. 기본값은 Stage JSON에서 희소화된다.
 
-Stage Event 실행, 리듬 판정, Timeline Event 배치·편집과 Project 입력 전달은 아직 구현하지 않았다.
+Game Manager의 End와 Set Input Enabled Event는 Timeline에 배치·이동·편집하고 EditorSession에서 실행 상태를 처리한다. Project Pattern 실행, 리듬 판정과 실제 Project 입력 전달은 아직 구현하지 않았다.
 
 ## 이번 기능 범위와 커밋
 
@@ -78,14 +78,14 @@ Stage 계약은 schemaVersion 2, 최상위 `bpm`, 선택적 `mixtape`, 선택적
 
 ## 다음 작업
 
-다음 개발 단위는 Project Event 등록 계약을 정의하고 Stage Event를 TestPlayer 실행에 연결하는 작업이다. 등록되지 않은 `patternId`의 오류 보고 기준과 Project 입력 전달 범위를 함께 결정한다.
+다음 개발 단위는 Project Event 등록 계약과 Pattern Event 실행을 정의하는 작업이다. 등록되지 않은 `patternId`의 오류 보고 기준과 EditorSession의 입력 활성 상태를 실제 Project 입력 전달에 연결할 범위를 함께 결정한다.
 
 ## 현재 범위 밖인 기능
 
 - 실제 리듬 판정
 - Pattern 등록 및 참조 전개
-- Stage Event 실행과 Editor Event 배치·편집
-- TestPlayer의 Project 입력 전달
+- Project Pattern Event 실행과 Project Event 등록
+- TestPlayer의 실제 Project 입력 전달
 - 독립 게임 패키징
 
 ## 세션 재개 순서
@@ -255,6 +255,18 @@ Stage 계약은 schemaVersion 2, 최상위 `bpm`, 선택적 `mixtape`, 선택적
 - 기본 창 크기 1920×1080과 resizable 설정은 유지하고 최소 크기를 1280×720으로 변경했다. 종횡비는 제한하지 않는다.
 - RED: 높이와 최소 창 크기 테스트에서 `expected: 392, actual: 272`, `expected: 1280, actual: 800` 등 3건 실패를 확인했다.
 - GREEN: `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 220 tests`. 최종 정적 검사와 기동 smoke를 수행한다.
+
+## Game Manager Timeline Event (2026-07-27)
+
+- `Game Manager` Category에 보라색 `End`와 청록색 `Set Input Enabled`를 추가했다. 충돌 preview 전용 빨간색과 기본색을 구분했다. 입력 상태를 지정하는 Event이므로 요청안의 `Toggle Input`/`Toggle` 대신 `Set Input Enabled`/`Enabled`로 명명했다.
+- Event 행 선택 후 Timeline 본문 우클릭으로 현재 Snap beat와 Track에 노드를 배치한다. 일반 클릭은 단일 선택, Ctrl+클릭은 다중 선택 추가·해제, 빈 배경 drag는 교차 marquee 선택, Ctrl+drag는 기존 선택 추가를 수행한다. 선택 노드 drag는 전체 선택의 상대 beat·Track 간격을 유지한다. 이동 중에는 반투명 흰색이고 가변 beat 폭 영역 충돌 시 이동·고정 양쪽이 빨간색이 되며, 충돌 상태로 놓으면 Stage를 바꾸지 않고 원위치로 돌아간다. Delete는 선택 노드를 모두 삭제한다. `Set Input Enabled`를 Events에서 선택하면 Properties/Values에서 새 노드의 Enabled 값을 먼저 설정하며, 더블클릭 모달은 배치된 노드별 값을 수정한다. 배치 전 선택값 변경은 Stage dirty 상태를 바꾸지 않는다.
+- Editor Properties의 Track 기본값은 10, 허용 범위는 정수 `1~32`이며 기본값은 Stage JSON에서 희소화된다. 관리 노드는 왼쪽을 startBeat 선에 맞춘 `0.25 beat` 폭, 게임플레이 노드는 명시된 폭·길이 또는 기본 `1 beat`를 사용한다. `TimelineEventGeometry`가 렌더링과 충돌 판정 폭을 함께 소유한다. 기존 Pattern·Note Event의 생략 Track은 1로 해석한다.
+- EditorSession 입력 상태는 Play마다 기본 true에서 기준 beat 이전의 마지막 `Set Input Enabled` 값으로 복원되고 재생 중 노드 도달 시 갱신된다. `End` 도달 시 preview 구성 요소를 정리하고 정확한 End beat로 이동한다. 실제 Project 입력 전달은 아직 연결하지 않았다.
+- Stage schemaVersion은 2를 유지했다. 새 필드와 Event type은 기존 필드 의미를 바꾸지 않고 미구현 Timeline Event 계약을 확장한 것으로 `docs/STAGE_FORMAT.md`의 버전 정책에 기록했다.
+- RED: Track 설정, Stage Event CRUD·검증, Session 실행, Category·배치·drag·속성 모달과 렌더링 테스트에서 9건 실패를 확인했다. 입력 상태 실행 테스트는 `isInputEnabled` 부재 1건으로 실패했다.
+- 후속 RED: Events에서 `Set Input Enabled` 선택 직후 Properties가 비어 있어 `viewModel.properties[1]` 접근이 실패함을 확인했다. 선택·삭제 후속 테스트에서는 `deleteEvents` API와 `selectedTimelineEventIds`가 없어 3건 실패했다. Geometry·marquee·그룹 drag RED에서는 Geometry 모듈 부재 2건과 marquee 선택 실패 1건을 확인했다.
+- GREEN: `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 235 tests`; `git diff --check`와 Core 내부 require 경계 검색은 출력 없음; Project JSON은 PowerShell `ConvertFrom-Json`을 통과했다. 숨김 창 기동은 `LOVE_SMOKE_RUNNING=True`였다.
+- 실제 마우스 우클릭·drag·더블클릭과 색상은 자동 테스트와 기동 smoke로 검증했으며 사람이 화면에서 수동 확인하지는 못했다.
 
 ## Timeline 기준 바와 재생 위치 바 분리 (2026-07-26)
 

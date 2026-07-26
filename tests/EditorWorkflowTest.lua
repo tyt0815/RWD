@@ -112,14 +112,15 @@ return {
         end,
     },
     {
-        name = "Categories는 실제 Global 행만 제공한다",
+        name = "Categories는 Global과 Game Manager 행을 제공한다",
         run = function(test)
             local app = newFixture()
             createStageThroughDialog(app, "category-list")
 
             local categories = app:getViewModel().categories
-            test.assertEqual(#categories, 1)
+            test.assertEqual(#categories, 2)
             test.assertEqual(categories[1].label, "Global")
+            test.assertEqual(categories[2].label, "Game Manager")
 
             local panel = app.layout.panels[2]
             app:mousemoved(panel.x + 8, panel.y + 40)
@@ -169,6 +170,8 @@ return {
             test.assertEqual(viewModel.properties[3].label, "Playback Rate")
             test.assertEqual(viewModel.properties[4].label, "Metronome")
             test.assertEqual(viewModel.properties[5].label, "Metronome Period")
+            test.assertEqual(viewModel.properties[6].label, "Track")
+            test.assertEqual(viewModel.properties[6].value, 10)
             test.assertEqual(viewModel.metronomePeriod, 4)
 
             local eventRect = EditorLayout.getEventRowRect(app.layout, 2)
@@ -593,6 +596,277 @@ return {
                 nil
             )
             test.assertEqual(app:getSession():isDirty(), false)
+        end,
+    },
+    {
+        name = "Ctrl marquee는 기존 Timeline 선택에 교차 노드를 추가한다",
+        run = function(test)
+            local EditorLayout = require("editor.ui.EditorLayout")
+            local controlDown = false
+            local app = newFixture({
+                isControlDown = function() return controlDown end,
+            })
+            createStageThroughDialog(app, "timeline-additive-marquee")
+            local first = assert(app:getSession():addTimelineEvent("end", 4, 1))
+            local second = assert(app:getSession():addTimelineEvent("end", 8, 2))
+            local timeline = app.layout.timeline
+            local originX = EditorLayout.getTimelineBeatOriginX(timeline, 1)
+            local bodyY = timeline.y + 32
+            local trackHeight = (timeline.height - 32) / 10
+
+            app:mousepressed(originX + 3 * 32, bodyY + 1, 1)
+            app:mousemoved(originX + 4.3 * 32, bodyY + trackHeight - 1)
+            app:mousereleased(0, 0, 1)
+            test.assertEqual(app:getViewModel().selectedTimelineEventIds[first.id], true)
+
+            controlDown = true
+            app:mousepressed(originX + 7 * 32, bodyY + trackHeight + 1, 1)
+            app:mousemoved(
+                originX + 8.3 * 32,
+                bodyY + trackHeight * 2 - 1
+            )
+            app:mousereleased(0, 0, 1)
+            controlDown = false
+
+            local selected = app:getViewModel().selectedTimelineEventIds
+            test.assertEqual(selected[first.id], true)
+            test.assertEqual(selected[second.id], true)
+        end,
+    },
+    {
+        name = "빈 배경 marquee 선택과 다중 drag는 충돌 preview와 원위치 복귀를 처리한다",
+        run = function(test)
+            local EditorLayout = require("editor.ui.EditorLayout")
+            local app = newFixture()
+            createStageThroughDialog(app, "timeline-group-drag")
+            local first = assert(app:getSession():addTimelineEvent("end", 4, 1))
+            local second = assert(app:getSession():addTimelineEvent(
+                "setInputEnabled",
+                8,
+                2
+            ))
+            local third = assert(app:getSession():addTimelineEvent("end", 12, 3))
+            local timeline = app.layout.timeline
+            local originX = EditorLayout.getTimelineBeatOriginX(timeline, 1)
+            local bodyY = timeline.y + 32
+            local trackHeight = (timeline.height - 32) / 10
+
+            app:mousepressed(originX + 3 * 32, bodyY + 1, 1)
+            app:mousemoved(originX + 8.3 * 32, bodyY + trackHeight * 2 - 1)
+            app:mousereleased(0, 0, 1)
+            local selected = app:getViewModel().selectedTimelineEventIds
+            test.assertEqual(selected[first.id], true)
+            test.assertEqual(selected[second.id], true)
+            test.assertEqual(selected[third.id], nil)
+
+            local firstRect = EditorLayout.getTimelineEventRect(timeline, first, {
+                scale = 1,
+                timelineStartBeat = 0,
+                trackCount = 10,
+            })
+            app:mousepressed(firstRect.x + 2, firstRect.y + 2, 1)
+            app:mousemoved(
+                originX + 8 * 32 + 2,
+                EditorLayout.getTimelineTrackCenterY(timeline, 2, 10)
+            )
+            local collisionView = app:getViewModel()
+            test.assertEqual(collisionView.collisionTimelineEventIds[second.id], true)
+            test.assertEqual(collisionView.collisionTimelineEventIds[third.id], true)
+            test.assertEqual(collisionView.draggingTimelineEventIds[first.id], true)
+            app:mousereleased(0, 0, 1)
+
+            local reverted = app:getSession():getTimelineEvents()
+            test.assertEqual(reverted[1].startBeat, 4)
+            test.assertEqual(reverted[1].track, 1)
+            test.assertEqual(reverted[2].startBeat, 8)
+            test.assertEqual(reverted[2].track, 2)
+
+            firstRect = EditorLayout.getTimelineEventRect(timeline, reverted[1], {
+                scale = 1,
+                timelineStartBeat = 0,
+                trackCount = 10,
+            })
+            app:mousepressed(firstRect.x + 2, firstRect.y + 2, 1)
+            app:mousemoved(
+                originX + 6 * 32 + 2,
+                EditorLayout.getTimelineTrackCenterY(timeline, 2, 10)
+            )
+            test.assertEqual(
+                next(app:getViewModel().collisionTimelineEventIds),
+                nil
+            )
+            app:mousereleased(0, 0, 1)
+
+            local moved = app:getSession():getTimelineEvents()
+            test.assertEqual(moved[1].startBeat, 6)
+            test.assertEqual(moved[1].track, 2)
+            test.assertEqual(moved[2].startBeat, 10)
+            test.assertEqual(moved[2].track, 3)
+            test.assertEqual(moved[3].startBeat, 12)
+            test.assertEqual(moved[3].track, 3)
+        end,
+    },
+    {
+        name = "Timeline 노드는 클릭과 drag로 선택하고 Ctrl 클릭 후 Delete로 다중 삭제한다",
+        run = function(test)
+            local EditorLayout = require("editor.ui.EditorLayout")
+            local controlDown = false
+            local app = newFixture({
+                isControlDown = function() return controlDown end,
+            })
+            createStageThroughDialog(app, "timeline-event-selection")
+            local first = assert(app:getSession():addTimelineEvent("end", 4, 1))
+            local second = assert(app:getSession():addTimelineEvent(
+                "setInputEnabled",
+                8,
+                2
+            ))
+            local third = assert(app:getSession():addTimelineEvent("end", 12, 3))
+            app:executeAction("save")
+            local eventView = {
+                scale = 1,
+                timelineStartBeat = 0,
+                trackCount = 10,
+            }
+            local firstRect = EditorLayout.getTimelineEventRect(
+                app.layout.timeline,
+                first,
+                eventView
+            )
+            local secondRect = EditorLayout.getTimelineEventRect(
+                app.layout.timeline,
+                second,
+                eventView
+            )
+
+            app:mousepressed(firstRect.x + 2, firstRect.y + 2, 1)
+            test.assertEqual(
+                app:getViewModel().selectedTimelineEventIds[first.id],
+                true
+            )
+            app:mousemoved(firstRect.x + 34, firstRect.y + 2)
+            test.assertEqual(
+                app:getViewModel().selectedTimelineEventIds[first.id],
+                true
+            )
+            app:mousereleased(0, 0, 1)
+
+            controlDown = true
+            app:mousepressed(secondRect.x + 2, secondRect.y + 2, 1)
+            controlDown = false
+            local selected = app:getViewModel().selectedTimelineEventIds
+            test.assertEqual(selected[first.id], true)
+            test.assertEqual(selected[second.id], true)
+            test.assertEqual(selected[third.id], nil)
+
+            app:keypressed("delete")
+
+            local events = app:getSession():getTimelineEvents()
+            test.assertEqual(#events, 1)
+            test.assertEqual(events[1].id, third.id)
+            test.assertEqual(next(app:getViewModel().selectedTimelineEventIds), nil)
+            test.assertEqual(app:getSession():isDirty(), true)
+        end,
+    },
+    {
+        name = "Set Input Enabled 선택값을 Properties Values에서 설정해 새 노드에 적용한다",
+        run = function(test)
+            local EditorLayout = require("editor.ui.EditorLayout")
+            local app = newFixture()
+            createStageThroughDialog(app, "input-event-default")
+            app:executeAction("save")
+
+            local categoryRect = EditorLayout.getCategoryRowRect(app.layout, 2)
+            app:mousepressed(categoryRect.x + 8, categoryRect.y + 8, 1)
+            local eventRect = EditorLayout.getEventRowRect(app.layout, 2)
+            app:mousepressed(eventRect.x + 8, eventRect.y + 8, 1)
+
+            local viewModel = app:getViewModel()
+            test.assertEqual(viewModel.properties[1].label, "Enabled")
+            test.assertEqual(viewModel.properties[1].value, false)
+            local enabledRect = EditorLayout.getPropertyValueRect(app.layout, 1)
+            app:mousepressed(enabledRect.x + 8, enabledRect.y + 8, 1)
+            test.assertEqual(app:getViewModel().properties[1].value, true)
+            test.assertEqual(app:getSession():isDirty(), false)
+
+            local timeline = app.layout.timeline
+            local originX = EditorLayout.getTimelineBeatOriginX(timeline, 1)
+            local trackY = EditorLayout.getTimelineTrackCenterY(timeline, 2, 10)
+            app:mousepressed(originX + 4 * 32, trackY, 2)
+
+            local placed = app:getSession():getTimelineEvents()[1]
+            test.assertEqual(placed.type, "setInputEnabled")
+            test.assertEqual(placed.enabled, true)
+            test.assertEqual(app:getSession():isDirty(), true)
+        end,
+    },
+    {
+        name = "Game Manager Event를 우클릭 배치하고 Snap beat와 Track으로 드래그한다",
+        run = function(test)
+            local EditorLayout = require("editor.ui.EditorLayout")
+            local app = newFixture()
+            createStageThroughDialog(app, "game-manager-events")
+            assert(app:getSession():setProperty("editorProperties", "snap", 2))
+
+            local categoryRect = EditorLayout.getCategoryRowRect(app.layout, 2)
+            app:mousepressed(categoryRect.x + 8, categoryRect.y + 8, 1)
+            test.assertEqual(app:getViewModel().selectedCategoryId, "gameManager")
+            test.assertEqual(app:getViewModel().propertyEvents[1].label, "End")
+            test.assertEqual(app:getViewModel().propertyEvents[2].label, "Set Input Enabled")
+
+            local eventRect = EditorLayout.getEventRowRect(app.layout, 2)
+            app:mousepressed(eventRect.x + 8, eventRect.y + 8, 1)
+            local timeline = app.layout.timeline
+            local originX = EditorLayout.getTimelineBeatOriginX(timeline, 1)
+            local trackY = EditorLayout.getTimelineTrackCenterY(timeline, 3, 10)
+            app:mousepressed(originX + 5.1 * 32, trackY, 2)
+
+            local event = app:getSession():getTimelineEvents()[1]
+            test.assertEqual(event.type, "setInputEnabled")
+            test.assertEqual(event.startBeat, 6)
+            test.assertEqual(event.track, 3)
+            test.assertEqual(event.enabled, false)
+
+            local node = EditorLayout.getTimelineEventRect(timeline, event, {
+                scale = 1,
+                timelineStartBeat = 0,
+                trackCount = 10,
+            })
+            app:mousepressed(node.x + node.width / 2, node.y + node.height / 2, 1)
+            app:mousemoved(originX + 8.2 * 32,
+                EditorLayout.getTimelineTrackCenterY(timeline, 5, 10))
+            app:mousereleased(0, 0, 1)
+
+            event = app:getSession():getTimelineEvents()[1]
+            test.assertEqual(event.startBeat, 8)
+            test.assertEqual(event.track, 5)
+        end,
+    },
+    {
+        name = "Set Input Enabled 노드 더블클릭 모달은 노드별 Enabled를 수정한다",
+        run = function(test)
+            local EditorLayout = require("editor.ui.EditorLayout")
+            local app = newFixture()
+            createStageThroughDialog(app, "input-event-property")
+            local event = assert(app:getSession():addTimelineEvent(
+                "setInputEnabled",
+                4,
+                1
+            ))
+            local node = EditorLayout.getTimelineEventRect(app.layout.timeline, event, {
+                scale = 1,
+                timelineStartBeat = 0,
+                trackCount = 10,
+            })
+
+            app:mousepressed(node.x + 2, node.y + 2, 1, false, 2)
+            test.assertEqual(app:getDialog():getKind(), "timelineEventProperties")
+            test.assertEqual(app:getDialog():getSelection("enabled"), "false")
+            assert(app:getDialog():select("enabled", "true"))
+            app:getDialog():submit("confirm")
+            app:update(0)
+
+            test.assertEqual(app:getSession():getTimelineEvents()[1].enabled, true)
         end,
     },
     {

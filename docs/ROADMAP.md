@@ -36,9 +36,12 @@
 - [x] Project Music 재귀 검색과 선택 모달
 - [x] 권장 Threshold 기본값 `0.01`의 Music 첫 소리 검출과 Beat 0 Offset 자동·수동 설정
 - [x] Scale 기반 Timeline, 빈 첫 칸과 Period 경계 눈금, 공통 Snap, 상단 click·adaptive edge-scroll drag, cursor anchor wheel zoom, 중간 버튼 pan과 F·R 재생 단축키
-- [ ] Project Events와 Categories 목록
+- [x] 내장 Game Manager Category와 End·Set Input Enabled 목록
+- [ ] Project Events와 Categories 등록 목록
+- [x] Set Input Enabled 노드별 Properties 편집 모달
 - [ ] Project Event의 Properties와 Values 편집
-- [ ] Timeline Event 배치, 이동, 삭제
+- [x] Timeline Event 우클릭 배치와 Snap·Track 이동
+- [x] Timeline Event 클릭·marquee 다중 선택, 충돌 preview 그룹 이동과 Delete 삭제
 - [x] JSON 저장과 불러오기
 
 ## 4. TestPlayer와 Editor 재생
@@ -49,7 +52,8 @@
 - [x] Editor 전용 Playback Rate와 Metronome
 - [x] 고정 메모리 동적 BPM beat 클릭과 Metronome Period 강박 그룹
 - [x] Music 없음, Offset, duration 종료와 희소 설정 통합 경로
-- [ ] Stage Event 실행
+- [x] Game Manager End·Set Input Enabled Event 실행 상태
+- [ ] Project Pattern Event 실행
 - [ ] Project 입력 전달
 
 ## 5. 배포와 엔진 버전 관리

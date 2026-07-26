@@ -12,7 +12,7 @@
 
 Pattern은 여러 beat에 걸친 신호와 플레이어 반응을 코드로 묶는 재사용 단위다. Core가 판정할 원시 노트 종류는 Tap Note와 Long Note이며, Pattern은 실행 시 이 두 노트의 일정을 생성한다.
 
-Project는 에디터에 Categories와 Events를 제공한다. Categories에는 `Global`, `Game Manager`, 미니게임 단위가 들어갈 수 있고 Events에는 Pattern, 개별 Tap/Long Note와 게임 관리 항목이 들어갈 수 있다. 이 등록 계약과 Event 배치 UI는 아직 구현하지 않았다.
+내장 `Game Manager` Category는 `End`와 `Set Input Enabled` Event를 제공한다. Project가 미니게임별 Categories와 Pattern을 등록하는 계약은 아직 구현하지 않았다.
 
 ## 4. Stage 생성과 재생 속성 편집
 
@@ -41,10 +41,13 @@ New는 Project, Stage ID, Name과 BPM으로 `events: []`인 schemaVersion 2 Stag
 3. Playback Rate: Editor preview 속도 `0.25~4.0`
 4. Metronome: Editor 디버깅 click 사용 여부
 5. Metronome Period: BPM 한 박마다 울리는 클릭을 몇 박 단위로 강박 그룹화할지 지정한다. 값 4는 `강 약 약 약`을 반복한다.
+6. Track: Timeline Track 수 `1~32`. 기본값은 `10`이며 현재 노드가 있는 Track보다 작게 줄일 수 없다.
 
 숫자 Value는 셀을 클릭하면 값 끝에 깜빡이는 커서가 바로 표시된다. 공통 입력 모듈에 숫자 필터를 적용하며 첫 입력부터 현재 커서 위치에 이어서 입력한다. 좌우 방향키로 커서를 옮겨 중간 삽입하고 Backspace/Delete로 커서 주변 문자를 삭제할 수 있다. Enter 또는 다른 영역 클릭은 유효한 값을 확정하며 Escape는 취소한다. boolean은 클릭 즉시 바뀐다. 기본값과 같은 선택 속성은 저장 JSON에서 제거된다.
 
 첫 소리 분석은 Project Music을 청크 단위로 읽고 채널 평균 10ms RMS가 Onset Threshold보다 큰 구간이 20ms 이상 이어지는 첫 위치를 사용한다. 순간 노이즈는 줄이지만 음악적 첫 박자를 찾는 기능은 아니다. 분석 실패나 유효한 소리를 찾지 못하면 Music 선택은 유지하고 Offset은 바꾸지 않은 채 오류 모달을 표시한다.
+
+`Game Manager`에서 Event 행을 고른 뒤 Timeline 본문을 우클릭하면 해당 Track과 가장 가까운 Snap beat에 노드가 생긴다. 노드는 좌클릭 또는 drag 시작 시 흰색 선택 상태가 되며, `Ctrl+클릭`으로 선택을 추가하거나 해제한다. 빈 배경 drag는 선택 사각형과 일부라도 겹친 노드를 선택하고 `Ctrl+drag`는 기존 선택에 추가한다. 선택된 노드를 drag하면 선택 전체가 beat·Track 간격을 유지한 채 이동 preview로 표시된다. preview 노드는 반투명 흰색이며, 같은 Track의 beat 폭 영역이 고정 노드와 겹치면 충돌 양쪽이 빨간색이 되고 놓을 때 전체 이동을 취소한다. 유효한 이동만 한 번에 Stage에 반영된다. `Delete`는 선택된 모든 노드를 Stage에서 삭제한다. 보라색 `End`는 Stage 종료 지점이고, 청록색 `Set Input Enabled`는 노드별 `Enabled` boolean을 가진다. 두 관리 노드는 박자 길이와 무관해 beat 선에서 시작하는 `0.25 beat` 폭을 사용한다. 게임플레이 노드는 명시된 beat 길이를 사용하며 생략 시 기본 폭은 `1 beat`다. Event 행을 선택하면 Properties/Values에서 새 노드에 적용할 값을 먼저 정할 수 있으며 이 선택값 자체는 Stage를 수정하지 않는다. 배치된 노드는 더블클릭해 전용 모달에서 값을 다시 수정한다.
 
 Timeline 위의 wheel zoom은 커서가 가리키는 beat를 화면의 같은 x에 유지한다. 일시정지 상태에서는 번호가 표시되는 Timeline 상단을 좌클릭하면 주황색 기준 바가 가장 가까운 Snap beat로 즉시 이동하며, 누른 채 drag하면 계속 이동한다. 좌우 끝 32px 안에서 drag를 유지하면 기본 초당 8박에 마우스와 기준 바의 수평 거리 1박당 초당 8박을 더한 속도로 보이는 구간과 기준 바가 함께 이동하며 최대 속도는 초당 64박이다. Play 중에는 기준 바와 별도로 하늘색 재생 위치 바가 시간에 따라 이동하고, Pause하면 재생 위치 바만 사라진다. Timeline 안을 마우스 중간 버튼으로 드래그하면 보이는 구간을 이동하며 시작 beat는 0 아래로 내려가지 않는다. zoom과 구간 이동은 Play 중에도 사용할 수 있으며 직접 Scale Value를 편집할 때는 현재 Timeline 시작 beat를 바꾸지 않는다. 재생 바 이동과 구간 이동은 Stage 저장 데이터와 dirty 상태를 바꾸지 않는다.
 
@@ -62,7 +65,7 @@ Music이 `None`이어도 Transport와 Project preview는 정상 동작한다. �
 
 decode, Source, preview 시작·update·draw가 실패하면 오류 모달을 표시하고 `EditorSession:pause()`를 통해 Transport, Metronome과 TestPlayer를 함께 정리한다. TestPlayer update 실패는 pause 뒤 이전 beat로 rollback한다.
 
-현재 preview는 Project 화면, 음악, Metronome, Timeline과 재생 속성의 동작을 확인하는 범위다. Stage Event 실행, 판정과 Project 입력은 후속 작업이다.
+현재 preview는 Project 화면, 음악, Metronome, Timeline과 재생 속성에 더해 Game Manager Event를 처리한다. 입력 상태는 기본 true이고 `Set Input Enabled` Event 도달 시 노드 값으로 바뀌며, `End` Event 도달 시 해당 beat에서 재생을 끝낸다. 이 상태를 실제 Project 입력 전달에 연결하는 작업, Pattern 실행과 판정은 후속 작업이다.
 
 ## 6. 게임 연출
 

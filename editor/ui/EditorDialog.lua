@@ -145,6 +145,33 @@ function EditorDialog.music(files, currentMusic)
     })
 end
 
+function EditorDialog.timelineEventProperties(event, definition)
+    local selectors = {}
+    for _, property in ipairs(definition.nodeProperties or {}) do
+        if property.kind == "boolean" then
+            table.insert(selectors, {
+                id = property.id,
+                label = property.label,
+                options = {
+                    { value = "false", label = "false" },
+                    { value = "true", label = "true" },
+                },
+                selectedIndex = event[property.id] and 2 or 1,
+            })
+        end
+    end
+    return newDialog({
+        kind = "timelineEventProperties",
+        title = definition.label .. " Properties",
+        context = { eventId = event.id },
+        selectors = selectors,
+        buttons = {
+            { id = "confirm", label = "Apply", default = true },
+            { id = "cancel", label = "Cancel", cancel = true },
+        },
+    })
+end
+
 function EditorDialog.saveAs(stageId, name)
     return newDialog({
         kind = "saveAs",

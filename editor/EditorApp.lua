@@ -6,6 +6,8 @@ local MusicCatalog = require("editor.project.MusicCatalog")
 local MusicOnsetDetector = require("editor.project.MusicOnsetDetector")
 local ProjectCatalog = require("editor.project.ProjectCatalog")
 local PropertyCatalog = require("editor.properties.PropertyCatalog")
+local TimelineEventGeometry = require("editor.timeline.TimelineEventGeometry")
+local TimelineSnap = require("editor.timeline.TimelineSnap")
 local StageStore = require("editor.stage.StageStore")
 local TestPlayer = require("editor.playback.TestPlayer")
 local Core = require("core")
@@ -22,9 +24,7 @@ local TIMELINE_EDGE_SCROLL_ACCELERATION = 8
 local TIMELINE_EDGE_SCROLL_MAX_BEATS_PER_SECOND = 64
 
 local function getCategories()
-    return {
-        { id = "global", label = "Global" },
-    }
+    return PropertyCatalog.getCategories()
 end
 
 function EditorApp.new(options)
@@ -54,7 +54,13 @@ function EditorApp.new(options)
             return love.keyboard.isDown("lctrl", "rctrl")
         end,
         dialog = nil,
+        selectedCategoryId = "global",
         selectedEventId = "editorProperties",
+        selectedTimelineEventIds = {},
+        hoveredTimelineEventId = nil,
+        eventDefaults = {
+            setInputEnabled = { enabled = false },
+        },
         valueEdit = nil,
         hoveredAction = nil,
         beat0AutoButton = Button.new({
@@ -94,9 +100,10 @@ function EditorApp:updatePanelScrollAreas()
     local viewportHeight = EditorLayout.getPanelContentRect(
         self.layout.panels[2]
     ).height
-    local categoryCount = self.session:hasStage() and 1 or 0
+    local categoryCount = self.session:hasStage()
+        and #PropertyCatalog.getCategories() or 0
     local eventCount = self.session:hasStage()
-        and #PropertyCatalog.getEvents() or 0
+        and #PropertyCatalog.getEvents(self.selectedCategoryId) or 0
     local selectedEvent = PropertyCatalog.getEvent(self.selectedEventId)
     local propertyCount = self.session:hasStage() and selectedEvent
         and #selectedEvent.properties or 0
@@ -120,12 +127,14 @@ function EditorApp:getViewModel()
     local properties = {}
     local scale = 1
     local metronomePeriod = 4
+    local trackCount = 10
     if self.session:hasStage() then
         scale = self.session:getProperty("editorProperties", "scale")
         metronomePeriod = self.session:getProperty(
             "editorProperties",
             "metronomePeriod"
         )
+        trackCount = self.session:getProperty("editorProperties", "trackCount")
     end
     local selectedEvent = PropertyCatalog.getEvent(self.selectedEventId)
     self:updateBeat0AutoButton()
@@ -133,7 +142,10 @@ function EditorApp:getViewModel()
         for _, property in ipairs(selectedEvent.properties) do
             local groupId = property.groupId or selectedEvent.id
             local value
-            if self.session:hasStage() then
+            if selectedEvent.timelineType then
+                local defaults = self.eventDefaults[selectedEvent.timelineType]
+                if defaults then value = defaults[property.id] end
+            elseif self.session:hasStage() then
                 value = self.session:getProperty(groupId, property.id)
             end
             local viewProperty = {
@@ -151,12 +163,48 @@ function EditorApp:getViewModel()
         end
     end
 
+    local timelineEvents = self.session:getTimelineEvents()
+    local draggingTimelineEventIds = {}
+    local collisionTimelineEventIds = {}
+    local timelineSelectionBox
+    if type(self.timelineDrag) == "table" then
+        if self.timelineDrag.kind == "events" then
+            draggingTimelineEventIds = self.selectedTimelineEventIds
+            collisionTimelineEventIds = self.timelineDrag.collisionIds or {}
+            for _, event in ipairs(timelineEvents) do
+                local position = self.timelineDrag.positions
+                    and self.timelineDrag.positions[event.id]
+                if position then
+                    event.startBeat = position.startBeat
+                    event.track = position.track
+                end
+            end
+        elseif self.timelineDrag.kind == "selection" then
+            local startX = self.timelineDrag.startX
+            local startY = self.timelineDrag.startY
+            local currentX = self.timelineDrag.currentX
+            local currentY = self.timelineDrag.currentY
+            timelineSelectionBox = {
+                x = math.min(startX, currentX),
+                y = math.min(startY, currentY),
+                width = math.abs(currentX - startX),
+                height = math.abs(currentY - startY),
+            }
+        end
+    end
+    for _, event in ipairs(timelineEvents) do
+        local definition = PropertyCatalog.getTimelineEvent(event.type)
+        event.label = definition and definition.label or event.type
+        event.color = definition and definition.color or nil
+    end
+
     return {
         hasStage = self.session:hasStage(),
         playing = self.session:isPlaying(),
         dirty = self.session:isDirty(),
         categories = self.session:hasStage() and getCategories() or {},
-        propertyEvents = PropertyCatalog.getEvents(),
+        selectedCategoryId = self.selectedCategoryId,
+        propertyEvents = PropertyCatalog.getEvents(self.selectedCategoryId),
         selectedEventId = self.selectedEventId,
         properties = properties,
         valueEdit = self.valueEdit,
@@ -167,6 +215,13 @@ function EditorApp:getViewModel()
         timelineStartBeat = self.session:getTimelineStartBeat(),
         scale = scale,
         metronomePeriod = metronomePeriod,
+        trackCount = trackCount,
+        timelineEvents = timelineEvents,
+        selectedTimelineEventIds = self.selectedTimelineEventIds,
+        draggingTimelineEventIds = draggingTimelineEventIds,
+        collisionTimelineEventIds = collisionTimelineEventIds,
+        timelineSelectionBox = timelineSelectionBox,
+        hoveredTimelineEventId = self.hoveredTimelineEventId,
         menuItems = EditorMenu.getItems(self.session),
         hoveredAction = self.hoveredAction,
         scrollAreas = self.scrollAreas,
@@ -316,7 +371,15 @@ function EditorApp:processDialogResult()
         return
     end
 
-    if kind == "newStage" and result.buttonId == "confirm" then
+    if kind == "timelineEventProperties" and result.buttonId == "confirm" then
+        local changed, errorMessage = self.session:setTimelineEventProperty(
+            result.context.eventId,
+            "enabled",
+            result.selections.enabled == "true"
+        )
+        self.dialog = nil
+        if not changed then self:showError(errorMessage) end
+    elseif kind == "newStage" and result.buttonId == "confirm" then
         local created, errorMessage = self.session:createStage(
             result.selections.projectId,
             result.values.stageId,
@@ -324,6 +387,7 @@ function EditorApp:processDialogResult()
             tonumber(result.values.bpm)
         )
         self.dialog = nil
+        if created then self.selectedTimelineEventIds = {} end
         if not created then self:showError(errorMessage) end
     elseif kind == "openStage" and result.buttonId == "confirm" then
         local opened, errorMessage = self.session:openStage(
@@ -331,6 +395,7 @@ function EditorApp:processDialogResult()
             result.selections.stageId
         )
         self.dialog = nil
+        if opened then self.selectedTimelineEventIds = {} end
         if not opened then self:showError(errorMessage) end
     elseif kind == "saveAs" and result.buttonId == "confirm" then
         local saved, errorMessage, errorCode = self.session:saveAs(
@@ -409,6 +474,151 @@ function EditorApp:seekTimelineAtX(x)
         return nil, errorMessage
     end
     return true, nil
+end
+
+function EditorApp:getTimelinePosition(x, y)
+    local timeline = self.layout.timeline
+    local scale = self.session:getProperty("editorProperties", "scale")
+    local trackCount = self.session:getProperty("editorProperties", "trackCount")
+    local track = EditorLayout.getTimelineTrackAtY(timeline, y, trackCount)
+    if not track then return nil, nil end
+    local beat = self.session:getTimelineStartBeat()
+        + (x - EditorLayout.getTimelineBeatOriginX(timeline, scale))
+            / EditorLayout.getPixelsPerBeat(scale)
+    return math.max(0, beat), track
+end
+
+function EditorApp:getTimelineEventAt(x, y)
+    if not self.session:hasStage() then return nil end
+    return EditorLayout.hitTestTimelineEvent(
+        self.layout.timeline,
+        self.session:getTimelineEvents(),
+        {
+            scale = self.session:getProperty("editorProperties", "scale"),
+            timelineStartBeat = self.session:getTimelineStartBeat(),
+            trackCount = self.session:getProperty("editorProperties", "trackCount"),
+        },
+        x,
+        y
+    )
+end
+
+local function rectanglesIntersect(first, second)
+    return first.x < second.x + second.width
+        and second.x < first.x + first.width
+        and first.y < second.y + second.height
+        and second.y < first.y + first.height
+end
+
+local function copySelection(selection)
+    local copy = {}
+    for eventId, selected in pairs(selection) do
+        if selected then copy[eventId] = true end
+    end
+    return copy
+end
+
+function EditorApp:updateTimelineSelection(x, y)
+    local drag = self.timelineDrag
+    drag.currentX = x
+    drag.currentY = y
+    local selectionRect = {
+        x = math.min(drag.startX, x),
+        y = math.min(drag.startY, y),
+        width = math.abs(x - drag.startX),
+        height = math.abs(y - drag.startY),
+    }
+    local selected = copySelection(drag.baseSelection)
+    local view = {
+        scale = self.session:getProperty("editorProperties", "scale"),
+        timelineStartBeat = self.session:getTimelineStartBeat(),
+        trackCount = self.session:getProperty("editorProperties", "trackCount"),
+    }
+    for _, event in ipairs(self.session:getTimelineEvents()) do
+        local eventRect = EditorLayout.getTimelineEventRect(
+            self.layout.timeline,
+            event,
+            view
+        )
+        if rectanglesIntersect(selectionRect, eventRect) then
+            selected[event.id] = true
+        end
+    end
+    self.selectedTimelineEventIds = selected
+end
+
+function EditorApp:beginTimelineEventDrag(eventId)
+    local origins = {}
+    for _, event in ipairs(self.session:getTimelineEvents()) do
+        if self.selectedTimelineEventIds[event.id] then
+            origins[event.id] = {
+                startBeat = event.startBeat,
+                track = event.track,
+            }
+        end
+    end
+    self.timelineDrag = {
+        kind = "events",
+        anchorEventId = eventId,
+        origins = origins,
+        positions = origins,
+        collisionIds = {},
+    }
+end
+
+function EditorApp:updateTimelineEventDrag(x, y)
+    local drag = self.timelineDrag
+    drag.hasMoved = true
+    local timeline = self.layout.timeline
+    local scale = self.session:getProperty("editorProperties", "scale")
+    local snap = self.session:getProperty("editorProperties", "snap")
+    local trackCount = self.session:getProperty("editorProperties", "trackCount")
+    local beat = self.session:getTimelineStartBeat()
+        + (x - EditorLayout.getTimelineBeatOriginX(timeline, scale))
+            / EditorLayout.getPixelsPerBeat(scale)
+    beat = TimelineSnap.snapBeat(math.max(0, beat), snap)
+    local track = EditorLayout.getTimelineTrackAtY(timeline, y, trackCount)
+    if not track then
+        track = y < timeline.y + 32 and 1 or trackCount
+    end
+
+    local anchor = drag.origins[drag.anchorEventId]
+    local deltaBeat = beat - anchor.startBeat
+    local deltaTrack = track - anchor.track
+    local minimumBeat = math.huge
+    local minimumTrack = math.huge
+    local maximumTrack = -math.huge
+    for _, origin in pairs(drag.origins) do
+        minimumBeat = math.min(minimumBeat, origin.startBeat)
+        minimumTrack = math.min(minimumTrack, origin.track)
+        maximumTrack = math.max(maximumTrack, origin.track)
+    end
+    deltaBeat = math.max(deltaBeat, -minimumBeat)
+    deltaTrack = math.max(1 - minimumTrack, math.min(
+        trackCount - maximumTrack,
+        deltaTrack
+    ))
+
+    local positions = {}
+    local proposedEvents = self.session:getTimelineEvents()
+    for eventId, origin in pairs(drag.origins) do
+        positions[eventId] = {
+            startBeat = origin.startBeat + deltaBeat,
+            track = origin.track + deltaTrack,
+        }
+    end
+    for _, event in ipairs(proposedEvents) do
+        local position = positions[event.id]
+        if position then
+            event.startBeat = position.startBeat
+            event.track = position.track
+        end
+    end
+    drag.positions = positions
+    drag.collisionIds = TimelineEventGeometry.findCollisionIds(
+        proposedEvents,
+        self.selectedTimelineEventIds
+    )
 end
 
 function EditorApp:updateTimelineEdgeScroll(deltaTime)
@@ -491,6 +701,14 @@ function EditorApp:mousemoved(x, y, deltaX)
     if self.timelineDrag == "playhead" then
         self:seekTimelineAtX(x)
         return true
+    elseif type(self.timelineDrag) == "table"
+        and self.timelineDrag.kind == "events" then
+        self:updateTimelineEventDrag(x, y)
+        return true
+    elseif type(self.timelineDrag) == "table"
+        and self.timelineDrag.kind == "selection" then
+        self:updateTimelineSelection(x, y)
+        return true
     elseif self.timelineDrag == "pan" then
         local scale = self.session:getProperty("editorProperties", "scale")
         local changed, errorMessage = self.session:panTimeline(
@@ -502,6 +720,12 @@ function EditorApp:mousemoved(x, y, deltaX)
             self:showError(errorMessage)
         end
         return true
+    end
+
+    self.hoveredTimelineEventId = nil
+    if self.session:hasStage() then
+        local hoveredEvent = self:getTimelineEventAt(x, y)
+        self.hoveredTimelineEventId = hoveredEvent and hoveredEvent.id or nil
     end
 
     local items = EditorMenu.getItems(self.session)
@@ -543,7 +767,7 @@ function EditorApp:wheelmoved(_, deltaY)
     return true
 end
 
-function EditorApp:mousepressed(x, y, button)
+function EditorApp:mousepressed(x, y, button, _, presses)
     if self.dialog then
         if button ~= 1 then return true end
         local previousProject = self.dialog:getSelection("projectId")
@@ -573,7 +797,82 @@ function EditorApp:mousepressed(x, y, button)
         self.timelineDrag = "pan"
         return true
     end
+    if button == 2 and self.session:hasStage()
+        and not self.session:isPlaying() and insideTimeline then
+        local selectedEvent = PropertyCatalog.getEvent(self.selectedEventId)
+        local beat, track = self:getTimelinePosition(x, y)
+        if selectedEvent and selectedEvent.timelineType and beat and track then
+            local added, errorMessage = self.session:addTimelineEvent(
+                selectedEvent.timelineType,
+                beat,
+                track
+            )
+            if not added then
+                self:showError(errorMessage)
+            else
+                local defaults = self.eventDefaults[selectedEvent.timelineType]
+                if defaults then
+                    for propertyId, value in pairs(defaults) do
+                        local changed, propertyError =
+                            self.session:setTimelineEventProperty(
+                                added.id,
+                                propertyId,
+                                value
+                            )
+                        if not changed then
+                            self:showError(propertyError)
+                            break
+                        end
+                    end
+                end
+            end
+        end
+        return true
+    end
     if button ~= 1 then return true end
+    if self.session:hasStage() and not self.session:isPlaying() and insideTimeline then
+        local timelineEvent = self:getTimelineEventAt(x, y)
+        if timelineEvent then
+            if self.isControlDown() then
+                if self.selectedTimelineEventIds[timelineEvent.id] then
+                    self.selectedTimelineEventIds[timelineEvent.id] = nil
+                else
+                    self.selectedTimelineEventIds[timelineEvent.id] = true
+                end
+                return true
+            end
+            if not self.selectedTimelineEventIds[timelineEvent.id] then
+                self.selectedTimelineEventIds = { [timelineEvent.id] = true }
+            end
+            local definition = PropertyCatalog.getTimelineEvent(timelineEvent.type)
+            if (presses or 1) >= 2 and definition
+                and #definition.nodeProperties > 0 then
+                self.dialog = EditorDialog.timelineEventProperties(
+                    timelineEvent,
+                    definition
+                )
+            else
+                self:beginTimelineEventDrag(timelineEvent.id)
+            end
+            return true
+        end
+        if y >= timeline.y + 32 then
+            local baseSelection = self.isControlDown()
+                and copySelection(self.selectedTimelineEventIds)
+                or {}
+            self.selectedTimelineEventIds = copySelection(baseSelection)
+            self.timelineDrag = {
+                kind = "selection",
+                startX = x,
+                startY = y,
+                currentX = x,
+                currentY = y,
+                baseSelection = baseSelection,
+            }
+            return true
+        end
+        self.selectedTimelineEventIds = {}
+    end
     if self.session:hasStage()
         and not self.session:isPlaying()
         and EditorLayout.hitTestTimelineHeader(timeline, x, y) then
@@ -630,7 +929,24 @@ function EditorApp:mousepressed(x, y, button)
     end
 
     if self.session:hasStage() then
-        local propertyEvents = PropertyCatalog.getEvents()
+        local categories = PropertyCatalog.getCategories()
+        local categoryRow = EditorLayout.hitTestCategory(
+            self.layout,
+            #categories,
+            x,
+            y,
+            self.scrollAreas.categories:getOffset()
+        )
+        if categoryRow then
+            self.selectedCategoryId = categories[categoryRow].id
+            local events = PropertyCatalog.getEvents(self.selectedCategoryId)
+            self.selectedEventId = events[1] and events[1].id or nil
+            self.scrollAreas.events:setOffset(0)
+            self.scrollAreas.properties:setOffset(0)
+            return true
+        end
+
+        local propertyEvents = PropertyCatalog.getEvents(self.selectedCategoryId)
         local eventRow = EditorLayout.hitTestEvent(
             self.layout,
             #propertyEvents,
@@ -651,13 +967,18 @@ function EditorApp:mousepressed(x, y, button)
         if property.kind == "number" then
             self:beginValueEdit(groupId, property.id)
         elseif property.kind == "boolean" then
-            local currentValue = self.session:getProperty(groupId, property.id)
-            local changed, errorMessage = self.session:setProperty(
-                groupId,
-                property.id,
-                not currentValue
-            )
-            if not changed then self:showError(errorMessage) end
+            if selectedEvent.timelineType then
+                local defaults = self.eventDefaults[selectedEvent.timelineType]
+                defaults[property.id] = not defaults[property.id]
+            else
+                local currentValue = self.session:getProperty(groupId, property.id)
+                local changed, errorMessage = self.session:setProperty(
+                    groupId,
+                    property.id,
+                    not currentValue
+                )
+                if not changed then self:showError(errorMessage) end
+            end
         elseif property.kind == "music" then
             self:openMusicDialog()
         end
@@ -669,6 +990,19 @@ end
 function EditorApp:mousereleased(_, _, button)
     if button == 1 and self.timelineDrag == "playhead" then
         self.timelineDrag = nil
+    elseif button == 1 and type(self.timelineDrag) == "table"
+        and self.timelineDrag.kind == "selection" then
+        self.timelineDrag = nil
+    elseif button == 1 and type(self.timelineDrag) == "table"
+        and self.timelineDrag.kind == "events" then
+        local drag = self.timelineDrag
+        self.timelineDrag = nil
+        if drag.hasMoved and next(drag.collisionIds) == nil then
+            local moved, errorMessage = self.session:moveTimelineEvents(
+                drag.positions
+            )
+            if not moved then self:showError(errorMessage) end
+        end
     elseif button == 3 and self.timelineDrag == "pan" then
         self.timelineDrag = nil
     end
@@ -698,6 +1032,18 @@ function EditorApp:keypressed(key, _, isRepeat)
             self:commitValueEdit()
         elseif key == "escape" then
             self.valueEdit = nil
+        end
+    elseif not isRepeat and key == "delete" and self.session:hasStage()
+        and not self.session:isPlaying()
+        and next(self.selectedTimelineEventIds) ~= nil then
+        local deleted, errorMessage = self.session:deleteTimelineEvents(
+            self.selectedTimelineEventIds
+        )
+        if deleted then
+            self.selectedTimelineEventIds = {}
+            self.hoveredTimelineEventId = nil
+        else
+            self:showError(errorMessage)
         end
     elseif not isRepeat and key == "s" and self.isControlDown()
         and self.session:hasStage() then

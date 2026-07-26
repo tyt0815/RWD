@@ -213,6 +213,7 @@ return {
                 "Playback Rate",
                 "Metronome",
                 "Metronome Period",
+                "Track",
             }
             local mixtapeLabels = {
                 "Music",
@@ -440,6 +441,13 @@ return {
             test.assertEqual(EditorLayout.getPixelsPerBeat(0.25), 8)
             test.assertEqual(EditorLayout.getPixelsPerBeat(1), 32)
             test.assertEqual(EditorLayout.getPixelsPerBeat(8), 256)
+            local timelineEvent = EditorLayout.getTimelineEventRect(
+                layout.timeline,
+                { type = "end", startBeat = 4, track = 1 },
+                { scale = 2, timelineStartBeat = 0, trackCount = 10 }
+            )
+            test.assertEqual(timelineEvent.x, 320)
+            test.assertEqual(timelineEvent.width, 16)
             test.assertEqual(EditorLayout.getVisibleBeatCount(layout, 1), 36)
             test.assertEqual(EditorLayout.getVisibleBeatCount(layout, 2), 17)
             test.assertEqual(EditorLayout.getVisibleBeatCount(layout, 0.25), 149)
@@ -609,6 +617,117 @@ return {
                     204,
                     layout.timeline.y + 6
                 ), false)
+            end)
+        end,
+    },
+    {
+        name = "Timeline Event 노드는 Track에 색상으로 표시되고 hover 이름을 보인다",
+        run = function(test)
+            local EditorLayout = require("editor.ui.EditorLayout")
+            withGraphicsRecorder(function(recorder)
+                local layout = EditorLayout.draw(1200, 800, {
+                    hasStage = true,
+                    playing = false,
+                    propertyEvents = {},
+                    selectedEventId = "end",
+                    properties = {},
+                    timelineEvents = {
+                        {
+                            id = "end-1",
+                            type = "end",
+                            label = "End",
+                            startBeat = 4,
+                            track = 2,
+                            color = { 0.68, 0.32, 0.9, 1 },
+                        },
+                        {
+                            id = "input-1",
+                            type = "setInputEnabled",
+                            label = "Set Input Enabled",
+                            startBeat = 6,
+                            track = 3,
+                            color = { 0.12, 0.72, 0.62, 1 },
+                        },
+                        {
+                            id = "selected-1",
+                            type = "end",
+                            label = "End",
+                            startBeat = 8,
+                            track = 4,
+                            color = { 0.68, 0.32, 0.9, 1 },
+                        },
+                        {
+                            id = "collision-1",
+                            type = "end",
+                            label = "End",
+                            startBeat = 10,
+                            track = 5,
+                            color = { 0.68, 0.32, 0.9, 1 },
+                        },
+                    },
+                    selectedTimelineEventIds = { ["selected-1"] = true },
+                    draggingTimelineEventIds = { ["selected-1"] = true },
+                    collisionTimelineEventIds = { ["collision-1"] = true },
+                    hoveredTimelineEventId = "input-1",
+                    trackCount = 10,
+                    beat = 0,
+                    anchorBeat = 0,
+                    timelineStartBeat = 0,
+                    scale = 1,
+                    metronomePeriod = 4,
+                    menuItems = {},
+                }, function() end)
+
+                local endRect = EditorLayout.getTimelineEventRect(
+                    layout.timeline,
+                    { type = "end", startBeat = 4, track = 2 },
+                    { scale = 1, timelineStartBeat = 0, trackCount = 10 }
+                )
+                local inputRect = EditorLayout.getTimelineEventRect(
+                    layout.timeline,
+                    { type = "setInputEnabled", startBeat = 6, track = 3 },
+                    { scale = 1, timelineStartBeat = 0, trackCount = 10 }
+                )
+                assertColor(test, findRectangle(recorder, {
+                    mode = "fill",
+                    x = endRect.x,
+                    y = endRect.y,
+                    width = endRect.width,
+                    height = endRect.height,
+                }), { 0.68, 0.32, 0.9, 1 })
+                assertColor(test, findRectangle(recorder, {
+                    mode = "fill",
+                    x = inputRect.x,
+                    y = inputRect.y,
+                    width = inputRect.width,
+                    height = inputRect.height,
+                }), { 0.12, 0.72, 0.62, 1 })
+                local selectedRect = EditorLayout.getTimelineEventRect(
+                    layout.timeline,
+                    { type = "end", startBeat = 8, track = 4 },
+                    { scale = 1, timelineStartBeat = 0, trackCount = 10 }
+                )
+                assertColor(test, findRectangle(recorder, {
+                    mode = "fill",
+                    x = selectedRect.x,
+                    y = selectedRect.y,
+                    width = selectedRect.width,
+                    height = selectedRect.height,
+                }), { 1, 1, 1, 0.55 })
+                local collisionRect = EditorLayout.getTimelineEventRect(
+                    layout.timeline,
+                    { type = "end", startBeat = 10, track = 5 },
+                    { scale = 1, timelineStartBeat = 0, trackCount = 10 }
+                )
+                assertColor(test, findRectangle(recorder, {
+                    mode = "fill",
+                    x = collisionRect.x,
+                    y = collisionRect.y,
+                    width = collisionRect.width,
+                    height = collisionRect.height,
+                }), { 1, 0.12, 0.12, 1 })
+                test.assertEqual(countPrints(recorder, "Set Input Enabled"), 1)
+                test.assertEqual(countPrints(recorder, "End"), 0)
             end)
         end,
     },

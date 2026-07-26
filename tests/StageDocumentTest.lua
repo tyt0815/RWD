@@ -261,6 +261,70 @@ return {
         end,
     },
     {
+        name = "Game Manager Event는 Track과 노드별 Enabled를 저장하고 이동한다",
+        run = function(test)
+            local StageDocument = require("editor.stage.StageDocument")
+            local document = assert(StageDocument.fromTable(validStage()))
+
+            local endEvent = assert(document:addEvent("end", 4, 2))
+            local inputEvent = assert(document:addEvent("setInputEnabled", 8, 3))
+            test.assertEqual(endEvent.id, "event-001")
+            test.assertEqual(inputEvent.enabled, false)
+            test.assertEqual(#document:getEvents(), 2)
+
+            assert(document:moveEvent(inputEvent.id, 12, 7))
+            assert(document:setEventProperty(inputEvent.id, "enabled", true))
+            local saved = document:toTable()
+            test.assertEqual(saved.events[2].startBeat, 12)
+            test.assertEqual(saved.events[2].track, 7)
+            test.assertEqual(saved.events[2].enabled, true)
+            test.assertEqual(document:isDirty(), true)
+        end,
+    },
+    {
+        name = "선택한 Timeline Event 여러 개를 한 번에 삭제한다",
+        run = function(test)
+            local StageDocument = require("editor.stage.StageDocument")
+            local document = assert(StageDocument.fromTable(validStage()))
+            local first = assert(document:addEvent("end", 4, 1))
+            local second = assert(document:addEvent("setInputEnabled", 8, 2))
+            local third = assert(document:addEvent("end", 12, 3))
+            document:markClean()
+
+            local deleted = assert(document:deleteEvents({
+                [first.id] = true,
+                [third.id] = true,
+            }))
+
+            test.assertEqual(deleted, 2)
+            test.assertEqual(#document:getEvents(), 1)
+            test.assertEqual(document:getEvents()[1].id, second.id)
+            test.assertEqual(document:isDirty(), true)
+        end,
+    },
+    {
+        name = "Game Manager Event 검증은 잘못된 Track과 필드를 거부한다",
+        run = function(test)
+            local StageDocument = require("editor.stage.StageDocument")
+            local data = validStage()
+            data.events = {
+                { id = "end", type = "end", startBeat = 4, track = 11 },
+            }
+            test.assertContains(StageDocument.validate(data), ".track")
+
+            data.events = {
+                {
+                    id = "input",
+                    type = "setInputEnabled",
+                    startBeat = 4,
+                    track = 1,
+                    enabled = "false",
+                },
+            }
+            test.assertContains(StageDocument.validate(data), ".enabled")
+        end,
+    },
+    {
         name = "선택 설정은 객체만 허용한다",
         run = function(test)
             local json = require("vendor.dkjson")
