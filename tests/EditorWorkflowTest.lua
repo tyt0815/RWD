@@ -112,6 +112,46 @@ return {
         end,
     },
     {
+        name = "Categories는 실제 Global 행만 제공한다",
+        run = function(test)
+            local app = newFixture()
+            createStageThroughDialog(app, "category-list")
+
+            local categories = app:getViewModel().categories
+            test.assertEqual(#categories, 1)
+            test.assertEqual(categories[1].label, "Global")
+
+            local panel = app.layout.panels[2]
+            app:mousemoved(panel.x + 8, panel.y + 40)
+            app:wheelmoved(0, -1)
+            test.assertEqual(app.scrollAreas.categories:getOffset(), 0)
+        end,
+    },
+    {
+        name = "상단 패널 휠은 독립 영역과 Properties Values 공유 영역으로 전달된다",
+        run = function(test)
+            local app = newFixture()
+            local calls = { categories = 0, events = 0, properties = 0 }
+            for name, area in pairs(app.scrollAreas) do
+                area.scroll = function(_, deltaY)
+                    calls[name] = calls[name] + deltaY
+                    return true
+                end
+            end
+
+            local panels = app.layout.panels
+            for _, index in ipairs({ 2, 3, 4, 5 }) do
+                local panel = panels[index]
+                app:mousemoved(panel.x + 8, panel.y + 40)
+                app:wheelmoved(0, -1)
+            end
+
+            test.assertEqual(calls.categories, -1)
+            test.assertEqual(calls.events, -1)
+            test.assertEqual(calls.properties, -2)
+        end,
+    },
+    {
         name = "Property Events는 Editor Properties를 기본 선택하고 선택만으로 dirty가 되지 않는다",
         run = function(test)
             local EditorLayout = require("editor.ui.EditorLayout")
@@ -978,7 +1018,9 @@ return {
     {
         name = "Scale 기반 visible count가 Play auto-follow에 반영된다",
         run = function(test)
+            local EditorLayout = require("editor.ui.EditorLayout")
             local app = newFixture()
+            app.layout = EditorLayout.getLayout(1200, 800)
             createStageThroughDialog(app, "scaled-auto-follow")
             assert(app:getSession():setProperty("editorProperties", "scale", 2))
             assert(app:executeAction("play"))

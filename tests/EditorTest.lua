@@ -1,5 +1,17 @@
 return {
     {
+        name = "기본 앱 창 해상도는 FHD다",
+        run = function(test)
+            local config = { window = {} }
+            love.conf(config)
+
+            test.assertEqual(config.window.width, 1920)
+            test.assertEqual(config.window.height, 1080)
+            test.assertEqual(config.window.minwidth, 1280)
+            test.assertEqual(config.window.minheight, 720)
+        end,
+    },
+    {
         name = "에디터는 확정된 다섯 패널을 순서대로 배치한다",
         run = function(test)
             local EditorLayout = require("editor.ui.EditorLayout")
@@ -19,9 +31,9 @@ return {
             local layout = EditorLayout.getLayout(1200, 800)
 
             test.assertEqual(layout.timeline.x, 0)
-            test.assertEqual(layout.timeline.y, 368)
+            test.assertEqual(layout.timeline.y, 392)
             test.assertEqual(layout.timeline.width, 1200)
-            test.assertEqual(layout.timeline.height, 432)
+            test.assertEqual(layout.timeline.height, 408)
         end,
     },
     {

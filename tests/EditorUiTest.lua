@@ -21,6 +21,7 @@ local function withGraphicsRecorder(run)
         pushes = {},
         pops = 0,
         clears = {},
+        scissors = {},
     }
     local graphics = {}
 
@@ -85,6 +86,15 @@ local function withGraphicsRecorder(run)
 
     function graphics.clear(red, green, blue, alpha)
         table.insert(recorder.clears, { red, green, blue, alpha })
+    end
+
+    function graphics.setScissor(x, y, width, height)
+        table.insert(recorder.scissors, {
+            x = x,
+            y = y,
+            width = width,
+            height = height,
+        })
     end
 
     _G.love = { graphics = graphics }
@@ -393,8 +403,11 @@ return {
             local preview = EditorLayout.getPreviewRect(layout)
             local event = EditorLayout.getEventRowRect(layout, 2)
             local value = EditorLayout.getPropertyValueRect(layout, 4)
+            test.assertEqual(layout.panels[1].height, 392)
             test.assertEqual(layout.timeline.x, 0)
+            test.assertEqual(layout.timeline.y, 392)
             test.assertEqual(layout.timeline.width, 1200)
+            test.assertEqual(layout.timeline.height, 408)
             test.assertEqual(preview.x, layout.panels[4].x)
             test.assertEqual(preview.y, layout.panels[4].y)
             test.assertEqual(preview.width, layout.panels[4].width + layout.panels[5].width)
@@ -424,6 +437,82 @@ return {
                 value.x,
                 value.y + value.height
             ), nil)
+        end,
+    },
+    {
+        name = "패널 행은 스크롤 offset을 적용하고 내용이 넘칠 때만 스크롤바를 제공한다",
+        run = function(test)
+            local ScrollArea = require("core").UI.ScrollArea
+            local EditorLayout = require("editor.ui.EditorLayout")
+            local layout = EditorLayout.getLayout(1200, 800)
+            local area = ScrollArea.new({ step = 24 })
+            local contentHeight = layout.panels[3].height - 32
+
+            area:setDimensions(contentHeight, contentHeight)
+            test.assertEqual(EditorLayout.getScrollbarRect(layout.panels[3], area), nil)
+
+            area:setDimensions(contentHeight + 24, contentHeight)
+            area:scroll(-1)
+            local event = EditorLayout.getEventRowRect(layout, 2, area:getOffset())
+            local value = EditorLayout.getPropertyValueRect(layout, 2, area:getOffset())
+            test.assertEqual(event.y, 32)
+            test.assertEqual(value.y, 32)
+            test.assertEqual(EditorLayout.hitTestEvent(
+                layout,
+                8,
+                event.x + 8,
+                event.y + 8,
+                area:getOffset()
+            ), 2)
+            test.assertEqual(EditorLayout.hitTestPropertyValue(
+                layout,
+                8,
+                value.x + 8,
+                value.y + 8,
+                area:getOffset()
+            ), 2)
+
+            local scrollbar = EditorLayout.getScrollbarRect(layout.panels[3], area)
+            test.assertTrue(scrollbar ~= nil)
+            test.assertEqual(scrollbar.x, layout.panels[3].x + layout.panels[3].width - 6)
+            test.assertTrue(scrollbar.y > 32)
+            test.assertTrue(scrollbar.height < contentHeight)
+
+            withGraphicsRecorder(function(recorder)
+                local properties = {}
+                for index = 1, 8 do
+                    properties[index] = {
+                        id = "property" .. index,
+                        label = "Property " .. index,
+                        kind = "number",
+                        value = index,
+                    }
+                end
+                local drawnLayout = EditorLayout.draw(1200, 800, {
+                    hasStage = true,
+                    playing = false,
+                    propertyEvents = {},
+                    selectedEventId = "test",
+                    properties = properties,
+                    valueEdit = nil,
+                    beat = 0,
+                    timelineStartBeat = 0,
+                    scale = 1,
+                    menuItems = {},
+                    scrollAreas = { properties = area },
+                }, function() end)
+                local drawnScrollbar = EditorLayout.getScrollbarRect(
+                    drawnLayout.panels[5],
+                    area
+                )
+                assertColor(test, findRectangle(recorder, {
+                    mode = "fill",
+                    x = drawnScrollbar.x,
+                    y = drawnScrollbar.y,
+                    width = drawnScrollbar.width,
+                    height = drawnScrollbar.height,
+                }), { 0.5, 0.52, 0.56, 0.9 })
+            end)
         end,
     },
     {

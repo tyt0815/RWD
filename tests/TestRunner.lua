@@ -23,6 +23,7 @@ local TEST_MODULES = {
     "tests.EditorUiTest",
     "tests.ButtonTest",
     "tests.ComboBoxTest",
+    "tests.ScrollAreaTest",
     "tests.EditorDialogTest",
     "tests.EditorWorkflowTest",
     "tests.MusicOnsetDetectorTest",

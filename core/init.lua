@@ -18,6 +18,7 @@ Core.UI = {
     Button = require("core.ui.Button"),
     TextInput = require("core.ui.TextInput"),
     ComboBox = require("core.ui.ComboBox"),
+    ScrollArea = require("core.ui.ScrollArea"),
 }
 
 return Core

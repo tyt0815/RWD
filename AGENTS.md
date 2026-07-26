@@ -36,7 +36,9 @@
 - 스타일 독립적인 입력 상태와 동작은 `core/ui/`에 두고 `require("core").UI` 공개 API로 제공한다. Core UI는 Editor·Project의 색상, 배치, 렌더링과 도메인 검증을 소유하지 않는다.
 - Editor와 각 Project의 UI 모듈은 `Core.UI`의 관련 컴포넌트를 기반으로 상속 또는 조합하고 화면별 스타일과 연결 동작만 구현한다. `core.ui.*` 내부 경로를 직접 불러오거나 커서 이동, 삽입·삭제, 필터링, 드롭다운 상태를 다시 구현하지 않는다.
 - Lua에서는 구현 상속보다 Core UI 인스턴스의 조합을 우선한다. 공통 동작 자체를 확장해야 할 때만 Core 공개 API와 테스트를 함께 변경한다.
-- 현재 텍스트 입력은 `Core.UI.TextInput`, 선택·검색 목록은 `Core.UI.ComboBox`를 사용한다. RadioButton 등 요청되지 않은 컴포넌트는 미리 구현하지 않는다.
+- UI 구현을 시작하기 전에 `Core.UI` 공개 API와 기존 Editor·Project UI를 검색해 재사용 가능한 동작이 있는지 확인한다. 같은 입력·선택·스크롤 동작을 두 화면에서 별도로 구현하지 않는다.
+- 재사용할 공통 동작이 없으면 화면 코드에 먼저 만들지 않고 Core에 스타일 독립적인 Base 컴포넌트와 테스트를 추가한 뒤 Editor·Project에서 조합한다. 색상·배치·렌더링과 화면별 연결 동작만 각 모듈에 둔다.
+- 현재 텍스트 입력은 `Core.UI.TextInput`, 선택·검색 목록은 `Core.UI.ComboBox`, 클릭 동작은 `Core.UI.Button`, 세로 스크롤 상태는 `Core.UI.ScrollArea`를 사용한다. RadioButton 등 요청되지 않은 컴포넌트는 미리 구현하지 않는다.
 
 ## 검증
 

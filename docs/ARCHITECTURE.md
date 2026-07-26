@@ -19,7 +19,7 @@ Core는 Editor와 Project를 알지 못한다. Project는 Editor를 알지 못�
 - `TempoMap`은 양수 유한 BPM 하나를 소유하고 beat와 논리 seconds를 상호 변환한다. Stage 형식과 독립적이므로 이후 BPM 변화 구조를 이 경계 뒤에서 확장할 수 있다.
 - `MusicPlayback`은 LÖVE stream Source의 생성, Volume, seek, pitch, play/pause/stop, duration 종료와 1초 간격 drift 보정을 감싼다. LÖVE 11.5가 정지된 stream의 1초 미만 seek를 play 시작 때 다시 더하는 동작을 피하도록 Source를 먼저 재생한 뒤 요청 위치로 seek한다. 첫 위치 검사에서 Transport와 Source의 기준점을 각각 기록하고 이후 진행 시간의 차이만 비교하므로, streamed MP3가 초기 seek 위치와 다른 원점으로 `tell()`해도 drift로 오인하지 않는다. Source 오류를 문자열로 바꾸고 내부 Source를 정리한다.
 - `PlaybackTransport`는 논리 seconds, beat, Mixtape Offset과 Music 시작 상태를 함께 소유한다. `play(rate)`의 rate 생략값은 실제 게임 경로의 `1.0`이며, Editor만 Stage의 Playback Rate를 명시적으로 전달한다. 음악 duration이 끝나도 Transport의 논리 시간과 beat는 계속 진행한다.
-- `UI.Button`은 enabled 상태와 좌클릭 hit-test를, `UI.TextInput`은 UTF-8 텍스트·커서, 삽입·삭제와 깜빡임 상태를, `UI.ComboBox`는 TextInput 기반 검색·필터·선택과 키보드 탐색 상태를 제공한다. 세 모듈은 색상, 좌표와 LÖVE graphics 호출을 포함하지 않는다.
+- `UI.Button`은 enabled 상태와 좌클릭 hit-test를, `UI.TextInput`은 UTF-8 텍스트·커서, 삽입·삭제와 깜빡임 상태를, `UI.ComboBox`는 TextInput 기반 검색·필터·선택과 키보드 탐색 상태를 제공한다. `UI.ScrollArea`는 content와 viewport 크기, wheel 이동, offset 제한과 조건부 scrollbar thumb 비율을 소유한다. 네 모듈은 색상과 LÖVE graphics 호출을 포함하지 않는다.
 
 `Core.PlaybackTransport:seekBeat(beat)`는 재생 중 호출을 거부하는 paused-only 경계다. `EditorSession:update`에서 TestPlayer update가 실패하면 먼저 `pause()`로 Transport, Metronome과 TestPlayer를 모두 정지한 뒤 이전 beat로 rollback할 때만 이 API를 사용한다. rollback도 실패하면 원래 preview 오류와 rollback 오류를 함께 반환한다. 이 순서는 재생 중 Source와 논리 시간을 동시에 이동시키지 않도록 보장한다.
 
@@ -27,7 +27,7 @@ Core는 Editor와 Project를 알지 못한다. Project는 Editor를 알지 못�
 
 ## Editor
 
-Editor는 `Menu | Categories | Events | Properties | Values` 상단 영역과 Scale 기반 하단 Timeline을 가진다. 기본 선택인 `Editor Properties`는 Snap, Scale, Playback Rate, Metronome, Metronome Period를, `Mixtape Properties`는 Music, Volume, Beat 0 Offset, Onset Threshold, BPM을 순서대로 제공한다. Onset Threshold는 화면상 Auto 기능 옆 그룹에 있지만 실제 저장 소유권은 `editorSettings`에 유지한다. 테스트 플레이 중에는 Properties와 Values 영역을 프로젝트의 실시간 `TestPlayer` Canvas가 대체한다.
+Editor는 `Menu | Categories | Events | Properties | Values`의 392px 고정 상단 영역과 Scale 기반 하단 Timeline을 가진다. 이 높이는 32px 헤더와 24px짜리 콘텐츠 15행을 합친 크기다. Categories와 Events는 각각 독립적으로 스크롤하며 Properties와 Values는 같은 `Core.UI.ScrollArea`를 공유해 행 정렬을 유지한다. 각 패널은 내용이 viewport를 넘을 때만 얇은 scrollbar를 표시한다. 기본 선택인 `Editor Properties`는 Snap, Scale, Playback Rate, Metronome, Metronome Period를, `Mixtape Properties`는 Music, Volume, Beat 0 Offset, Onset Threshold, BPM을 순서대로 제공한다. Onset Threshold는 화면상 Auto 기능 옆 그룹에 있지만 실제 저장 소유권은 `editorSettings`에 유지한다. 테스트 플레이 중에는 Properties와 Values 영역을 프로젝트의 실시간 `TestPlayer` Canvas가 대체한다.
 
 `StageDocument`는 Stage 버전 2의 최상위 BPM, 선택적 Mixtape·Editor 설정과 Event 구조를 검증하고 dirty 상태를 소유한다. 기본값과 같은 선택 속성은 저장 데이터에서 제거한다. JSON에서 decode된 table은 객체·배열 메타정보와 key shape를 문맥에 맞게 검사하며, `pattern.params` 내부 JSON null sentinel은 복제와 저장 왕복에서도 보존한다.
 
@@ -37,7 +37,7 @@ Editor는 `Menu | Categories | Events | Properties | Values` 상단 영역과 Sc
 
 `MetronomePlayback`은 0.012초 길이의 1760Hz 강박과 880Hz 일반박 SoundData·정적 Source를 각각 하나만 만든다. Source는 반복하지 않으며, `EditorSession:update`가 Transport의 현재 beat를 전달하면 새 정수 beat crossing을 처리한다. 한 프레임에서 여러 beat를 건너뛰면 과거 클릭을 몰아서 재생하지 않고 두 Source를 정지한 뒤 마지막 crossed beat의 클릭 하나만 재생한다. Period의 배수 beat에는 강박을, 나머지 beat에는 일반박을 재생하므로 처리 시간과 오디오 메모리는 건너뛴 beat 수, BPM, Period와 무관하다. Core와 Project는 이 Editor 내부 구현 세부를 알지 못한다.
 
-`EditorApp`은 Session을 Menu, Music 모달, Properties/Values, Timeline wheel zoom·재생 바 drag·중간 버튼 pan과 오류 dialog에 연결한다. Timeline은 전체 너비를 사용하되 왼쪽 첫 칸을 비우고 다음 경계선을 화면의 시작 beat 원점으로 사용한다. 렌더링·seek·zoom 좌표는 이 원점을 공유하며 현재 Metronome Period의 배수 beat 번호를 경계선 중앙에 표시한다. Menu·Dialog·Beat 0 Auto 버튼은 `Core.UI.Button`을, Values와 Dialog는 `Core.UI.TextInput`을 조합하며 Values만 숫자 필터를 적용한다. Project, Stage와 Music 선택은 `Core.UI.ComboBox`를 조합한다. Editor의 색상, 좌표, 셀·Dialog 렌더링과 Stage 검증 연결은 `editor/ui/`에 남으며 Core UI는 이를 알지 못한다. 숫자 편집은 유효한 값을 확정할 때만 Session에 전달하고, boolean은 즉시 전환한다. Timeline zoom은 cursor beat를 고정하며 Play 중에도 허용된다. 일시정지 상태에서 Timeline 상단 클릭·drag는 재생 바를 Snap 위치로 옮기고 양끝 drag는 마우스와 재생 바의 수평 거리에 비례하는 update 기반 연속 pan을 수행한다. 중간 버튼 pan은 Play 중에도 허용된다. `F`는 Play/Pause, `Ctrl+S`는 Save, `R`은 Pause 후 beat 0 reset 단축키다.
+`EditorApp`은 Session을 Menu, Music 모달, 패널별 wheel 스크롤, Properties/Values, Timeline wheel zoom·재생 바 drag·중간 버튼 pan과 오류 dialog에 연결한다. Timeline은 전체 너비를 사용하되 왼쪽 첫 칸을 비우고 다음 경계선을 화면의 시작 beat 원점으로 사용한다. 렌더링·seek·zoom 좌표는 이 원점을 공유하며 현재 Metronome Period의 배수 beat 번호를 경계선 중앙에 표시한다. Menu·Dialog·Beat 0 Auto 버튼은 `Core.UI.Button`을, Values와 Dialog는 `Core.UI.TextInput`을 조합하며 Values만 숫자 필터를 적용한다. Project, Stage와 Music 선택은 `Core.UI.ComboBox`를 조합한다. Editor의 색상, 좌표, 셀·Dialog 렌더링과 Stage 검증 연결은 `editor/ui/`에 남으며 Core UI는 이를 알지 못한다. 숫자 편집은 유효한 값을 확정할 때만 Session에 전달하고, boolean은 즉시 전환한다. Timeline zoom은 cursor beat를 고정하며 Play 중에도 허용된다. 일시정지 상태에서 Timeline 상단 클릭·drag는 재생 바를 Snap 위치로 옮기고 양끝 drag는 마우스와 재생 바의 수평 거리에 비례하는 update 기반 연속 pan을 수행한다. 중간 버튼 pan은 Play 중에도 허용된다. `F`는 Play/Pause, `Ctrl+S`는 Save, `R`은 Pause 후 beat 0 reset 단축키다.
 
 `MusicOnsetDetector`는 Project Music을 LÖVE Decoder로 청크 단위 디코딩한다. 채널 평균 10ms RMS가 Stage의 Onset Threshold보다 큰 창이 두 번 연속 나타나는 첫 위치를 반환하므로 전체 곡의 raw SoundData를 한꺼번에 메모리에 올리지 않는다. 이 결과는 Offset이 기본값일 때만 Music 선택 흐름에서 자동 적용되며, 수동 Auto 버튼은 현재 값을 다시 분석 결과로 바꾼다.
 

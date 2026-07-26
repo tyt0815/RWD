@@ -12,6 +12,7 @@ Stage Event 실행, 리듬 판정, 타임라인 Event 배치·편집과 Project 
 
 - LÖVE2D 11.5
 - Windows PowerShell 기준 명령
+- 기본 창 해상도: 1920×1080(FHD), 최소 크기 1280×720, 비율 제한 없이 크기 조절 가능
 
 ## 실행
 
@@ -45,7 +46,7 @@ Launcher에서 `E`를 눌러 에디터를 연다. Menu는 마우스로 조작한
 - `Pause`: 현재 beat를 보존하고 편집 화면으로 복귀
 - `Quit`: 미저장 변경을 확인한 뒤 Launcher로 복귀
 
-Stage가 수정되면 `Save*`로 표시된다. `Events`에서 선택한 Property 그룹에 따라 다음 순서로 `Properties | Values`가 표시된다.
+Stage가 수정되면 `Save*`로 표시된다. 상단 패널은 헤더 아래에 15개 행이 들어가는 고정 높이를 사용하고 Timeline은 그 아래의 남은 화면을 사용한다. Categories와 Events는 각각 독립적으로 스크롤하며 Properties와 Values는 행이 어긋나지 않도록 함께 스크롤한다. 내용이 패널을 넘을 때만 오른쪽에 얇은 스크롤바가 표시된다. `Events`에서 선택한 Property 그룹에 따라 다음 순서로 `Properties | Values`가 표시된다.
 
 - `Editor Properties`(기본 선택): Snap, Scale, Playback Rate, Metronome, Metronome Period
 - `Mixtape Properties`: Music, Volume, Beat 0 Offset, Onset Threshold, BPM

@@ -11,7 +11,9 @@ local PANEL_LABELS = {
 }
 
 local PANEL_WEIGHTS = { 1, 1.5, 1.5, 1.25, 1.25 }
-local TOP_HEIGHT_RATIO = 0.46
+local TOP_EXTRA_ROW_COUNT = 8
+local TOP_HEIGHT = EditorMenu.getRequiredHeight()
+    + EditorMenu.getRowHeight() * TOP_EXTRA_ROW_COUNT
 local BASE_BEAT_WIDTH = 32
 local HEADER_HEIGHT = 32
 local PROPERTY_ROW_HEIGHT = 24
@@ -19,9 +21,12 @@ local PROPERTY_ACTION_WIDTH = 48
 local PROPERTY_ACTION_GAP = 4
 local PLAYHEAD_HANDLE_HALF_WIDTH = 7
 local PLAYHEAD_HANDLE_HEIGHT = 12
+local SCROLLBAR_WIDTH = 4
+local SCROLLBAR_MARGIN = 2
+local SCROLLBAR_MIN_LENGTH = 16
 
 function EditorLayout.getLayout(width, height)
-    local topHeight = math.floor(height * TOP_HEIGHT_RATIO)
+    local topHeight = TOP_HEIGHT
     local totalWeight = 0
 
     for _, weight in ipairs(PANEL_WEIGHTS) do
@@ -55,7 +60,7 @@ function EditorLayout.getLayout(width, height)
             x = 0,
             y = topHeight,
             width = width,
-            height = height - topHeight,
+            height = math.max(0, height - topHeight),
         },
     }
 end
@@ -71,25 +76,47 @@ function EditorLayout.getPreviewRect(layout)
     }
 end
 
-local function getRowRect(panel, rowIndex)
+function EditorLayout.getRowHeight()
+    return PROPERTY_ROW_HEIGHT
+end
+
+function EditorLayout.getRowContentHeight(rowCount)
+    return rowCount * PROPERTY_ROW_HEIGHT
+end
+
+function EditorLayout.getPanelContentRect(panel)
     return {
         x = panel.x,
-        y = panel.y + HEADER_HEIGHT + (rowIndex - 1) * PROPERTY_ROW_HEIGHT,
+        y = panel.y + HEADER_HEIGHT,
+        width = panel.width,
+        height = math.max(0, panel.height - HEADER_HEIGHT),
+    }
+end
+
+local function getRowRect(panel, rowIndex, scrollOffset)
+    return {
+        x = panel.x,
+        y = panel.y + HEADER_HEIGHT + (rowIndex - 1) * PROPERTY_ROW_HEIGHT
+            - (scrollOffset or 0),
         width = panel.width,
         height = PROPERTY_ROW_HEIGHT,
     }
 end
 
-function EditorLayout.getEventRowRect(layout, rowIndex)
-    return getRowRect(layout.panels[3], rowIndex)
+function EditorLayout.getCategoryRowRect(layout, rowIndex, scrollOffset)
+    return getRowRect(layout.panels[2], rowIndex, scrollOffset)
 end
 
-function EditorLayout.getPropertyValueRect(layout, rowIndex)
-    return getRowRect(layout.panels[5], rowIndex)
+function EditorLayout.getEventRowRect(layout, rowIndex, scrollOffset)
+    return getRowRect(layout.panels[3], rowIndex, scrollOffset)
 end
 
-function EditorLayout.getPropertyActionRect(layout, rowIndex)
-    local valueRect = EditorLayout.getPropertyValueRect(layout, rowIndex)
+function EditorLayout.getPropertyValueRect(layout, rowIndex, scrollOffset)
+    return getRowRect(layout.panels[5], rowIndex, scrollOffset)
+end
+
+function EditorLayout.getPropertyActionRect(layout, rowIndex, scrollOffset)
+    local valueRect = EditorLayout.getPropertyValueRect(layout, rowIndex, scrollOffset)
     return {
         x = valueRect.x + valueRect.width - PROPERTY_ACTION_WIDTH,
         y = valueRect.y + 2,
@@ -147,9 +174,14 @@ function EditorLayout.hitTestPlayheadHandle(timeline, viewModel, x, y)
     return math.abs(x - handle.x) <= halfWidth
 end
 
-local function hitTestRows(getRect, layout, rowCount, x, y)
+local function hitTestRows(getRect, panel, layout, rowCount, x, y, scrollOffset)
+    local content = EditorLayout.getPanelContentRect(panel)
+    if x < content.x or x >= content.x + content.width
+        or y < content.y or y >= content.y + content.height then
+        return nil
+    end
     for rowIndex = 1, rowCount do
-        local rect = getRect(layout, rowIndex)
+        local rect = getRect(layout, rowIndex, scrollOffset)
         if x >= rect.x and x < rect.x + rect.width
             and y >= rect.y and y < rect.y + rect.height then
             return rowIndex
@@ -158,12 +190,42 @@ local function hitTestRows(getRect, layout, rowCount, x, y)
     return nil
 end
 
-function EditorLayout.hitTestEvent(layout, eventCount, x, y)
-    return hitTestRows(EditorLayout.getEventRowRect, layout, eventCount, x, y)
+function EditorLayout.hitTestEvent(layout, eventCount, x, y, scrollOffset)
+    return hitTestRows(
+        EditorLayout.getEventRowRect,
+        layout.panels[3],
+        layout,
+        eventCount,
+        x,
+        y,
+        scrollOffset
+    )
 end
 
-function EditorLayout.hitTestPropertyValue(layout, propertyCount, x, y)
-    return hitTestRows(EditorLayout.getPropertyValueRect, layout, propertyCount, x, y)
+function EditorLayout.hitTestPropertyValue(layout, propertyCount, x, y, scrollOffset)
+    return hitTestRows(
+        EditorLayout.getPropertyValueRect,
+        layout.panels[5],
+        layout,
+        propertyCount,
+        x,
+        y,
+        scrollOffset
+    )
+end
+
+function EditorLayout.getScrollbarRect(panel, scrollArea)
+    if not scrollArea then return nil end
+    local content = EditorLayout.getPanelContentRect(panel)
+    local trackLength = math.max(0, content.height - SCROLLBAR_MARGIN * 2)
+    local thumb = scrollArea:getThumb(trackLength, SCROLLBAR_MIN_LENGTH)
+    if not thumb then return nil end
+    return {
+        x = panel.x + panel.width - SCROLLBAR_WIDTH - SCROLLBAR_MARGIN,
+        y = content.y + SCROLLBAR_MARGIN + thumb.position,
+        width = SCROLLBAR_WIDTH,
+        height = thumb.length,
+    }
 end
 
 local function drawPanel(panel)
@@ -175,25 +237,77 @@ local function drawPanel(panel)
     love.graphics.print(panel.label, panel.x + 12, panel.y + 10)
 end
 
-local function drawPanelContent(layout, viewModel)
-    if not viewModel.hasStage then
-        return
-    end
+local function setContentScissor(panel, combinedWidth)
+    local content = EditorLayout.getPanelContentRect(panel)
+    love.graphics.setScissor(
+        content.x,
+        content.y,
+        combinedWidth or content.width,
+        content.height
+    )
+end
 
+local function drawScrollbar(panel, scrollArea)
+    local rect = EditorLayout.getScrollbarRect(panel, scrollArea)
+    if not rect then return end
+    love.graphics.setColor(0.5, 0.52, 0.56, 0.9)
+    love.graphics.rectangle("fill", rect.x, rect.y, rect.width, rect.height)
+end
+
+local function drawPanelContent(layout, viewModel)
+    if not viewModel.hasStage then return end
+
+    local scrollAreas = viewModel.scrollAreas or {}
+    local categoryOffset = scrollAreas.categories
+        and scrollAreas.categories:getOffset() or 0
+    local eventOffset = scrollAreas.events
+        and scrollAreas.events:getOffset() or 0
+    local propertyOffset = scrollAreas.properties
+        and scrollAreas.properties:getOffset() or 0
+
+    setContentScissor(layout.panels[2])
     love.graphics.setColor(0.9, 0.91, 0.93, 1)
-    love.graphics.print("> Global", layout.panels[2].x + 12, HEADER_HEIGHT + 3)
+    local categories = viewModel.categories or {
+        { id = "global", label = "Global" },
+    }
+    for rowIndex, category in ipairs(categories) do
+        local rect = EditorLayout.getCategoryRowRect(
+            layout,
+            rowIndex,
+            categoryOffset
+        )
+        local prefix = category.id == "global" and "> " or "  "
+        love.graphics.print(prefix .. category.label, rect.x + 12, rect.y + 3)
+    end
+    love.graphics.setScissor()
+
+    setContentScissor(layout.panels[3])
     for rowIndex, event in ipairs(viewModel.propertyEvents) do
-        local rect = EditorLayout.getEventRowRect(layout, rowIndex)
+        local rect = EditorLayout.getEventRowRect(layout, rowIndex, eventOffset)
         local prefix = event.id == viewModel.selectedEventId and "> " or "  "
         love.graphics.print(prefix .. event.label, rect.x + 12, rect.y + 3)
     end
+    love.graphics.setScissor()
+
     if not viewModel.playing then
+        setContentScissor(
+            layout.panels[4],
+            layout.panels[4].width + layout.panels[5].width
+        )
         for rowIndex, property in ipairs(viewModel.properties) do
-            local rect = EditorLayout.getPropertyValueRect(layout, rowIndex)
+            local rect = EditorLayout.getPropertyValueRect(
+                layout,
+                rowIndex,
+                propertyOffset
+            )
             local valueWidth = rect.width
             local actionRect
             if property.actionButton then
-                actionRect = EditorLayout.getPropertyActionRect(layout, rowIndex)
+                actionRect = EditorLayout.getPropertyActionRect(
+                    layout,
+                    rowIndex,
+                    propertyOffset
+                )
                 valueWidth = actionRect.x - rect.x - PROPERTY_ACTION_GAP
             end
             love.graphics.setColor(0.9, 0.91, 0.93, 1)
@@ -270,6 +384,13 @@ local function drawPanelContent(layout, viewModel)
                 )
             end
         end
+        love.graphics.setScissor()
+    end
+
+    drawScrollbar(layout.panels[2], scrollAreas.categories)
+    drawScrollbar(layout.panels[3], scrollAreas.events)
+    if not viewModel.playing then
+        drawScrollbar(layout.panels[5], scrollAreas.properties)
     end
 end
 

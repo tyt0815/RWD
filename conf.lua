@@ -3,9 +3,9 @@ function love.conf(config)
     config.version = "11.5"
     config.console = true
     config.window.title = "RWD"
-    config.window.width = 1200
-    config.window.height = 800
-    config.window.minwidth = 800
-    config.window.minheight = 600
+    config.window.width = 1920
+    config.window.height = 1080
+    config.window.minwidth = 1280
+    config.window.minheight = 720
     config.window.resizable = true
 end

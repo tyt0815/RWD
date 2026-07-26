@@ -8,8 +8,10 @@ local ProjectCatalog = require("editor.project.ProjectCatalog")
 local PropertyCatalog = require("editor.properties.PropertyCatalog")
 local StageStore = require("editor.stage.StageStore")
 local TestPlayer = require("editor.playback.TestPlayer")
-local TextInput = require("core").UI.TextInput
-local Button = require("core").UI.Button
+local Core = require("core")
+local TextInput = Core.UI.TextInput
+local Button = Core.UI.Button
+local ScrollArea = Core.UI.ScrollArea
 
 local EditorApp = {}
 EditorApp.__index = EditorApp
@@ -18,6 +20,12 @@ local TIMELINE_EDGE_SCROLL_THRESHOLD = 32
 local TIMELINE_EDGE_SCROLL_BASE_BEATS_PER_SECOND = 8
 local TIMELINE_EDGE_SCROLL_ACCELERATION = 8
 local TIMELINE_EDGE_SCROLL_MAX_BEATS_PER_SECOND = 64
+
+local function getCategories()
+    return {
+        { id = "global", label = "Global" },
+    }
+end
 
 function EditorApp.new(options)
     options = options or {}
@@ -55,7 +63,12 @@ function EditorApp.new(options)
             enabled = false,
         }),
         timelineDrag = nil,
-        layout = EditorLayout.getLayout(1200, 800),
+        scrollAreas = {
+            categories = ScrollArea.new({ step = EditorLayout.getRowHeight() }),
+            events = ScrollArea.new({ step = EditorLayout.getRowHeight() }),
+            properties = ScrollArea.new({ step = EditorLayout.getRowHeight() }),
+        },
+        layout = EditorLayout.getLayout(1920, 1080),
     }, EditorApp)
 end
 
@@ -77,7 +90,33 @@ function EditorApp:updateBeat0AutoButton()
     )
 end
 
+function EditorApp:updatePanelScrollAreas()
+    local viewportHeight = EditorLayout.getPanelContentRect(
+        self.layout.panels[2]
+    ).height
+    local categoryCount = self.session:hasStage() and 1 or 0
+    local eventCount = self.session:hasStage()
+        and #PropertyCatalog.getEvents() or 0
+    local selectedEvent = PropertyCatalog.getEvent(self.selectedEventId)
+    local propertyCount = self.session:hasStage() and selectedEvent
+        and #selectedEvent.properties or 0
+
+    self.scrollAreas.categories:setDimensions(
+        EditorLayout.getRowContentHeight(categoryCount),
+        viewportHeight
+    )
+    self.scrollAreas.events:setDimensions(
+        EditorLayout.getRowContentHeight(eventCount),
+        viewportHeight
+    )
+    self.scrollAreas.properties:setDimensions(
+        EditorLayout.getRowContentHeight(propertyCount),
+        viewportHeight
+    )
+end
+
 function EditorApp:getViewModel()
+    self:updatePanelScrollAreas()
     local properties = {}
     local scale = 1
     local metronomePeriod = 4
@@ -116,6 +155,7 @@ function EditorApp:getViewModel()
         hasStage = self.session:hasStage(),
         playing = self.session:isPlaying(),
         dirty = self.session:isDirty(),
+        categories = self.session:hasStage() and getCategories() or {},
         propertyEvents = PropertyCatalog.getEvents(),
         selectedEventId = self.selectedEventId,
         properties = properties,
@@ -127,6 +167,7 @@ function EditorApp:getViewModel()
         metronomePeriod = metronomePeriod,
         menuItems = EditorMenu.getItems(self.session),
         hoveredAction = self.hoveredAction,
+        scrollAreas = self.scrollAreas,
     }
 end
 
@@ -425,6 +466,8 @@ end
 function EditorApp:draw(width, height)
     width = width or love.graphics.getWidth()
     height = height or love.graphics.getHeight()
+    self.layout = EditorLayout.getLayout(width, height)
+    self:updatePanelScrollAreas()
     local previewError
     self.layout = EditorLayout.draw(width, height, self:getViewModel(), function(rect)
         local drawn, errorMessage = self.session:drawPreview(rect)
@@ -478,6 +521,22 @@ function EditorApp:wheelmoved(_, deltaY)
             deltaY
         )
         if not changed then self:showError(errorMessage) end
+        return true
+    end
+
+    self:updatePanelScrollAreas()
+    for index, panel in ipairs(self.layout.panels) do
+        if self.mouseX >= panel.x and self.mouseX < panel.x + panel.width
+            and self.mouseY >= panel.y and self.mouseY < panel.y + panel.height then
+            if index == 2 then
+                self.scrollAreas.categories:scroll(deltaY)
+            elseif index == 3 then
+                self.scrollAreas.events:scroll(deltaY)
+            elseif (index == 4 or index == 5) and not self.session:isPlaying() then
+                self.scrollAreas.properties:scroll(deltaY)
+            end
+            break
+        end
     end
     return true
 end
@@ -524,16 +583,22 @@ function EditorApp:mousepressed(x, y, button)
     end
     local selectedEvent = PropertyCatalog.getEvent(self.selectedEventId)
     local propertyCount = selectedEvent and #selectedEvent.properties or 0
+    local propertyOffset = self.scrollAreas.properties:getOffset()
     local propertyRow = EditorLayout.hitTestPropertyValue(
         self.layout,
         propertyCount,
         x,
-        y
+        y,
+        propertyOffset
     )
     self:updateBeat0AutoButton()
     local actionClicked = false
     if self.selectedEventId == "mixtapeProperties" and button == 1 then
-        local actionRect = EditorLayout.getPropertyActionRect(self.layout, 3)
+        local actionRect = EditorLayout.getPropertyActionRect(
+            self.layout,
+            3,
+            propertyOffset
+        )
         actionClicked = self.beat0AutoButton:contains(actionRect, x, y)
     end
     if self.valueEdit then
@@ -564,9 +629,16 @@ function EditorApp:mousepressed(x, y, button)
 
     if self.session:hasStage() then
         local propertyEvents = PropertyCatalog.getEvents()
-        local eventRow = EditorLayout.hitTestEvent(self.layout, #propertyEvents, x, y)
+        local eventRow = EditorLayout.hitTestEvent(
+            self.layout,
+            #propertyEvents,
+            x,
+            y,
+            self.scrollAreas.events:getOffset()
+        )
         if eventRow then
             self.selectedEventId = propertyEvents[eventRow].id
+            self.scrollAreas.properties:setOffset(0)
             return true
         end
     end

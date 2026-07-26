@@ -16,6 +16,14 @@ local DEFINITIONS = {
     { action = "quit", label = "Quit" },
 }
 
+function EditorMenu.getRowHeight()
+    return ROW_HEIGHT
+end
+
+function EditorMenu.getRequiredHeight()
+    return HEADER_HEIGHT + #DEFINITIONS * ROW_HEIGHT
+end
+
 function EditorMenu.getItems(session)
     local hasStage = session:hasStage()
     local playing = session:isPlaying()

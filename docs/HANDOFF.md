@@ -232,3 +232,26 @@ Stage 계약은 schemaVersion 2, 최상위 `bpm`, 선택적 `mixtape`, 선택적
 - Play/Pause 단축키를 `P`에서 `F`로, beat 0과 Timeline 시작 위치 초기화 단축키를 `Home`에서 `R`로 변경했다. `Ctrl+S`, Dialog·Value 편집 중 차단과 key repeat 차단 동작은 유지한다.
 - RED: 단축키 통합 테스트를 `F`·`R` 기대값으로 먼저 변경한 뒤 Play가 시작되지 않아 `expected: true`, `actual: false`로 실패함을 확인했다.
 - GREEN: `love . --test` → `PASS: 214 tests`; `git diff --check`, 이전 단축키 구현·현재 문서 잔존 검색과 Editor/Project의 Core 내부 require 검색은 출력 없음; Project JSON 문법 검사 통과.
+
+## Editor 상단 고정 높이와 Core.UI ScrollArea (2026-07-26)
+
+- 상단 패널 높이는 `EditorMenu.getRequiredHeight()`에 세 행의 여유를 더한 헤더 32px + 10행 × 24px = 272px로 고정했다. Timeline은 y=272부터 창 아래의 남은 영역을 사용한다. Categories에는 스크롤 확인용 `Debug Category 1~11`을 추가해 Global 포함 12행이 표시된다.
+- `Core.UI.ScrollArea`가 content/viewport 크기, wheel offset, 범위 제한과 조건부 scrollbar thumb geometry를 소유한다. Categories와 Events는 독립 인스턴스를, Properties와 Values는 같은 인스턴스를 사용한다. Editor는 scissor, 색상과 scrollbar 렌더링만 담당하며 내용이 넘칠 때만 Values 오른쪽 등에 얇은 scrollbar를 표시한다.
+- `AGENTS.md`에 UI 구현 전 Core 공개 API 검색, 중복 동작 금지, 공통 Base를 Core 테스트와 먼저 추가한 뒤 Editor·Project가 조합한다는 지침을 명시했다. LOVELi와 LikeliHUD 도입도 검토했으나 현재 예상 UI 규모와 기존 테스트·Timeline 커스텀 범위를 고려해 외부 UI 의존성은 추가하지 않았다.
+- RED: 고정 높이 기대값과 ScrollArea 공개·동작 테스트에서 `expected: 200, actual: 368`, `Core.UI.ScrollArea` nil 등 4건 실패를 확인했다. 세 행 확장과 Categories 더미 후속 RED에서는 `expected: 272, actual: 200`, categories nil 등 3건 실패를 확인했다.
+- GREEN: Core ScrollArea 단위 테스트, 조건부 scrollbar 렌더링, 패널 wheel 라우팅, Categories 더미 행 실제 스크롤과 Properties/Values 공유 테스트를 포함해 `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 219 tests`.
+- 최종 검증: `git diff --check`, Editor/Project의 Core 내부 require와 Core UI의 Editor·Project·graphics 의존 검색은 출력 없음; Project JSON 1개가 PowerShell `ConvertFrom-Json`을 통과; 숨김 창 LÖVE 기동은 `LOVE_SMOKE_RUNNING=True`. 실제 휠 조작과 scrollbar 시각 상태의 사람 수동 확인은 수행하지 못했다.
+
+## Categories 디버그 정리와 FHD 기본 해상도 (2026-07-26)
+
+- 스크롤 확인용 `Debug Category 1~11`과 생성 상수를 제거해 Categories는 다시 실제 `Global` 한 행만 제공한다. 공통 ScrollArea와 overflow 테스트는 유지한다.
+- `conf.lua`의 기본 창 크기와 `EditorApp`의 최초 입력용 layout을 1920×1080 FHD로 맞췄다. 창은 계속 resizable이며 최소 크기는 800×600이다.
+- RED: Categories 정리와 FHD 계약 테스트에서 `expected: 1, actual: 12`, `expected: 1920, actual: 1200` 두 건의 실패를 확인했다.
+- GREEN: `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 220 tests`. `git diff --check`와 숨김 창 FHD 기동은 최종 검증한다.
+
+## 상단 15행과 최소 720p 창 크기 (2026-07-26)
+
+- 상단 패널을 헤더 32px + 콘텐츠 15행 × 24px = 392px로 확장했다. Timeline은 y=392부터 남은 높이를 사용한다.
+- 기본 창 크기 1920×1080과 resizable 설정은 유지하고 최소 크기를 1280×720으로 변경했다. 종횡비는 제한하지 않는다.
+- RED: 높이와 최소 창 크기 테스트에서 `expected: 392, actual: 272`, `expected: 1280, actual: 800` 등 3건 실패를 확인했다.
+- GREEN: `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 220 tests`. 최종 정적 검사와 기동 smoke를 수행한다.
