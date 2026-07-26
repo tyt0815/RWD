@@ -1010,12 +1010,12 @@ return {
             assert(session:openStage("sample", "tutorial"))
             assert(session:setProperty("editorProperties", "snap", 4))
 
-            local event = assert(session:addTimelineEvent("setInputEnabled", 5.9, 3))
+            local event = assert(session:addTimelineEvent("setInputEnabled", 7.9, 3))
             test.assertEqual(event.startBeat, 4)
             test.assertEqual(event.track, 3)
             assert(session:moveTimelineEvent(event.id, 10.1, 10))
             local moved = session:getTimelineEvents()[1]
-            test.assertEqual(moved.startBeat, 12)
+            test.assertEqual(moved.startBeat, 8)
             test.assertEqual(moved.track, 10)
 
             local invalid, errorMessage = session:moveTimelineEvent(event.id, 4, 11)

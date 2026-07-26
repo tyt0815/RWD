@@ -36,7 +36,7 @@ New는 Project, Stage ID, Name과 BPM으로 `events: []`인 schemaVersion 2 Stag
 
 `Editor Properties`는 다음 순서다.
 
-1. Snap: Timeline 재생 바와 향후 Event 노드를 맞출 박자 간격 `1~32`. 값 1은 한 박, 값 4는 4박 단위다.
+1. Snap: Timeline 재생 바와 Event 노드를 맞출 박자 간격 `1~32`. 값 1은 한 박, 값 4는 네 박 크기의 노드 스냅 박스를 뜻한다.
 2. Scale: Timeline 확대 배율 `0.25~8.0`
 3. Playback Rate: Editor preview 속도 `0.25~4.0`
 4. Auto Play: 기본값 `None`. `Good`, `Bad`, `Miss` 선택 시 Play 중 Project가 해당 판정을 자동 실행한다.
@@ -50,7 +50,7 @@ New는 Project, Stage ID, Name과 BPM으로 `events: []`인 schemaVersion 2 Stag
 
 첫 소리 분석은 Project Music을 청크 단위로 읽고 채널 평균 10ms RMS가 Onset Threshold보다 큰 구간이 20ms 이상 이어지는 첫 위치를 사용한다. 순간 노이즈는 줄이지만 음악적 첫 박자를 찾는 기능은 아니다. 분석 실패나 유효한 소리를 찾지 못하면 Music 선택은 유지하고 Offset은 바꾸지 않은 채 오류 모달을 표시한다.
 
-`Game Manager`에서 Event 행을 고른 뒤 Timeline 본문을 우클릭하면 해당 Track과 가장 가까운 Snap beat에 노드가 생긴다. 같은 Track의 beat 폭 영역에 기존 노드가 겹치면 생성하지 않고 화면 우상단에 3초간 error toast를 표시한다. toast는 최신순으로 최대 5개까지 세로로 쌓이고 각자 만료된다. 노드는 좌클릭 또는 drag 시작 시 흰색 선택 상태가 되며, `Ctrl+클릭`으로 선택을 추가하거나 해제한다. 빈 배경 drag는 선택 사각형과 일부라도 겹친 노드를 선택하고 `Ctrl+drag`는 기존 선택에 추가한다. 선택된 노드를 drag하면 선택 전체가 beat·Track 간격을 유지한 채 이동 preview로 표시된다. preview 노드는 반투명 흰색이며, 같은 Track의 beat 폭 영역이 고정 노드와 겹치면 충돌 양쪽이 빨간색이 되고 놓을 때 전체 이동을 취소하고 같은 error toast를 추가한다. 유효한 이동만 한 번에 Stage에 반영된다. `Delete`는 선택된 모든 노드를 Stage에서 삭제한다. 보라색 `End`는 Stage에 하나만 둘 수 있는 종료 지점이며 두 번째 배치는 error toast로 거부된다. 청록색 `Set Input Enabled`는 노드별 `Enabled` boolean을 가진다. 두 관리 노드는 박자 길이와 무관해 beat 선에서 시작하는 `0.25 beat` 폭을 사용한다. 게임플레이 노드는 명시된 beat 길이를 사용하며 생략 시 기본 폭은 `1 beat`다. Event 행을 선택하면 Properties/Values에서 새 노드에 적용할 값을 먼저 정할 수 있으며 이 선택값 자체는 Stage를 수정하지 않는다. 배치된 노드는 더블클릭해 전용 모달에서 값을 다시 수정한다.
+`Game Manager`에서 Event 행을 고른 뒤 Timeline 본문을 우클릭하면 해당 Track에서 커서가 들어간 Snap 박스의 시작 beat에 노드가 생긴다. 노드 drag도 같은 규칙을 사용하며 Snap 1은 한 박 크기 박스, Snap 4는 네 박 크기 박스마다 시작 위치가 정해진다. 같은 Track의 beat 폭 영역에 기존 노드가 겹치면 생성하지 않고 화면 우상단에 3초간 error toast를 표시한다. toast는 최신순으로 최대 5개까지 세로로 쌓이고 각자 만료된다. 노드는 좌클릭 또는 drag 시작 시 흰색 선택 상태가 되며, `Ctrl+클릭`으로 선택을 추가하거나 해제한다. 빈 배경 drag는 선택 사각형과 일부라도 겹친 노드를 선택하고 `Ctrl+drag`는 기존 선택에 추가한다. 선택된 노드를 drag하면 선택 전체가 beat·Track 간격을 유지한 채 이동 preview로 표시된다. preview 노드는 반투명 흰색이며, 같은 Track의 beat 폭 영역이 고정 노드와 겹치면 충돌 양쪽이 빨간색이 되고 놓을 때 전체 이동을 취소하고 같은 error toast를 추가한다. 유효한 이동만 한 번에 Stage에 반영된다. `Delete`는 선택된 모든 노드를 Stage에서 삭제한다. 보라색 `End`는 Stage에 하나만 둘 수 있는 종료 지점이며 두 번째 배치는 error toast로 거부된다. 청록색 `Set Input Enabled`는 노드별 `Enabled` boolean을 가진다. 두 관리 노드는 박자 길이와 무관해 beat 선에서 시작하는 `0.25 beat` 폭을 사용한다. 게임플레이 노드는 명시된 beat 길이를 사용하며 생략 시 기본 폭은 `1 beat`다. Event 행을 선택하면 Properties/Values에서 새 노드에 적용할 값을 먼저 정할 수 있으며 이 선택값 자체는 Stage를 수정하지 않는다. 배치된 노드는 더블클릭해 전용 모달에서 값을 다시 수정한다.
 
 Timeline 위의 wheel zoom은 커서가 가리키는 beat를 화면의 같은 x에 유지한다. 일시정지 상태에서는 번호가 표시되는 Timeline 상단을 좌클릭하면 주황색 기준 바가 가장 가까운 Snap beat로 즉시 이동하며, 누른 채 drag하면 계속 이동한다. 좌우 끝 32px 안에서 drag를 유지하면 기본 초당 8박에 마우스와 기준 바의 수평 거리 1박당 초당 8박을 더한 속도로 보이는 구간과 기준 바가 함께 이동하며 최대 속도는 초당 64박이다. Play 중에는 기준 바와 별도로 하늘색 재생 위치 바가 시간에 따라 이동하고, Pause하면 재생 위치 바만 사라진다. Timeline 안을 마우스 중간 버튼으로 드래그하면 보이는 구간을 이동하며 시작 beat는 0 아래로 내려가지 않는다. zoom과 구간 이동은 Play 중에도 사용할 수 있으며 직접 Scale Value를 편집할 때는 현재 Timeline 시작 beat를 바꾸지 않는다. 재생 바 이동과 구간 이동은 Stage 저장 데이터와 dirty 상태를 바꾸지 않는다.
 

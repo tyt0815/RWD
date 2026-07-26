@@ -323,7 +323,7 @@ function EditorSession:addTimelineEvent(eventType, beat, track, params)
         eventType = "projectEvent"
     end
     local snap = self.document:getEditorSettings().snap
-    local snappedBeat = TimelineSnap.snapBeat(beat, snap)
+    local snappedBeat = TimelineSnap.snapEventBeat(beat, snap)
     local events = self:getTimelineEvents()
     if eventType == "end" then
         for _, event in ipairs(events) do
@@ -398,7 +398,7 @@ function EditorSession:moveTimelineEvent(eventId, beat, track)
     local snap = self.document:getEditorSettings().snap
     return self:moveTimelineEvents({
         [eventId] = {
-            startBeat = TimelineSnap.snapBeat(beat, snap),
+            startBeat = TimelineSnap.snapEventBeat(beat, snap),
             track = track,
         },
     })

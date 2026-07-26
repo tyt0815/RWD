@@ -661,7 +661,7 @@ function EditorApp:updateTimelineEventDrag(x, y)
     local beat = self.session:getTimelineStartBeat()
         + (x - EditorLayout.getTimelineBeatOriginX(timeline, scale))
             / EditorLayout.getPixelsPerBeat(scale)
-    beat = TimelineSnap.snapBeat(math.max(0, beat), snap)
+    beat = TimelineSnap.snapEventBeat(math.max(0, beat), snap)
     local track = EditorLayout.getTimelineTrackAtY(timeline, y, trackCount)
     if not track then
         track = y < timeline.y + 32 and 1 or trackCount

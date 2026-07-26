@@ -119,7 +119,7 @@ Mixtape와 Editor 설정이 모두 기본값이면 `mixtape`와 `editorSettings`
 
 `metronomePeriod`는 강박을 반복하는 BPM 박자 수다. 값 4는 beat 0, 4, 8, 12에서 강박이 울리고 BPM 클릭 간격 자체는 바뀌지 않는다.
 
-`snap`은 Timeline에서 재생 바와 향후 Event 노드를 배치할 공통 박자 간격이다. 값 1은 한 박, 값 4는 4박 단위의 가장 가까운 위치에 맞춘다.
+`snap`은 Timeline의 재생 바와 Event 노드에 사용하는 박자 간격이다. 재생 바는 가장 가까운 간격선에 맞춘다. Event 생성·drag는 커서 beat가 포함된 Snap 박스의 시작점에 맞추므로 값 1은 한 박 크기 박스, 값 4는 네 박 크기 박스를 사용한다.
 
 `onsetThreshold`는 Beat 0 Offset Auto 분석에서 10ms RMS가 이 값보다 큰 연속 구간을 소리로 판정한다. 기본값 `0.01`은 작은 압축 노이즈를 제외하는 일반 권장값이며, `0`을 명시하면 완전한 무음만 제외한다.
 

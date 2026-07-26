@@ -40,7 +40,7 @@
 - [x] Project Events와 Categories 등록 목록
 - [x] Set Input Enabled 노드별 Properties 편집 모달
 - [x] Project Event number Properties 기본값과 노드별 편집, Cue & Response 중립색 연결 영역
-- [x] Timeline Event 충돌 방지 우클릭 배치·error toast와 Snap·Track 이동
+- [x] Timeline Event 충돌 방지 우클릭 배치·error toast와 셀 기반 공통 Snap·Track 이동
 - [x] Timeline Event 클릭·marquee 다중 선택, 충돌 preview 그룹 이동과 Delete 삭제
 - [x] Timeline Event 박스 내부 1px 윤곽선 이름과 hover 전체 이름 표시
 - [x] JSON 저장과 불러오기

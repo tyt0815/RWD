@@ -344,3 +344,10 @@ Stage 계약은 schemaVersion 2, 최상위 `bpm`, 선택적 `mixtape`, 선택적
 - 일반 이름의 기존 노드 영역 scissor는 윤곽선에도 적용해 좁은 노드 밖으로 새지 않으며, hover 이름은 기존처럼 전체를 표시한다.
 - RED: 일반·hover 이름별 윤곽선 8회와 본문 색을 기대한 UI 테스트에서 `expected: 8`, `actual: 0` 실패를 확인했다.
 - GREEN: `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 256 tests`; `git diff --check` → 출력 없음; 숨김 창 기동 → `LOVE_SMOKE_RUNNING=True`. 실제 글자 가독성은 사람이 수동 확인하지 못했다.
+
+## Timeline Event 셀 기반 Snap (2026-07-27)
+
+- 재생 바는 기존처럼 가장 가까운 Snap 간격선에 맞춘다. Timeline Event 생성과 drag는 커서 beat가 포함된 Snap 크기 셀의 시작점에 맞춘다. Snap 1은 한 박 셀, Snap 4는 네 박 셀을 사용한다.
+- `TimelineSnap.snapEventBeat`를 생성·drag preview·단일 이동 API가 공유해 노드 스냅 규칙을 한 곳에서 관리한다.
+- RED: 셀 스냅 API 부재와 Snap 4의 11.9 beat drag가 12로 반올림되는 통합 테스트 실패 2건을 확인했다.
+- GREEN 및 최종 검증: `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 261 tests`; `git diff --check`와 Editor/Project의 Core 내부 require 검색은 출력 없음; Project JSON은 PowerShell `ConvertFrom-Json` 통과; 숨김 창 기동은 `LOVE_SMOKE_RUNNING=True`였다. 실제 마우스 조작 화면은 사람이 수동 확인하지 못했다.

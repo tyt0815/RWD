@@ -900,7 +900,7 @@ return {
             local EditorLayout = require("editor.ui.EditorLayout")
             local app = newFixture()
             createStageThroughDialog(app, "game-manager-events")
-            assert(app:getSession():setProperty("editorProperties", "snap", 2))
+            assert(app:getSession():setProperty("editorProperties", "snap", 4))
 
             local categoryRect = EditorLayout.getCategoryRowRect(app.layout, 2)
             app:mousepressed(categoryRect.x + 8, categoryRect.y + 8, 1)
@@ -917,7 +917,7 @@ return {
 
             local event = app:getSession():getTimelineEvents()[1]
             test.assertEqual(event.type, "setInputEnabled")
-            test.assertEqual(event.startBeat, 6)
+            test.assertEqual(event.startBeat, 4)
             test.assertEqual(event.track, 3)
             test.assertEqual(event.enabled, false)
 
@@ -927,7 +927,7 @@ return {
                 trackCount = 10,
             })
             app:mousepressed(node.x + node.width / 2, node.y + node.height / 2, 1)
-            app:mousemoved(originX + 8.2 * 32,
+            app:mousemoved(originX + 11.9 * 32,
                 EditorLayout.getTimelineTrackCenterY(timeline, 5, 10))
             app:mousereleased(0, 0, 1)
 
