@@ -31,7 +31,7 @@ Game Manager의 End와 Set Input Enabled Event는 Timeline에 배치·이동·�
 - `Core.MixtapeSettings.validate`, `resolve`, `compact`
 - `Core.TempoMap.new`; `beatToSeconds`, `secondsToBeat`, `getBpm`
 - `Core.MusicPlayback.new`; `prepare`, `play`, `update`, `pause`, `stop`
-- `Core.PlaybackTransport.new`; `configureMixtape`, `setBpm`, `play`, `pause`, `seekBeat`, `update`, `getBeat`, `getTimelineSeconds`, `isPlaying`, `getPlaybackRate`
+- `Core.PlaybackTransport.new`; `configureMixtape`, `setBpm`, `play`, `pause`, `seekBeat`, `update`, `getBeat`, `getTimelineSeconds`, `isPlaying`, `isMusicFinished`, `getPlaybackRate`
 
 `PlaybackTransport:play()`의 rate 생략값은 실제 게임용 `1.0`이다. EditorSession만 Stage의 Playback Rate를 명시적으로 전달한다. `PlaybackTransport:seekBeat()`는 pause 상태에서만 허용되며 TestPlayer update 실패 뒤 이전 beat rollback에 사용한다.
 
@@ -259,13 +259,13 @@ Stage 계약은 schemaVersion 2, 최상위 `bpm`, 선택적 `mixtape`, 선택적
 ## Game Manager Timeline Event (2026-07-27)
 
 - `Game Manager` Category에 보라색 `End`와 청록색 `Set Input Enabled`를 추가했다. 충돌 preview 전용 빨간색과 기본색을 구분했다. 입력 상태를 지정하는 Event이므로 요청안의 `Toggle Input`/`Toggle` 대신 `Set Input Enabled`/`Enabled`로 명명했다.
-- Event 행 선택 후 Timeline 본문 우클릭으로 현재 Snap beat와 Track에 노드를 배치한다. 일반 클릭은 단일 선택, Ctrl+클릭은 다중 선택 추가·해제, 빈 배경 drag는 교차 marquee 선택, Ctrl+drag는 기존 선택 추가를 수행한다. 선택 노드 drag는 전체 선택의 상대 beat·Track 간격을 유지한다. 이동 중에는 반투명 흰색이고 가변 beat 폭 영역 충돌 시 이동·고정 양쪽이 빨간색이 되며, 충돌 상태로 놓으면 Stage를 바꾸지 않고 원위치로 돌아간다. Delete는 선택 노드를 모두 삭제한다. `Set Input Enabled`를 Events에서 선택하면 Properties/Values에서 새 노드의 Enabled 값을 먼저 설정하며, 더블클릭 모달은 배치된 노드별 값을 수정한다. 배치 전 선택값 변경은 Stage dirty 상태를 바꾸지 않는다.
+- Event 행 선택 후 Timeline 본문 우클릭으로 현재 Snap beat와 Track에 노드를 배치한다. 배치 후보 영역이 기존 노드와 겹치면 생성하지 않고 우상단에 3초 error toast를 표시한다. toast는 최신순 최대 5개 stack이며 각각 독립적으로 만료된다. 일반 클릭은 단일 선택, Ctrl+클릭은 다중 선택 추가·해제, 빈 배경 drag는 교차 marquee 선택, Ctrl+drag는 기존 선택 추가를 수행한다. 선택 노드 drag는 전체 선택의 상대 beat·Track 간격을 유지한다. 이동 중에는 반투명 흰색이고 가변 beat 폭 영역 충돌 시 이동·고정 양쪽이 빨간색이 되며, 충돌 상태로 놓으면 Stage를 바꾸지 않고 원위치로 돌아가며 이동 실패 error toast를 stack에 추가한다. Delete는 선택 노드를 모두 삭제한다. `Set Input Enabled`를 Events에서 선택하면 Properties/Values에서 새 노드의 Enabled 값을 먼저 설정하며, 더블클릭 모달은 배치된 노드별 값을 수정한다. 배치 전 선택값 변경은 Stage dirty 상태를 바꾸지 않는다.
 - Editor Properties의 Track 기본값은 10, 허용 범위는 정수 `1~32`이며 기본값은 Stage JSON에서 희소화된다. 관리 노드는 왼쪽을 startBeat 선에 맞춘 `0.25 beat` 폭, 게임플레이 노드는 명시된 폭·길이 또는 기본 `1 beat`를 사용한다. `TimelineEventGeometry`가 렌더링과 충돌 판정 폭을 함께 소유한다. 기존 Pattern·Note Event의 생략 Track은 1로 해석한다.
-- EditorSession 입력 상태는 Play마다 기본 true에서 기준 beat 이전의 마지막 `Set Input Enabled` 값으로 복원되고 재생 중 노드 도달 시 갱신된다. `End` 도달 시 preview 구성 요소를 정리하고 정확한 End beat로 이동한다. 실제 Project 입력 전달은 아직 연결하지 않았다.
+- EditorSession 입력 상태는 Play마다 기본 true에서 기준 beat 이전의 마지막 `Set Input Enabled` 값으로 복원되고 재생 중 노드 도달 시 갱신된다. `End`는 Stage에 하나만 허용하고 두 번째 배치는 error toast로 거부한다. End 도달 시 preview 구성 요소를 정리하고 정확한 End beat로 이동한다. End가 없고 Music이 있으면 Transport의 정확한 duration 위치에서 자동 종료하고 정보 toast를 추가한다. 실제 Project 입력 전달은 아직 연결하지 않았다.
 - Stage schemaVersion은 2를 유지했다. 새 필드와 Event type은 기존 필드 의미를 바꾸지 않고 미구현 Timeline Event 계약을 확장한 것으로 `docs/STAGE_FORMAT.md`의 버전 정책에 기록했다.
 - RED: Track 설정, Stage Event CRUD·검증, Session 실행, Category·배치·drag·속성 모달과 렌더링 테스트에서 9건 실패를 확인했다. 입력 상태 실행 테스트는 `isInputEnabled` 부재 1건으로 실패했다.
-- 후속 RED: Events에서 `Set Input Enabled` 선택 직후 Properties가 비어 있어 `viewModel.properties[1]` 접근이 실패함을 확인했다. 선택·삭제 후속 테스트에서는 `deleteEvents` API와 `selectedTimelineEventIds`가 없어 3건 실패했다. Geometry·marquee·그룹 drag RED에서는 Geometry 모듈 부재 2건과 marquee 선택 실패 1건을 확인했다.
-- GREEN: `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 235 tests`; `git diff --check`와 Core 내부 require 경계 검색은 출력 없음; Project JSON은 PowerShell `ConvertFrom-Json`을 통과했다. 숨김 창 기동은 `LOVE_SMOKE_RUNNING=True`였다.
+- 후속 RED: Events에서 `Set Input Enabled` 선택 직후 Properties가 비어 있어 `viewModel.properties[1]` 접근이 실패함을 확인했다. 선택·삭제 후속 테스트에서는 `deleteEvents` API와 `selectedTimelineEventIds`가 없어 3건 실패했다. Geometry·marquee·그룹 drag RED에서는 Geometry 모듈 부재 2건과 marquee 선택 실패 1건을 확인했다. 우클릭 충돌 배치·toast RED에서는 겹친 노드가 생성되고 toast 렌더링이 없어 3건 실패했다. stack·이동 실패 toast 후속 RED에서는 단일 `toast` 계약 때문에 3건 실패했다. 단일 End·Music fallback RED에서는 중복 End 승인, Music 종료 상태 API 부재와 자동 종료 미동작 등 6건 실패했다.
+- GREEN: `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 242 tests`; `git diff --check`와 Core 내부 require 경계 검색은 출력 없음; Project JSON은 PowerShell `ConvertFrom-Json`을 통과했다. 숨김 창 기동은 `LOVE_SMOKE_RUNNING=True`였다.
 - 실제 마우스 우클릭·drag·더블클릭과 색상은 자동 테스트와 기동 smoke로 검증했으며 사람이 화면에서 수동 확인하지는 못했다.
 
 ## Timeline 기준 바와 재생 위치 바 분리 (2026-07-26)

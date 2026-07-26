@@ -124,7 +124,15 @@ return {
 
             test.assertTrue(playback:prepare("projects/sample/assets/audio/a.wav", 0.8))
             test.assertTrue(playback:play(2.5, 1))
-            test.assertTrue(playback:update(10, 1, 0.1))
+            local updated, errorMessage, finished, duration = playback:update(
+                10,
+                1,
+                0.1
+            )
+            test.assertEqual(updated, true)
+            test.assertEqual(errorMessage, nil)
+            test.assertEqual(finished, true)
+            test.assertEqual(duration, 10)
             test.assertTrue(state.stopped)
             test.assertEqual(state.playing, false)
         end,

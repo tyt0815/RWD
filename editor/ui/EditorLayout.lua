@@ -576,6 +576,35 @@ local function drawTimeline(timeline, viewModel)
     end
 end
 
+local function drawToast(width, toast, stackIndex)
+    local toastWidth = math.min(420, math.max(280, width - 32))
+    local toastHeight = 56
+    local x = width - toastWidth - 16
+    local y = 16 + (stackIndex - 1) * (toastHeight + 8)
+    love.graphics.setColor(0.11, 0.12, 0.14, 0.96)
+    love.graphics.rectangle("fill", x, y, toastWidth, toastHeight)
+    if toast.kind == "error" then
+        love.graphics.setColor(1, 0.2, 0.2, 1)
+    else
+        love.graphics.setColor(0.35, 0.8, 1, 1)
+    end
+    love.graphics.rectangle("line", x, y, toastWidth, toastHeight)
+    love.graphics.setColor(0.95, 0.95, 0.97, 1)
+    love.graphics.printf(
+        toast.message,
+        x + 12,
+        y + 18,
+        toastWidth - 24,
+        "left"
+    )
+end
+
+local function drawToasts(width, toasts)
+    for index, toast in ipairs(toasts or {}) do
+        drawToast(width, toast, index)
+    end
+end
+
 function EditorLayout.draw(width, height, viewModel, drawPreview)
     local layout = EditorLayout.getLayout(width, height)
 
@@ -594,6 +623,7 @@ function EditorLayout.draw(width, height, viewModel, drawPreview)
         drawPreview(EditorLayout.getPreviewRect(layout))
     end
     drawTimeline(layout.timeline, viewModel)
+    drawToasts(width, viewModel.toasts)
     love.graphics.pop()
     return layout
 end

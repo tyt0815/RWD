@@ -94,7 +94,7 @@ function MusicPlayback:play(positionSeconds, playbackRate)
         self.driftElapsed = 0
         self.driftExpectedAnchor = nil
         self.driftReportedAnchor = nil
-        return true, nil
+        return true, nil, positionSeconds >= self.duration, self.duration
     end
 
     local pitchSet, pitchError = callSource(self.source, "setPitch", playbackRate)
@@ -136,7 +136,7 @@ function MusicPlayback:update(expectedSeconds, playbackRate, deltaTime)
         self.driftElapsed = 0
         self.driftExpectedAnchor = nil
         self.driftReportedAnchor = nil
-        return true, nil
+        return true, nil, true, self.duration
     end
 
     local pitchSet, pitchError = callSource(self.source, "setPitch", playbackRate)

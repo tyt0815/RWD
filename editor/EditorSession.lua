@@ -218,11 +218,38 @@ function EditorSession:addTimelineEvent(eventType, beat, track)
     if not self.document then return nil, "No Stage is open." end
     if self:isPlaying() then return nil, "Pause before placing Timeline Events." end
     local snap = self.document:getEditorSettings().snap
-    return self.document:addEvent(
-        eventType,
-        TimelineSnap.snapBeat(beat, snap),
-        track
+    local snappedBeat = TimelineSnap.snapBeat(beat, snap)
+    local events = self.document:getEvents()
+    if eventType == "end" then
+        for _, event in ipairs(events) do
+            if event.type == "end" then
+                return nil,
+                    "Stage can contain only one End Event.",
+                    "END_EVENT_EXISTS"
+            end
+        end
+    end
+    local candidateId = "__new_timeline_event__"
+    local usedIds = {}
+    for _, event in ipairs(events) do usedIds[event.id] = true end
+    while usedIds[candidateId] do candidateId = candidateId .. "_" end
+    local candidate = {
+        id = candidateId,
+        type = eventType,
+        startBeat = snappedBeat,
+        track = track,
+    }
+    table.insert(events, candidate)
+    local collisions = TimelineEventGeometry.findCollisionIds(
+        events,
+        { [candidateId] = true }
     )
+    if next(collisions) ~= nil then
+        return nil,
+            "Cannot place Timeline Event because its area would overlap another node.",
+            "TIMELINE_EVENT_OVERLAP"
+    end
+    return self.document:addEvent(eventType, snappedBeat, track)
 end
 
 function EditorSession:moveTimelineEvents(positions)
@@ -378,8 +405,10 @@ function EditorSession:update(deltaTime, visibleBeatCount)
 
     local currentBeat = self.transport:getBeat()
     local reachedEndBeat
+    local hasEndEvent = false
     local events = self.document:getEvents()
     for _, event in ipairs(events) do
+        if event.type == "end" then hasEndEvent = true end
         if event.type == "end"
             and event.startBeat >= previousBeat
             and event.startBeat <= currentBeat
@@ -406,6 +435,12 @@ function EditorSession:update(deltaTime, visibleBeatCount)
         local seeked, seekError = self.transport:seekBeat(reachedEndBeat)
         if not seeked then return nil, seekError end
         return true, nil
+    end
+    if not hasEndEvent
+        and self.transport.isMusicFinished
+        and self.transport:isMusicFinished() then
+        self:pause()
+        return true, nil, "musicEnded"
     end
 
     if self.document:getEditorSettings().metronome then

@@ -22,6 +22,8 @@ local TIMELINE_EDGE_SCROLL_THRESHOLD = 32
 local TIMELINE_EDGE_SCROLL_BASE_BEATS_PER_SECOND = 8
 local TIMELINE_EDGE_SCROLL_ACCELERATION = 8
 local TIMELINE_EDGE_SCROLL_MAX_BEATS_PER_SECOND = 64
+local TOAST_DURATION = 3
+local MAX_TOAST_COUNT = 5
 
 local function getCategories()
     return PropertyCatalog.getCategories()
@@ -54,6 +56,7 @@ function EditorApp.new(options)
             return love.keyboard.isDown("lctrl", "rctrl")
         end,
         dialog = nil,
+        toasts = {},
         selectedCategoryId = "global",
         selectedEventId = "editorProperties",
         selectedTimelineEventIds = {},
@@ -209,6 +212,7 @@ function EditorApp:getViewModel()
         properties = properties,
         valueEdit = self.valueEdit,
         dialog = self.dialog,
+        toasts = self.toasts,
         beat = self.session:getBeat(),
         anchorBeat = self.session:getAnchorBeat(),
         playbackBeat = self.session:isPlaying() and self.session:getBeat() or nil,
@@ -254,6 +258,17 @@ end
 
 function EditorApp:showError(message)
     self.dialog = EditorDialog.error(message)
+end
+
+function EditorApp:showToast(message, kind)
+    table.insert(self.toasts, 1, {
+        message = tostring(message),
+        kind = kind or "error",
+        remaining = TOAST_DURATION,
+    })
+    if #self.toasts > MAX_TOAST_COUNT then
+        table.remove(self.toasts)
+    end
 end
 
 function EditorApp:beginValueEdit(groupId, propertyId)
@@ -658,6 +673,11 @@ function EditorApp:updateTimelineEdgeScroll(deltaTime)
 end
 
 function EditorApp:update(deltaTime)
+    for index = #self.toasts, 1, -1 do
+        local toast = self.toasts[index]
+        toast.remaining = toast.remaining - deltaTime
+        if toast.remaining <= 0 then table.remove(self.toasts, index) end
+    end
     self:processDialogResult()
     if self.dialog then
         self.dialog:update(deltaTime)
@@ -671,8 +691,15 @@ function EditorApp:update(deltaTime)
         and self.session:getProperty("editorProperties", "scale")
         or 1
     local visibleBeatCount = EditorLayout.getVisibleBeatCount(self.layout, scale)
-    local updated, errorMessage = self.session:update(deltaTime, visibleBeatCount)
-    if not updated then self:showError(errorMessage) end
+    local updated, errorMessage, status = self.session:update(
+        deltaTime,
+        visibleBeatCount
+    )
+    if not updated then
+        self:showError(errorMessage)
+    elseif status == "musicEnded" then
+        self:showToast("Music ended. Stage playback stopped.", "info")
+    end
 end
 
 function EditorApp:draw(width, height)
@@ -802,13 +829,18 @@ function EditorApp:mousepressed(x, y, button, _, presses)
         local selectedEvent = PropertyCatalog.getEvent(self.selectedEventId)
         local beat, track = self:getTimelinePosition(x, y)
         if selectedEvent and selectedEvent.timelineType and beat and track then
-            local added, errorMessage = self.session:addTimelineEvent(
+            local added, errorMessage, errorCode = self.session:addTimelineEvent(
                 selectedEvent.timelineType,
                 beat,
                 track
             )
             if not added then
-                self:showError(errorMessage)
+                if errorCode == "TIMELINE_EVENT_OVERLAP"
+                    or errorCode == "END_EVENT_EXISTS" then
+                    self:showToast(errorMessage, "error")
+                else
+                    self:showError(errorMessage)
+                end
             else
                 local defaults = self.eventDefaults[selectedEvent.timelineType]
                 if defaults then
@@ -997,7 +1029,12 @@ function EditorApp:mousereleased(_, _, button)
         and self.timelineDrag.kind == "events" then
         local drag = self.timelineDrag
         self.timelineDrag = nil
-        if drag.hasMoved and next(drag.collisionIds) == nil then
+        if drag.hasMoved and next(drag.collisionIds) ~= nil then
+            self:showToast(
+                "Cannot move Timeline Events because their areas would overlap other nodes.",
+                "error"
+            )
+        elseif drag.hasMoved then
             local moved, errorMessage = self.session:moveTimelineEvents(
                 drag.positions
             )

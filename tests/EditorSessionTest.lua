@@ -130,6 +130,9 @@ local function newFixture(options)
             isPlaying = function()
                 return transportState.playing
             end,
+            isMusicFinished = function()
+                return transportState.musicFinished == true
+            end,
             setBpm = function(_, bpmValue)
                 transportState.candidateBpm = bpmValue
                 if transportState.setBpmError then
@@ -904,6 +907,61 @@ return {
             assert(session:seekTimeline(3))
             assert(session:play())
             test.assertEqual(session:isInputEnabled(), false)
+        end,
+    },
+    {
+        name = "End가 없으면 Music 종료 시 Stage를 끝내고 End가 있으면 유지한다",
+        run = function(test)
+            local session, testPlayer, state = newSession({ stored = VALID_STAGE })
+            assert(session:openStage("sample", "tutorial"))
+            assert(session:play())
+            state.transportState.musicFinished = true
+
+            local updated, errorMessage, status = session:update(0.25, 16)
+
+            test.assertEqual(updated, true)
+            test.assertEqual(errorMessage, nil)
+            test.assertEqual(status, "musicEnded")
+            test.assertEqual(session:isPlaying(), false)
+            test.assertEqual(testPlayer.playing, false)
+
+            local stageWithEnd = {
+                schemaVersion = 2,
+                projectId = "sample",
+                stageId = "music-before-end",
+                name = "Music Before End",
+                bpm = 120,
+                events = {
+                    { id = "end", type = "end", startBeat = 8, track = 1 },
+                },
+            }
+            local endSession, _, endState = newSession({ stored = stageWithEnd })
+            assert(endSession:openStage("sample", "music-before-end"))
+            assert(endSession:play())
+            endState.transportState.musicFinished = true
+            local endUpdated, _, endStatus = endSession:update(0.25, 16)
+            test.assertEqual(endUpdated, true)
+            test.assertEqual(endStatus, nil)
+            test.assertEqual(endSession:isPlaying(), true)
+        end,
+    },
+    {
+        name = "Timeline Event 배치는 기존 노드 영역과 겹치면 거부한다",
+        run = function(test)
+            local session = newSession({ stored = VALID_STAGE })
+            assert(session:openStage("sample", "tutorial"))
+            assert(session:addTimelineEvent("end", 4, 2))
+
+            local added, errorMessage, errorCode = session:addTimelineEvent(
+                "setInputEnabled",
+                4,
+                2
+            )
+
+            test.assertEqual(added, nil)
+            test.assertContains(errorMessage, "overlap")
+            test.assertEqual(errorCode, "TIMELINE_EVENT_OVERLAP")
+            test.assertEqual(#session:getTimelineEvents(), 1)
         end,
     },
     {

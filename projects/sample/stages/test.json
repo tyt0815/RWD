@@ -10,8 +10,13 @@
     "beat0Offset":0.36
   },
   "editorSettings":{
-    "scale":0.390625,
+    "scale":1.4901161193848,
     "metronome":true
   },
-  "events":[]
+  "events":[{
+      "id":"event-001",
+      "startBeat":408,
+      "type":"end",
+      "track":1
+    }]
 }

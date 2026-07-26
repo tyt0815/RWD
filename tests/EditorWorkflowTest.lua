@@ -608,7 +608,11 @@ return {
             })
             createStageThroughDialog(app, "timeline-additive-marquee")
             local first = assert(app:getSession():addTimelineEvent("end", 4, 1))
-            local second = assert(app:getSession():addTimelineEvent("end", 8, 2))
+            local second = assert(app:getSession():addTimelineEvent(
+                "setInputEnabled",
+                8,
+                2
+            ))
             local timeline = app.layout.timeline
             local originX = EditorLayout.getTimelineBeatOriginX(timeline, 1)
             local bodyY = timeline.y + 32
@@ -645,7 +649,7 @@ return {
                 8,
                 2
             ))
-            local third = assert(app:getSession():addTimelineEvent("end", 12, 3))
+            local third = assert(app:getSession():addTimelineEvent("tapNote", 12, 3))
             local timeline = app.layout.timeline
             local originX = EditorLayout.getTimelineBeatOriginX(timeline, 1)
             local bodyY = timeline.y + 32
@@ -674,6 +678,10 @@ return {
             test.assertEqual(collisionView.collisionTimelineEventIds[third.id], true)
             test.assertEqual(collisionView.draggingTimelineEventIds[first.id], true)
             app:mousereleased(0, 0, 1)
+            local failedMoveView = app:getViewModel()
+            test.assertEqual(#failedMoveView.toasts, 1)
+            test.assertContains(failedMoveView.toasts[1].message, "overlap")
+            test.assertEqual(app:getDialog(), nil)
 
             local reverted = app:getSession():getTimelineEvents()
             test.assertEqual(reverted[1].startBeat, 4)
@@ -721,7 +729,7 @@ return {
                 8,
                 2
             ))
-            local third = assert(app:getSession():addTimelineEvent("end", 12, 3))
+            local third = assert(app:getSession():addTimelineEvent("tapNote", 12, 3))
             app:executeAction("save")
             local eventView = {
                 scale = 1,
@@ -798,6 +806,62 @@ return {
             test.assertEqual(placed.type, "setInputEnabled")
             test.assertEqual(placed.enabled, true)
             test.assertEqual(app:getSession():isDirty(), true)
+        end,
+    },
+    {
+        name = "두 번째 End 우클릭 배치는 거부하고 error toast를 표시한다",
+        run = function(test)
+            local EditorLayout = require("editor.ui.EditorLayout")
+            local app = newFixture()
+            createStageThroughDialog(app, "single-end-toast")
+            assert(app:getSession():addTimelineEvent("end", 4, 1))
+            local categoryRect = EditorLayout.getCategoryRowRect(app.layout, 2)
+            app:mousepressed(categoryRect.x + 8, categoryRect.y + 8, 1)
+            local timeline = app.layout.timeline
+            local originX = EditorLayout.getTimelineBeatOriginX(timeline, 1)
+            local trackY = EditorLayout.getTimelineTrackCenterY(timeline, 3, 10)
+
+            app:mousepressed(originX + 12 * 32, trackY, 2)
+
+            test.assertEqual(#app:getSession():getTimelineEvents(), 1)
+            test.assertEqual(#app:getViewModel().toasts, 1)
+            test.assertContains(app:getViewModel().toasts[1].message, "one End")
+            test.assertEqual(app:getDialog(), nil)
+        end,
+    },
+    {
+        name = "우클릭 배치 충돌은 노드를 만들지 않고 우상단 error toast를 표시한다",
+        run = function(test)
+            local EditorLayout = require("editor.ui.EditorLayout")
+            local app = newFixture()
+            createStageThroughDialog(app, "placement-collision-toast")
+            assert(app:getSession():addTimelineEvent("end", 4, 2))
+            local categoryRect = EditorLayout.getCategoryRowRect(app.layout, 2)
+            app:mousepressed(categoryRect.x + 8, categoryRect.y + 8, 1)
+            local eventRect = EditorLayout.getEventRowRect(app.layout, 2)
+            app:mousepressed(eventRect.x + 8, eventRect.y + 8, 1)
+            local timeline = app.layout.timeline
+            local originX = EditorLayout.getTimelineBeatOriginX(timeline, 1)
+            local trackY = EditorLayout.getTimelineTrackCenterY(timeline, 2, 10)
+
+            app:mousepressed(originX + 4 * 32, trackY, 2)
+
+            local viewModel = app:getViewModel()
+            test.assertEqual(#app:getSession():getTimelineEvents(), 1)
+            test.assertEqual(app:getDialog(), nil)
+            test.assertEqual(#viewModel.toasts, 1)
+            test.assertEqual(viewModel.toasts[1].kind, "error")
+            test.assertContains(viewModel.toasts[1].message, "overlap")
+
+            for index = 2, 6 do
+                app:showToast("Error " .. index, "error")
+            end
+            local stacked = app:getViewModel().toasts
+            test.assertEqual(#stacked, 5)
+            test.assertEqual(stacked[1].message, "Error 6")
+            test.assertEqual(stacked[5].message, "Error 2")
+            app:update(3.1)
+            test.assertEqual(#app:getViewModel().toasts, 0)
         end,
     },
     {
@@ -1040,7 +1104,7 @@ return {
         end,
     },
     {
-        name = "Music duration 이후에도 view model beat는 계속 증가한다",
+        name = "End가 없는 Stage는 Music duration에서 종료하고 toast를 표시한다",
         run = function(test)
             local Core = require("core")
             local sourceState = { playing = false, stopped = false }
@@ -1082,10 +1146,12 @@ return {
             test.assertEqual(sourceState.stopped, true)
             test.assertNear(beatAfterDuration, 0.2, 0.000001)
 
+            test.assertEqual(app:getViewModel().playing, false)
+            test.assertEqual(#app:getViewModel().toasts, 1)
+            test.assertContains(app:getViewModel().toasts[1].message, "Music ended")
+
             app:update(0.25)
-            test.assertTrue(app:getViewModel().beat > beatAfterDuration)
-            test.assertNear(app:getViewModel().beat, 0.7, 0.000001)
-            test.assertEqual(app:getViewModel().playing, true)
+            test.assertNear(app:getViewModel().beat, beatAfterDuration, 0.000001)
         end,
     },
     {

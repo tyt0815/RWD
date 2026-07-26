@@ -194,6 +194,7 @@ function StageDocument.validate(data)
         return "$.events must be an array."
     end
     local eventIds = {}
+    local endCount = 0
     local trackCount = EditorSettings.resolve(data.editorSettings).trackCount
     for index, event in ipairs(data.events) do
         local eventError = validateEvent(event, index, trackCount)
@@ -204,6 +205,12 @@ function StageDocument.validate(data)
             return "$.events[" .. index .. "].id must be unique."
         end
         eventIds[event.id] = true
+        if event.type == "end" then
+            endCount = endCount + 1
+            if endCount > 1 then
+                return "$.events[" .. index .. "].type allows only one End Event."
+            end
+        end
     end
     return nil
 end
@@ -336,6 +343,13 @@ local function findEvent(document, eventId)
 end
 
 function StageDocument:addEvent(eventType, startBeat, track)
+    if eventType == "end" then
+        for _, event in ipairs(self.data.events) do
+            if event.type == "end" then
+                return nil, "Stage allows only one End Event."
+            end
+        end
+    end
     local trackCount = self:getEditorSettings().trackCount
     local sequence = 1
     local eventId

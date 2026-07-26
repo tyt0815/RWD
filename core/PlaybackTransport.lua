@@ -33,6 +33,7 @@ function PlaybackTransport.new(options)
         playbackRate = 1,
         playing = false,
         musicStarted = false,
+        musicFinished = false,
     }, PlaybackTransport), nil
 end
 
@@ -44,6 +45,7 @@ function PlaybackTransport:configureMixtape(settings, resolvedMusicPath)
     self.mixtape = settings or DEFAULT_MIXTAPE
     self.resolvedMusicPath = resolvedMusicPath
     self.musicStarted = false
+    self.musicFinished = false
     return true, nil
 end
 
@@ -62,12 +64,19 @@ function PlaybackTransport:setBpm(bpm)
 
     local musicSeconds = self.timelineSeconds + self.mixtape.beat0Offset
     if musicSeconds >= 0 then
-        local started, startError = self.musicPlayback:play(musicSeconds, self.playbackRate)
+        local started, startError, finished, duration = self.musicPlayback:play(
+            musicSeconds,
+            self.playbackRate
+        )
         if not started then
             self:pause()
             return nil, startError
         end
-        self.musicStarted = true
+        self.musicStarted = not finished
+        self.musicFinished = finished == true
+        if finished and duration then
+            self.timelineSeconds = math.max(0, duration - self.mixtape.beat0Offset)
+        end
     else
         self.musicStarted = false
         local paused, pauseError = self.musicPlayback:pause()
@@ -97,14 +106,22 @@ function PlaybackTransport:play(playbackRate)
 
     self.playbackRate = playbackRate
     self.musicStarted = false
+    self.musicFinished = false
     local musicSeconds = self.timelineSeconds + self.mixtape.beat0Offset
     if musicSeconds >= 0 then
-        local started, startError = self.musicPlayback:play(musicSeconds, playbackRate)
+        local started, startError, finished, duration = self.musicPlayback:play(
+            musicSeconds,
+            playbackRate
+        )
         if not started then
             self:pause()
             return nil, startError
         end
-        self.musicStarted = true
+        self.musicStarted = not finished
+        self.musicFinished = finished == true
+        if finished and duration then
+            self.timelineSeconds = math.max(0, duration - self.mixtape.beat0Offset)
+        end
     end
 
     self.playing = true
@@ -127,6 +144,7 @@ function PlaybackTransport:seekBeat(beat)
 
     self.timelineSeconds = timelineSeconds
     self.musicStarted = false
+    self.musicFinished = false
     return true, nil
 end
 
@@ -137,16 +155,23 @@ function PlaybackTransport:update(deltaTime)
     self.timelineSeconds = self.timelineSeconds + deltaTime * self.playbackRate
     local musicSeconds = self.timelineSeconds + self.mixtape.beat0Offset
 
-    if not self.musicStarted and musicSeconds >= 0 then
-        local started, startError = self.musicPlayback:play(musicSeconds, self.playbackRate)
+    if not self.musicStarted and not self.musicFinished and musicSeconds >= 0 then
+        local started, startError, finished, duration = self.musicPlayback:play(
+            musicSeconds,
+            self.playbackRate
+        )
         if not started then
             self.timelineSeconds = previousTimelineSeconds
             self:pause()
             return nil, startError
         end
-        self.musicStarted = true
+        self.musicStarted = not finished
+        self.musicFinished = finished == true
+        if finished and duration then
+            self.timelineSeconds = math.max(0, duration - self.mixtape.beat0Offset)
+        end
     elseif self.musicStarted then
-        local updated, updateError = self.musicPlayback:update(
+        local updated, updateError, finished, duration = self.musicPlayback:update(
             musicSeconds,
             self.playbackRate,
             deltaTime
@@ -155,6 +180,16 @@ function PlaybackTransport:update(deltaTime)
             self.timelineSeconds = previousTimelineSeconds
             self:pause()
             return nil, updateError
+        end
+        if finished then
+            self.musicStarted = false
+            self.musicFinished = true
+            if duration then
+                self.timelineSeconds = math.max(
+                    0,
+                    duration - self.mixtape.beat0Offset
+                )
+            end
         end
     end
 
@@ -171,6 +206,10 @@ end
 
 function PlaybackTransport:isPlaying()
     return self.playing
+end
+
+function PlaybackTransport:isMusicFinished()
+    return self.resolvedMusicPath ~= nil and self.musicFinished
 end
 
 function PlaybackTransport:getPlaybackRate()

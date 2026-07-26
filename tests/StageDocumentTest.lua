@@ -282,13 +282,32 @@ return {
         end,
     },
     {
+        name = "Stage는 End Event를 하나만 허용한다",
+        run = function(test)
+            local StageDocument = require("editor.stage.StageDocument")
+            local data = validStage()
+            data.events = {
+                { id = "end-1", type = "end", startBeat = 4, track = 1 },
+                { id = "end-2", type = "end", startBeat = 8, track = 2 },
+            }
+            test.assertContains(StageDocument.validate(data), "only one End")
+
+            local document = assert(StageDocument.fromTable(validStage()))
+            assert(document:addEvent("end", 4, 1))
+            local added, errorMessage = document:addEvent("end", 8, 2)
+            test.assertEqual(added, nil)
+            test.assertContains(errorMessage, "only one End")
+            test.assertEqual(#document:getEvents(), 1)
+        end,
+    },
+    {
         name = "선택한 Timeline Event 여러 개를 한 번에 삭제한다",
         run = function(test)
             local StageDocument = require("editor.stage.StageDocument")
             local document = assert(StageDocument.fromTable(validStage()))
             local first = assert(document:addEvent("end", 4, 1))
             local second = assert(document:addEvent("setInputEnabled", 8, 2))
-            local third = assert(document:addEvent("end", 12, 3))
+            local third = assert(document:addEvent("tapNote", 12, 3))
             document:markClean()
 
             local deleted = assert(document:deleteEvents({

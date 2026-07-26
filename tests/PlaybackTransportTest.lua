@@ -12,6 +12,9 @@ local function newMusicPlayback(state)
         play = function(_, position, rate)
             table.insert(state.playPositions, { position = position, rate = rate })
             if state.playError then return nil, state.playError end
+            if state.finishOnPlay then
+                return true, nil, true, state.musicDuration or position
+            end
             return true, nil
         end,
         update = function(_, expectedSeconds, rate, deltaTime)
@@ -20,6 +23,9 @@ local function newMusicPlayback(state)
             state.updateRate = rate
             state.updateDeltaTime = deltaTime
             if state.updateError then return nil, state.updateError end
+            if state.finishOnUpdate then
+                return true, nil, true, state.musicDuration or expectedSeconds
+            end
             return true, nil
         end,
         pause = function()
@@ -128,6 +134,27 @@ return {
             test.assertContains(errorMessage, "delayed play failed")
             test.assertEqual(transport:isPlaying(), false)
             test.assertNear(transport:getBeat(), previousBeat, 0.000001)
+        end,
+    },
+    {
+        name = "PlaybackTransport는 Music 종료 상태와 정확한 timeline 위치를 제공한다",
+        run = function(test)
+            local state = {
+                finishOnUpdate = true,
+                musicDuration = 1,
+            }
+            local transport = newTransport(state)
+            transport:configureMixtape(
+                { volume = 1, beat0Offset = 0.25 },
+                "song.wav"
+            )
+            assert(transport:play())
+
+            assert(transport:update(2))
+
+            test.assertEqual(transport:isMusicFinished(), true)
+            test.assertNear(transport:getTimelineSeconds(), 0.75, 0.000001)
+            test.assertNear(transport:getBeat(), 1.5, 0.000001)
         end,
     },
     {

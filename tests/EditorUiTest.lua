@@ -732,6 +732,45 @@ return {
         end,
     },
     {
+        name = "error toast는 화면 우상단에 메시지를 렌더링한다",
+        run = function(test)
+            local EditorLayout = require("editor.ui.EditorLayout")
+            withGraphicsRecorder(function(recorder)
+                EditorLayout.draw(1200, 800, {
+                    hasStage = false,
+                    playing = false,
+                    categories = {},
+                    propertyEvents = {},
+                    properties = {},
+                    timelineEvents = {},
+                    beat = 0,
+                    anchorBeat = 0,
+                    timelineStartBeat = 0,
+                    scale = 1,
+                    metronomePeriod = 4,
+                    menuItems = {},
+                    toasts = {
+                        {
+                            kind = "error",
+                            message = "Timeline Events overlap.",
+                        },
+                        {
+                            kind = "error",
+                            message = "Older error.",
+                        },
+                    },
+                }, function() end)
+                local message = findPrint(recorder, "Timeline Events overlap.")
+                test.assertTrue(message ~= nil)
+                test.assertTrue(message.x > 600)
+                test.assertTrue(message.y < 100)
+                local older = findPrint(recorder, "Older error.")
+                test.assertTrue(older ~= nil)
+                test.assertTrue(older.y > message.y)
+            end)
+        end,
+    },
+    {
         name = "숫자 인라인 편집 상태와 invalid를 해당 Values 셀에 표시한다",
         run = function(test)
             local Button = require("core").UI.Button

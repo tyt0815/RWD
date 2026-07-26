@@ -40,7 +40,7 @@
 - [ ] Project Events와 Categories 등록 목록
 - [x] Set Input Enabled 노드별 Properties 편집 모달
 - [ ] Project Event의 Properties와 Values 편집
-- [x] Timeline Event 우클릭 배치와 Snap·Track 이동
+- [x] Timeline Event 충돌 방지 우클릭 배치·error toast와 Snap·Track 이동
 - [x] Timeline Event 클릭·marquee 다중 선택, 충돌 preview 그룹 이동과 Delete 삭제
 - [x] JSON 저장과 불러오기
 
@@ -52,7 +52,7 @@
 - [x] Editor 전용 Playback Rate와 Metronome
 - [x] 고정 메모리 동적 BPM beat 클릭과 Metronome Period 강박 그룹
 - [x] Music 없음, Offset, duration 종료와 희소 설정 통합 경로
-- [x] Game Manager End·Set Input Enabled Event 실행 상태
+- [x] 단일 Game Manager End·Set Input Enabled 실행과 End 없는 Music 자동 종료
 - [ ] Project Pattern Event 실행
 - [ ] Project 입력 전달
 
