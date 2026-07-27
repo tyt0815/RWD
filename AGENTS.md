@@ -24,9 +24,19 @@
 - 프로젝트별 코드와 리소스는 `projects/<projectId>/` 안에 둔다.
 - 게임플레이 노드는 공통 판정·등록 계약처럼 재사용 가능한 규칙만 Core 공개 API에 두고, 노드 정의·화면·색·사운드·연출은 해당 Project에 둔다.
 - Stage Event의 beat 순서 실행, 중간 시작 상태 복원, End와 입력 활성 상태는 `Core.StageRuntime`을 사용한다. Project에서 Event crossing과 Game Manager 실행을 다시 구현하지 않는다.
-- Project Event 구현은 `projects/<projectId>/game/events/<CategoryName>/<EventName>.lua`로 분리하고, 게임 진입 모듈은 handler map과 공통 런타임 조립만 소유한다.
+- Project 기능은 `projects/<projectId>/game/<CategoryName>/`에 Category 단위로 모으고, Event·Actor·Sprite·SFX·이동 등 해당 기능에만 필요한 구현은 Category 폴더 밖으로 흩뜨리지 않는다. `Definition.lua`와 `Runtime.lua`를 추가하면 `Core.ProjectCategories`가 자동 발견하므로 새 Category나 노드를 만들기 위해 기존 `project.lua`, 게임 진입 모듈 또는 다른 Category를 수정하지 않는다. 게임 진입 모듈은 Core 런타임과 Category Host 조립만 소유한다.
+- Project는 Stage JSON을 직접 decode·검증하거나 Event 실행 시점을 계산하지 않는다. Stage 형식·검증·실행 규칙은 Core 공개 API가 소유하고 Launcher·Editor는 Project 경로와 파일 접근을 조립한다.
 - Project 기능을 구현하기 전에 Core 공개 API를 검색하고, 기존 Core 인스턴스 조합으로 해결할지 공통 기능을 Core에 추가할지 판단한다. Lua에서는 상속보다 조합을 우선하며 선택 근거가 불명확하면 구현 전에 질문한다.
 - 공통 기능을 Core에 추가하면 공개 API와 Core 테스트를 함께 변경하고, 새 Project 제작자가 알아야 하는 경우 Sample 참고 주석과 `docs/PROJECT_NODES_TUTORIAL.md`도 갱신한다.
+
+## Project Category 구성
+
+- Category의 `Definition.lua`는 Editor도 읽을 수 있는 순수 등록 데이터만 제공하며 LÖVE 리소스를 생성하거나 Runtime·Actor를 불러오지 않는다.
+- Category의 `Runtime.lua`는 Core occurrence를 Event handler에 전달하고 Category 상태, Actor와 공용 리소스를 조립한다. 구체적인 Event 파일은 Actor·판정·연출 객체를 조율하며 저수준 Sprite/SFX 로딩을 중복 소유하지 않는다.
+- `Actors.lua` 같은 단일 파일을 강제하지 않는다. 같은 상태·행동·리소스를 공유하면 `SampleActor.lua` 하나를 여러 인스턴스로 조합하고, 독립적으로 변경되면 `GuideActor.lua`, `PlayerActor.lua`처럼 역할별 모듈로 분리한다.
+- `LeftActor.lua`, `RightActor.lua`처럼 현재 배치 위치로 이름 짓는 것은 위치 자체가 정체성일 때만 사용한다. Turn이나 레이아웃 변경에도 유지되는 역할 이름을 우선한다.
+- Actor 전용 Sprite·SFX는 해당 Actor가 직접 소유하거나 Actor 전용 리소스 객체를 주입받는다. 여러 Actor가 실제로 같은 파일과 수명을 공유할 때만 Category 범위의 `Sprites.lua`, `Sounds.lua` 또는 리소스 캐시로 올리고, 같은 asset을 Actor마다 중복 로드하지 않는다.
+- 처음에는 변경 이유가 같은 코드를 한 모듈에 두고, 상태·행동·리소스 수명 중 하나가 독립적으로 바뀔 때 분리한다. 파일 수를 맞추기 위한 선제 분리는 하지 않는다.
 
 ## Project 템플릿 유지보수
 

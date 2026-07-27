@@ -28,25 +28,30 @@ class CreateProjectTest(unittest.TestCase):
         self.assertIn('title = "My Game"', manifest)
         self.assertIn("coreApiVersion = 7", manifest)
         self.assertIn('entryModule = "projects.my-game.game.Game"', manifest)
+        self.assertIn("Core.ProjectCategories.discover", manifest)
+        self.assertIn('directoryPath = "projects/my-game/game"', manifest)
 
         game = (project_path / "game" / "Game.lua").read_text(encoding="utf-8")
         self.assertIn('local Core = require("core")', game)
         self.assertIn("function Game.new(project, options)", game)
         self.assertIn("stageStore = options.stageStore", game)
+        self.assertIn("Core.ProjectCategories.createHost", game)
         self.assertIn("stageRuntime = Core.StageRuntime.new()", game)
         self.assertIn("function Game:startStage(stage, startBeat)", game)
+        self.assertIn("function Game:setAutoPlay(value)", game)
         self.assertIn("self.stageRuntime:start(stage, self.currentBeat)", game)
         self.assertIn("function Game:update(deltaTime, beat)", game)
         self.assertIn("function Game:draw(width, height)", game)
 
         for relative_path in (
             "stages/README.md",
-            "game/events/README.md",
+            "game/README.md",
             "assets/audio/music/README.md",
             "assets/audio/sfx/README.md",
             "assets/image/README.md",
         ):
             self.assertTrue((project_path / relative_path).is_file(), relative_path)
+        self.assertFalse((project_path / "game" / "events").exists())
 
     def test_escapes_lua_title(self):
         root = self.make_root()

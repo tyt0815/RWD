@@ -101,7 +101,8 @@ return {
             local game = require("projects.sample.game.SampleGame").new(
                 require("projects.sample.project")
             )
-            game.sounds = { play = function() end }
+            local runtime = game:getCategoryRuntime("sampleGameplay")
+            runtime.sounds = { play = function() end }
             game:startStage({
                 events = {
                     {
@@ -120,11 +121,11 @@ return {
             }, 0)
 
             game:update(0.1, 2.25)
-            test.assertNear(game.leftMovement:getValue(2.25), 0, 0.000001)
-            test.assertNear(game.rightMovement:getValue(2.25), 0.5, 0.000001)
+            test.assertNear(runtime.guideActor.movement:getValue(2.25), 0, 0.000001)
+            test.assertNear(runtime.playerActor.movement:getValue(2.25), 0.5, 0.000001)
             game:update(0.1, 4.25)
-            test.assertNear(game.leftMovement:getValue(4.25), 0.5, 0.000001)
-            test.assertNear(game.rightMovement:getValue(4.25), 0.5, 0.000001)
+            test.assertNear(runtime.guideActor.movement:getValue(4.25), 0.5, 0.000001)
+            test.assertNear(runtime.playerActor.movement:getValue(4.25), 0.5, 0.000001)
         end,
     },
     {
@@ -148,11 +149,12 @@ return {
             }
             for _, case in ipairs(cases) do
                 local game = SampleGame.new(project)
-                game.sounds = { play = function() end }
+                local runtime = game:getCategoryRuntime("sampleGameplay")
+                runtime.sounds = { play = function() end }
                 game:setAutoPlay(case.mode)
                 game:startStage(stage, 0)
                 game:update(0.1, case.beat)
-                test.assertEqual(game.playerResult, case.result)
+                test.assertEqual(runtime.playerResult, case.result)
             end
         end,
     },
@@ -163,12 +165,16 @@ return {
                 require("projects.sample.project")
             )
             game.stage = { events = {} }
-            game.actorsSpawned = true
+            local runtime = game:getCategoryRuntime("sampleGameplay")
+            runtime.guideActor:spawn()
+            runtime.playerActor:spawn()
             local image = {
                 getWidth = function() return 300 end,
                 getHeight = function() return 300 end,
             }
-            game.sprites = { get = function() return image end }
+            local sprites = { get = function() return image end }
+            runtime.guideActor.sprites = sprites
+            runtime.playerActor.sprites = sprites
             local scales = {}
             local previousLove = love
             love = {
@@ -195,7 +201,8 @@ return {
                 require("projects.sample.project")
             )
             local sounds = {}
-            game.sounds = { play = function(_, id) table.insert(sounds, id) end }
+            local runtime = game:getCategoryRuntime("sampleGameplay")
+            runtime.sounds = { play = function(_, id) table.insert(sounds, id) end }
             game:startStage({
                 events = {
                     {
@@ -209,21 +216,22 @@ return {
                     },
                 },
             }, 0)
-            test.assertEqual(game.actorsSpawned, true)
+            test.assertEqual(runtime.guideActor.spawned, true)
+            test.assertEqual(runtime.playerActor.spawned, true)
             test.assertEqual(sounds[1], "cue")
             game:keypressed("space", 4.08)
-            test.assertEqual(game.playerResult, "GOOD")
+            test.assertEqual(runtime.playerResult, "GOOD")
             test.assertEqual(sounds[2], "GOOD")
-            local guideState, playerState = game:getActorSpriteStates()
+            local guideState, playerState = runtime:getActorSpriteStates()
             test.assertEqual(guideState, "success")
             test.assertEqual(playerState, "success")
             game:keypressed("space", 6)
-            test.assertEqual(game.playerResult, "EMPTY_INPUT")
-            test.assertEqual(select(2, game:getActorSpriteStates()), "success")
-            game:showResult({ result = "BAD" })
-            test.assertEqual(select(2, game:getActorSpriteStates()), "failure")
-            game:showResult({ result = "MISS" })
-            test.assertEqual(select(2, game:getActorSpriteStates()), "failure")
+            test.assertEqual(runtime.playerResult, "EMPTY_INPUT")
+            test.assertEqual(select(2, runtime:getActorSpriteStates()), "success")
+            runtime:showResult({ result = "BAD" })
+            test.assertEqual(select(2, runtime:getActorSpriteStates()), "failure")
+            runtime:showResult({ result = "MISS" })
+            test.assertEqual(select(2, runtime:getActorSpriteStates()), "failure")
         end,
     },
 }

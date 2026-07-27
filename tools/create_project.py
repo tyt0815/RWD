@@ -50,12 +50,20 @@ def lua_string(value):
 
 
 def project_manifest(project_id, title, core_api_version):
-    return f"""return {{
+    return f"""local Core = require(\"core\")
+
+local eventCategories, categoryError = Core.ProjectCategories.discover({{
+    directoryPath = {lua_string(f"projects/{project_id}/game")},
+    modulePrefix = {lua_string(f"projects.{project_id}.game")},
+}})
+if not eventCategories then error(categoryError) end
+
+return {{
     id = {lua_string(project_id)},
     title = {lua_string(title)},
     coreApiVersion = {core_api_version},
     entryModule = {lua_string(f"projects.{project_id}.game.Game")},
-    eventCategories = {{}},
+    eventCategories = eventCategories,
 }}
 """
 
@@ -68,9 +76,12 @@ Game.__index = Game
 
 function Game.new(project, options)
     options = options or {}
+    local categoryHost, hostError = Core.ProjectCategories.createHost(project)
+    if not categoryHost then error(hostError) end
     return setmetatable({
         project = project,
         stageStore = options.stageStore,
+        categoryHost = categoryHost,
         stage = nil,
         stageRuntime = Core.StageRuntime.new(),
         currentBeat = 0,
@@ -81,8 +92,14 @@ function Game:startStage(stage, startBeat)
     self.stage = stage
     self.currentBeat = startBeat or 0
     self.stageRuntime = Core.StageRuntime.new()
+    self.categoryHost:startStage(stage, self.currentBeat)
     local occurrences, errorMessage = self.stageRuntime:start(stage, self.currentBeat)
     if not occurrences then error(errorMessage) end
+    self.categoryHost:applyOccurrences(occurrences, self.currentBeat)
+end
+
+function Game:setAutoPlay(value)
+    self.categoryHost:setAutoPlay(value or "none")
 end
 
 function Game:update(deltaTime, beat)
@@ -90,16 +107,30 @@ function Game:update(deltaTime, beat)
     local occurrences, errorMessage = self.stageRuntime:update(beat)
     if not occurrences then error(errorMessage) end
     self.currentBeat = self.stageRuntime:getCurrentBeat()
+    self.categoryHost:applyOccurrences(occurrences, self.currentBeat)
+    self.categoryHost:update(deltaTime, self.currentBeat)
 end
 
 function Game:isInputEnabled()
     return self.stageRuntime:isInputEnabled()
 end
 
+function Game:keypressed(key, beat)
+    if not self.stageRuntime:isInputEnabled() then return end
+    self.categoryHost:keypressed(key, beat)
+end
+
+function Game:getCategoryRuntime(categoryId)
+    return self.categoryHost:getRuntime(categoryId)
+end
+
 function Game:draw(width, height)
     love.graphics.clear(0.07, 0.08, 0.1, 1)
-    love.graphics.setColor(0.92, 0.93, 0.96, 1)
-    love.graphics.printf(self.project.title, 0, height * 0.45, width, "center")
+    self.categoryHost:draw(width, height)
+    if #self.project.eventCategories == 0 then
+        love.graphics.setColor(0.92, 0.93, 0.96, 1)
+        love.graphics.printf(self.project.title, 0, height * 0.45, width, "center")
+    end
 end
 
 return Game
@@ -111,11 +142,12 @@ def write_template(project_path, project_id, title, core_api_version):
         "project.lua": project_manifest(project_id, title, core_api_version),
         "game/Game.lua": game_module(),
         "stages/README.md": "# Stages\n\n에디터가 생성한 Stage JSON을 이 폴더에 저장한다.\n",
-        "game/events/README.md": (
-            "# Project Events\n\n"
-            "Project Event 구현은 `game/events/<CategoryName>/<EventName>.lua`에 둔다. "
-            "Core StageRuntime이 실행 시점을 정하고 각 파일은 Sprite, SFX와 이동 등 "
-            "Project 전용 연출만 처리한다.\n"
+        "game/README.md": (
+            "# Game Categories\n\n"
+            "Project 기능은 `game/<CategoryName>/`에 Category 단위로 둔다. "
+            "Definition.lua와 Runtime.lua를 만들면 manifest와 Game을 수정하지 않아도 자동 등록·실행된다. "
+            "Definition은 순수 등록 정보만, Runtime과 Event 파일은 Category 조립과 연출을 맡는다. "
+            "Actor는 규모와 변경 이유에 따라 공통 모듈의 여러 인스턴스 또는 역할별 모듈로 나눈다.\n"
         ),
         "assets/audio/music/README.md": (
             "# Music\n\nProject 음악 파일(`.ogg`, `.mp3`, `.wav`)을 이 폴더 또는 하위 폴더에 둔다.\n"

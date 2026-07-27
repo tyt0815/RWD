@@ -6,6 +6,7 @@
 - [x] LÖVE2D 11.5 공통 Launcher
 - [x] 에디터 UI 골격
 - [x] Sample Project
+- [x] SampleGameplay를 자동 발견되는 `game/SampleGameplay/` Category 경계로 이동하고 Actor 책임 재구성
 - [x] 안전한 빈 Project 생성 스크립트와 템플릿 회귀 테스트
 - [x] Stage JSON 버전 2와 희소 재생 설정
 - [x] 자동 테스트와 인수인계 문서

@@ -14,7 +14,7 @@ Project ID는 소문자 영숫자로 시작하고 이후 소문자 영숫자, `_
 projects/my-game/
 ├─ project.lua
 ├─ game/Game.lua
-├─ game/events/README.md
+├─ game/README.md
 ├─ stages/README.md
 └─ assets/
    ├─ audio/music/README.md
@@ -22,7 +22,7 @@ projects/my-game/
    └─ image/README.md
 ```
 
-`project.lua`는 생성 시점의 `core/init.lua`에서 Core API 버전을 읽고 Project ID, 표시 이름과 `projects.<projectId>.game.Game` 진입 모듈을 선언한다. `Game.lua`는 Launcher와 Editor preview에서 실행 가능한 `new`, `startStage`, `update`, `draw` 계약과 Core `StageRuntime` 조합만 제공하며 Sample의 노드나 게임 규칙은 복사하지 않는다. 생성자의 선택적 두 번째 인자 `options.stageStore`에는 검증된 Stage 목록과 데이터를 읽는 Store가 주입된다. Project Event 구현은 `game/events/<CategoryName>/<EventName>.lua`에 두고 Sprite, SFX, 이동처럼 Project별로 달라지는 동작만 작성한다. 게임별 UI, 사운드, 연출과 리소스는 해당 Project 밖으로 새지 않게 한다.
+`project.lua`는 생성 시점의 `core/init.lua`에서 Core API 버전을 읽고 Project ID, 표시 이름과 `projects.<projectId>.game.Game` 진입 모듈을 선언한다. `Game.lua`는 Launcher와 Editor preview에서 실행 가능한 `new`, `startStage`, `update`, `draw` 계약, Core `StageRuntime`과 `ProjectCategories` Host 조합만 제공하며 Sample의 노드나 게임 규칙은 복사하지 않는다. 생성자의 선택적 두 번째 인자 `options.stageStore`에는 검증된 Stage 목록과 데이터를 읽는 Store가 주입된다. Project 기능은 `game/<CategoryName>/`에 Category 단위로 두고 Sprite, SFX, 이동처럼 Project별로 달라지는 동작을 함께 관리한다. 이 폴더에 `Definition.lua`와 `Runtime.lua`를 추가하면 Core가 자동 발견하므로 기존 `project.lua`와 `Game.lua`를 수정하지 않는다. 게임별 UI, 사운드, 연출과 리소스는 해당 Project 밖으로 새지 않게 한다.
 
 ## 2. Project 오디오 배치
 
@@ -31,6 +31,8 @@ projects/my-game/
 ## 3. Pattern 작성과 에디터 등록
 
 Pattern은 여러 beat에 걸친 신호와 플레이어 반응을 코드로 묶는 재사용 단위다. Core가 판정할 원시 노트 종류는 Tap Note와 Long Note이며, Pattern은 실행 시 이 두 노트의 일정을 생성한다.
+
+Category 폴더의 필수 진입점은 순수 등록 정보인 `Definition.lua`와 실행 조립인 `Runtime.lua`다. Event 파일은 같은 Category 폴더에서 Actor와 연출 객체를 조율한다. Actor 구성이 작고 동일하면 Actor 모듈 하나를 여러 인스턴스로 사용하고, 상태·행동·리소스가 독립적으로 바뀌면 `GuideActor.lua`, `PlayerActor.lua`처럼 역할별로 나눈다. 위치 자체가 역할이 아닌 한 `LeftActor`·`RightActor`보다 레이아웃 변경에도 유지되는 역할 이름을 우선한다. Actor 전용 이미지·소리는 Actor가 소유하거나 주입받고, 여러 Actor가 실제로 공유할 때만 Category의 공용 Sprite·Sound 캐시로 분리한다.
 
 내장 `Game Manager` Category는 `End`와 `Set Input Enabled` Event를 제공한다. Core `StageRuntime`이 모든 Stage Event의 beat 순서 실행, 중간 시작 catch-up, 입력 활성 상태와 End를 공통 처리한다. Project는 manifest의 `eventCategories`로 Project 전용 Category, Event, number 프로퍼티와 Timeline geometry를 등록하고 Category/Event별 Lua 파일에서 연출을 구현한다. 자세한 제작 순서는 `docs/PROJECT_NODES_TUTORIAL.md`를 따른다. 일반 Pattern 등록과 전개는 아직 구현하지 않았다.
 

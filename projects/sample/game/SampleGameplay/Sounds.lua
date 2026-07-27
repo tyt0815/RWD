@@ -1,6 +1,8 @@
-local SampleSounds = {}
-SampleSounds.__index = SampleSounds
+local Sounds = {}
+Sounds.__index = Sounds
 
+-- Cue와 판정음은 특정 Actor가 아니라 SampleGameplay 상호작용에 속하므로 공유한다.
+-- 특정 Actor만 쓰는 소리가 생기면 해당 Actor가 소유하거나 전용 리소스를 주입받는다.
 local TONES = {
     cue = { frequency = 880, duration = 0.08 },
     GOOD = { frequency = 1320, duration = 0.09 },
@@ -21,8 +23,8 @@ local function createTone(audio, sound, frequency, duration)
     return audio.newSource(data, "static")
 end
 
-function SampleSounds.new()
-    local instance = setmetatable({ sources = {} }, SampleSounds)
+function Sounds.new()
+    local instance = setmetatable({ sources = {} }, Sounds)
     if not love or not love.audio or not love.sound then return instance end
     for id, tone in pairs(TONES) do
         instance.sources[id] = createTone(
@@ -35,7 +37,7 @@ function SampleSounds.new()
     return instance
 end
 
-function SampleSounds:play(id)
+function Sounds:play(id)
     local source = self.sources[id]
     if not source then return end
     source:stop()
@@ -43,4 +45,4 @@ function SampleSounds:play(id)
     source:play()
 end
 
-return SampleSounds
+return Sounds

@@ -31,6 +31,7 @@ Game Manager의 End와 Set Input Enabled Event를 처리한다. Project Event Ca
 - `Core.TapJudgment.new`; `addNote`, `input`, `update`
 - `Core.BeatTween.new`; `start`, `moveTo`, `getValue`, `isActive`
 - `Core.ProjectEvents.validate`, `getCategories`, `getEvent`, `getDefaultParams`, `validateParams`
+- `Core.ProjectCategories.discover`, `createHost`; Host `getRuntime`, `setAutoPlay`, `startStage`, `applyOccurrences`, `update`, `keypressed`, `draw`
 - `Core.StageRuntime.new`; `start`, `update`, `getCurrentBeat`, `isInputEnabled`, `hasEndEvent`, `isEnded`, `getEndBeat`
 - `Core.MixtapeSettings.validate`, `resolve`, `compact`
 - `Core.TempoMap.new`; `beatToSeconds`, `secondsToBeat`, `getBpm`
@@ -390,4 +391,25 @@ Stage 계약은 schemaVersion 2, 최상위 `bpm`, 선택적 `mixtape`, 선택적
 - RED: Core StageRuntime 4건과 Rhythm Music/beat 1건을 먼저 추가해 `5 test(s)` 실패를 확인했다. 생성기에는 Event 폴더 및 StageRuntime 기대를 각각 먼저 추가해 실패를 확인했다.
 - GREEN: Core occurrence/catch-up/End/input, Editor 회귀, Sample 연출 모듈, Rhythm Music·관리 노드와 Launcher 정리를 포함해 `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 274 tests`; `python -m unittest discover -s tests_python -v` → `Ran 5 tests`, `OK`.
 - 생성기 smoke: 새 템플릿으로 임시 Project를 만든 뒤 LÖVE에서 로드하고 Set Input Enabled와 beat 갱신을 실행해 `PASS: generated Project StageRuntime`을 확인한 후 삭제했다.
-- 실제 MP3 smoke: 별도 임시 LÖVE 앱에서 실제 `speaki_song.json`을 클릭하고 `Moai_Doo-Wop.mp3` stream Source의 `isPlaying()`과 beat 진행을 확인해 `PASS: Rhythm audio playing, beat=1.267`를 얻은 뒤 임시 앱을 삭제했다. 사람이 곡을 끝까지 청취하거나 실제 창에서 클릭하지는 못했다.
+- 실제 MP3 smoke: 별도 임시 LÖVE 앱에서 실제 `speaki_song.json`을 클릭하고 `Moai_Doo-Wop.mp3` stream Source의 `isPlaying()`과 beat 진행을 확인해 `PASS: Rhythm audio playing, beat=1.267`을 얻은 뒤 임시 앱을 삭제했다. 사람이 곡을 끝까지 청취하거나 실제 창에서 클릭하지는 못했다.
+
+## Project Category·Actor 소유권 지침 (2026-07-27)
+
+- Project 기능 경계를 `game/events/<CategoryName>/`이 아니라 `game/<CategoryName>/`으로 정했다. Category의 `Definition.lua`는 Editor용 순수 등록 데이터, `Runtime.lua`는 Core occurrence와 Actor·리소스 조립, Event 파일은 Project 객체 조율을 소유한다.
+- `Actors.lua`를 강제하지 않는다. 같은 행동·상태·리소스면 Actor 모듈 하나의 여러 인스턴스를 사용하고, 독립적으로 변경되면 `GuideActor.lua`, `PlayerActor.lua`처럼 역할별로 분리한다. 위치가 정체성이 아닌 한 Left/Right보다 역할 이름을 우선한다.
+- Actor 전용 Sprite/SFX는 Actor가 직접 소유하거나 전용 리소스 객체를 주입받고, 여러 Actor가 실제 파일과 수명을 공유할 때만 Category 범위의 Sprite·Sound 캐시를 사용한다. Event 파일은 저수준 asset 로딩을 중복하지 않는다.
+- Project는 Stage JSON decode·검증과 Event crossing을 구현하지 않고 Core 공개 Stage API를 조합한다. Launcher·Editor는 Project 경로와 파일 접근만 조립한다는 목표 경계를 `AGENTS.md`, 아키텍처, 워크플로우와 노드 튜토리얼에 기록했다.
+- 빈 Project 생성기의 `game/events/README.md`를 `game/README.md` Category 안내로 바꿨다. Python 기대값을 먼저 변경해 `game/README.md` 부재 실패를 확인한 뒤 템플릿을 갱신했다.
+- 현재 Sample 구현은 아직 `game/events/SampleGameplay/`, `SampleSounds.lua`, `SampleSprites.lua`에 있으므로 이번 지침 작성에서 이동하지 않았다. 실제 `game/SampleGameplay/` 개편과 Actor 책임 분리는 Roadmap의 후속 작업으로 남겼다.
+- 검증: `python -m unittest discover -s tests_python -v` → `Ran 5 tests`, `OK`; `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 274 tests`; `python -m py_compile tools/create_project.py tests_python/test_create_project.py`와 `git diff --check` 통과.
+
+## 폴더 단위 Project Category 자동 등록 (2026-07-27)
+
+- Core 공개 API에 `ProjectCategories.discover/createHost`를 추가했다. `discover`는 `game/` 바로 아래에서 `Definition.lua`와 `Runtime.lua`가 모두 있는 폴더만 찾아 Definition을 manifest Category로 등록하며 Runtime·Actor·asset은 Editor 탐색 시 로드하지 않는다. `createHost`는 게임 생성 시 Runtime을 만들고 lifecycle과 Event occurrence를 Event ID의 소유 Category로 전달한다.
+- Sample manifest는 Category 목록을 하드코딩하지 않고 `projects/sample/game`을 자동 탐색한다. `SampleGame.lua`도 Category 이름과 Event handler를 알지 않으며 Core StageRuntime occurrence와 Category Host의 start/update/input/draw만 조립한다. 따라서 `game/NewGameSample/Definition.lua`와 `Runtime.lua`를 추가할 때 기존 manifest와 Game을 수정하지 않는다.
+- SampleGameplay를 `game/SampleGameplay/`로 이동했다. 순수 등록은 `Definition.lua`, Category 상태·판정·Actor 조립은 `Runtime.lua`, 노드별 의도는 `SpawnActors.lua`, `GuideTurn.lua`, `PlayerTurn.lua`, `CueResponse.lua`가 소유한다. 기존 `game/events/`, `SampleSounds.lua`, `SampleSprites.lua`는 제거했다.
+- Guide와 Player는 현재 행동·Sprite 규칙이 같으므로 주석이 있는 `SampleActor.lua` 두 인스턴스로 구성했다. 각 Actor의 movement·spawn·flash·render 상태는 Actor가 소유하고, 실제 공유 리소스인 `Sprites.lua`와 상호작용 공용 `Sounds.lua`는 Category에서 한 번 만들어 주입한다. 역할별 변경 이유가 생기면 GuideActor·PlayerActor로 분리한다.
+- 생성기 manifest와 Game도 같은 자동 discovery·Host 위임 구조를 사용하고 `game/README.md`에서 폴더만으로 Category를 추가하는 방법을 안내한다. 생성기 기대값을 먼저 변경해 자동 discovery와 Host·Auto Play 위임 부재 실패를 확인한 뒤 템플릿을 갱신했다.
+- RED: Core discovery와 Runtime routing 테스트를 먼저 추가해 `Core.ProjectCategories` 부재 2건을 확인했다. Sample 이동 직후 기존 테스트가 Game 내부 상태를 직접 보던 4건 실패를 Category Runtime·Actor 경계 기대값으로 전환했다.
+- GREEN: `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 276 tests`; `python -m unittest discover -s tests_python -v` → `Ran 5 tests`, `OK`; Python compile과 `git diff --check` 통과. Project JSON 전체는 PowerShell `ConvertFrom-Json` 통과, 숨김 LÖVE 기동은 `LOVE_SMOKE_RUNNING=True`였다.
+- 폴더-only smoke: 생성기로 만든 임시 Project에 `game/NewGameSample/Definition.lua`와 `Runtime.lua`만 추가하고 기존 manifest·Game을 수정하지 않은 채 LÖVE에서 Editor 등록 데이터와 Runtime Event 처리를 확인해 `PASS: folder-only Category auto registration and runtime`을 얻은 뒤 임시 Project를 삭제했다.
