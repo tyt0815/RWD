@@ -41,7 +41,8 @@ function ProjectLoader.loadProject(projectId, coreApiVersion)
     return projectOrError, nil
 end
 
-function ProjectLoader.createGame(project)
+function ProjectLoader.createGame(project, options)
+    options = options or {}
     local succeeded, gameModuleOrError = pcall(require, project.entryModule)
 
     if not succeeded then
@@ -52,7 +53,18 @@ function ProjectLoader.createGame(project)
         return nil, "Game entry module must provide new(project)."
     end
 
-    local created, gameOrError = pcall(gameModuleOrError.new, project)
+    local stageStore = options.stageStore
+    if not stageStore then
+        local StageStore = require("editor.stage.StageStore")
+        stageStore = StageStore.new()
+    end
+
+    local created, gameOrError = pcall(gameModuleOrError.new, project, {
+        stageStore = stageStore,
+        standalone = options.standalone == true,
+        transportFactory = options.transportFactory,
+        eventHandlers = options.eventHandlers,
+    })
 
     if not created then
         return nil, "Failed to create game: " .. tostring(gameOrError)

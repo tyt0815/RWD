@@ -1,0 +1,16 @@
+{
+  "schemaVersion":2,
+  "projectId":"rhythm_dotgeo",
+  "stageId":"speaki_song",
+  "name":"Speaki Song",
+  "bpm":152,
+  "mixtape":{
+    "music":"assets/audio/music/Moai_Doo-Wop.mp3",
+    "beat0Offset":0.47
+  },
+  "editorSettings":{
+    "scale":1.1920928955078,
+    "metronome":true
+  },
+  "events":[]
+}

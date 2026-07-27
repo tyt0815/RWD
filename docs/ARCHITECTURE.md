@@ -7,6 +7,7 @@ Project 생성기 → Project 기본 파일·폴더
 Launcher → Editor → Core 공개 API
         ↘ Project → Core 공개 API
         ↘ ProjectLoader.createGame → Editor TestPlayer
+        ↘ StageStore 주입 → Project Stage 선택 화면
 Editor → Project Manifest·assets/audio/music
 ```
 
@@ -16,7 +17,7 @@ Core는 Editor와 Project를 알지 못한다. Project는 Editor를 알지 못�
 
 ## Core
 
-`core/init.lua`는 유일한 공개 진입점이다. `CORE_API_VERSION`, `JudgmentResult`, `PlaybackClock`과 함께 `TapJudgment`, `BeatTween`, `ProjectEvents`, `MixtapeSettings`, `TempoMap`, `MusicPlayback`, `PlaybackTransport`, `UI`를 공개한다.
+`core/init.lua`는 유일한 공개 진입점이다. `CORE_API_VERSION`, `JudgmentResult`, `PlaybackClock`과 함께 `TapJudgment`, `BeatTween`, `ProjectEvents`, `StageRuntime`, `MixtapeSettings`, `TempoMap`, `MusicPlayback`, `PlaybackTransport`, `UI`를 공개한다.
 
 - `MixtapeSettings`는 Music, Volume과 Beat 0 Offset을 검증하고 기본값을 해석하거나 희소 객체로 줄인다.
 - `TempoMap`은 양수 유한 BPM 하나를 소유하고 beat와 논리 seconds를 상호 변환한다. Stage 형식과 독립적이므로 이후 BPM 변화 구조를 이 경계 뒤에서 확장할 수 있다.
@@ -28,7 +29,7 @@ Core는 Editor와 Project를 알지 못한다. Project는 Editor를 알지 못�
 
 판정 결과는 `GOOD`, `BAD`, `MISS`, `EMPTY_INPUT` 네 가지다. `TapJudgment`는 등록한 목표 beat에 대해 GOOD/BAD 입력 판정과 시간 경과 MISS, 대상 없는 EMPTY_INPUT을 만든다. 판정창은 생성 옵션으로 받아 Project가 beat 또는 다른 시간 정책을 명시할 수 있다. Core는 결과를 만들지만 사운드, UI와 시각 효과는 Project가 처리한다.
 
-`ProjectEvents`는 Project manifest의 Category, Event와 number 프로퍼티 등록 계약을 검증하고 기본 params와 값 범위를 제공한다. `BeatTween`은 시작·목표 값과 beat 구간을 받아 BPM에 따라 실제 이동 시간이 달라지는 선형 보간 값을 제공한다. 구체적인 Event 정의와 좌표·Sprite·연출은 Project가 소유한다.
+`ProjectEvents`는 Project manifest의 Category, Event와 number 프로퍼티 등록 계약을 검증하고 기본 params와 값 범위를 제공한다. `StageRuntime`은 Stage Event를 beat·원래 배치 순서로 한 번씩 전개하고, 중간 beat 시작의 catch-up Event와 `Set Input Enabled`, 최초 `End` 종료 위치를 공통 처리한다. Event 결과의 Sprite, SFX와 이동은 소유하지 않고 `{ event, catchUp }` occurrence를 Project에 반환한다. `BeatTween`은 시작·목표 값과 beat 구간을 받아 BPM에 따라 실제 이동 시간이 달라지는 선형 보간 값을 제공한다. 구체적인 Event 정의와 좌표·Sprite·연출은 Project가 소유한다.
 
 ## Editor
 
@@ -38,7 +39,7 @@ Editor는 `Menu | Categories | Events | Properties | Values`의 392px 고정 상
 
 `StageStore`는 검증된 식별자로 `projects/<projectId>/stages/<stageId>.json`만 읽고 쓴다. 개발용 네이티브 source에서는 실제 `sourceRoot` 파일을 기준으로 목록·읽기·존재 확인·원자 저장을 수행해 LÖVE save directory의 shadow 파일을 원본으로 취급하지 않는다. 패키징된 `.love`는 읽기만 허용한다.
 
-`EditorSession`은 Project, `StageDocument`, `StageStore`, Core `PlaybackTransport`, Editor 전용 `MetronomePlayback`과 `TestPlayer`를 조립한다. Timeline Event 배치·이동에 공통 Snap을 적용하고, 재생 입력 상태를 기본 true에서 `setInputEnabled` 값으로 변경하며 `end` 도달 시 정확한 Event beat에서 preview를 정지한다. End가 없으면 Transport의 Music 종료 상태에서 preview를 정지하고 App에 정보 toast 상태를 반환한다. 클릭으로 정한 `anchorBeat`를 Transport의 이동 beat와 분리해 유지하며, Play할 때마다 Transport를 기준 beat로 되돌린 뒤 resolved Mixtape와 `projects/<projectId>/...` Music 경로를 전달한다. Stage의 Playback Rate는 Transport·TestPlayer·Metronome 속도에 함께 적용된다. Preview Canvas는 기본 `16:9`인 Stage의 Preview Aspect Width·Height 비율을 유지하며 Properties·Values 영역 중앙에 맞춘다. `seekTimeline`은 `TimelineSnap`을 적용한 paused-only Transport seek와 기준 beat 갱신을, `resetTimeline`은 기준 beat와 보이는 시작 위치를 0으로 되돌리는 동작을, `panTimeline`은 저장 데이터와 분리된 Timeline 시작 beat 이동을 제공한다. `editor/timeline/TimelineSnap`은 화면과 무관한 Snap 규칙을 소유한다. 재생 바는 가장 가까운 간격선에 맞추고, Event 생성·drag는 같은 공통 함수로 커서가 포함된 Snap 크기 셀의 시작점에 맞춘다. `TimelineEventGeometry`는 관리 노드의 `0.25 beat`, 게임플레이 노드의 명시적 `widthBeats`·`durationBeats` 또는 기본 `1 beat` 폭을 해석하고 같은 Track의 반개구간 영역 충돌을 판정한다. Metronome이 false면 SoundData와 Source를 만들지 않는다. 시작이나 update 실패의 정리는 `EditorSession:pause()` 한 곳에서 수행한다.
+`EditorSession`은 Project, `StageDocument`, `StageStore`, Core `PlaybackTransport`·`StageRuntime`, Editor 전용 `MetronomePlayback`과 `TestPlayer`를 조립한다. Timeline Event 배치·이동에 공통 Snap을 적용하고, 재생 입력 상태를 기본 true에서 `setInputEnabled` 값으로 변경하며 `end` 도달 시 정확한 Event beat에서 preview를 정지한다. End가 없으면 Transport의 Music 종료 상태에서 preview를 정지하고 App에 정보 toast 상태를 반환한다. 클릭으로 정한 `anchorBeat`를 Transport의 이동 beat와 분리해 유지하며, Play할 때마다 Transport를 기준 beat로 되돌린 뒤 resolved Mixtape와 `projects/<projectId>/...` Music 경로를 전달한다. Stage의 Playback Rate는 Transport·TestPlayer·Metronome 속도에 함께 적용된다. Preview Canvas는 기본 `16:9`인 Stage의 Preview Aspect Width·Height 비율을 유지하며 Properties·Values 영역 중앙에 맞춘다. `seekTimeline`은 `TimelineSnap`을 적용한 paused-only Transport seek와 기준 beat 갱신을, `resetTimeline`은 기준 beat와 보이는 시작 위치를 0으로 되돌리는 동작을, `panTimeline`은 저장 데이터와 분리된 Timeline 시작 beat 이동을 제공한다. `editor/timeline/TimelineSnap`은 화면과 무관한 Snap 규칙을 소유한다. 재생 바는 가장 가까운 간격선에 맞추고, Event 생성·drag는 같은 공통 함수로 커서가 포함된 Snap 크기 셀의 시작점에 맞춘다. `TimelineEventGeometry`는 관리 노드의 `0.25 beat`, 게임플레이 노드의 명시적 `widthBeats`·`durationBeats` 또는 기본 `1 beat` 폭을 해석하고 같은 Track의 반개구간 영역 충돌을 판정한다. Metronome이 false면 SoundData와 Source를 만들지 않는다. 시작이나 update 실패의 정리는 `EditorSession:pause()` 한 곳에서 수행한다.
 
 `MetronomePlayback`은 0.012초 길이의 1760Hz 강박과 880Hz 일반박 SoundData·정적 Source를 각각 하나만 만든다. Source는 반복하지 않으며, `EditorSession:update`가 Transport의 현재 beat를 전달하면 새 정수 beat crossing을 처리한다. 한 프레임에서 여러 beat를 건너뛰면 과거 클릭을 몰아서 재생하지 않고 두 Source를 정지한 뒤 마지막 crossed beat의 클릭 하나만 재생한다. Period의 배수 beat에는 강박을, 나머지 beat에는 일반박을 재생하므로 처리 시간과 오디오 메모리는 건너뛴 beat 수, BPM, Period와 무관하다. Core와 Project는 이 Editor 내부 구현 세부를 알지 못한다.
 
@@ -52,7 +53,7 @@ Editor는 `Menu | Categories | Events | Properties | Values`의 392px 고정 상
 
 각 `projects/<projectId>/project.lua`는 `id`, `title`, `coreApiVersion`, `entryModule`을 제공한다. Launcher는 `coreApiVersion`이 `Core.CORE_API_VERSION`과 같은 프로젝트만 연다.
 
-프로젝트는 Pattern, `eventCategories`의 게임플레이 노드 정의, 게임 화면, UI/UX, Sprite, 사운드, 연출, Project 리소스와 Stage를 소유한다. Sample은 Spawn Actors, Guide Turn, Player Turn과 Cue & Response를 등록하고 Core TapJudgment·BeatTween을 조합한다. 공통 입력 동작이 필요하면 Editor를 불러오지 않고 `Core.UI`를 기반으로 Project 전용 스타일과 동작을 조합한다. 프로젝트 앱의 렌더링 계약은 `draw(width, height)`다. Launcher는 전체 창 크기를, TestPlayer는 preview Canvas 크기를 전달한다.
+프로젝트는 Pattern, `eventCategories`의 게임플레이 노드 정의, 게임 화면, UI/UX, Sprite, 사운드, 연출, Project 리소스와 Stage를 소유한다. `ProjectLoader.createGame`은 기존 Editor `StageStore` 인스턴스와 독립 실행 여부를 생성 옵션으로 주입하므로 Project는 Editor 모듈이나 JSON 라이브러리를 직접 불러오지 않고 Stage 목록과 검증된 데이터를 사용할 수 있다. Rhythm Dotgeo는 `game/StageSelect.lua`에서 이 경계와 `Core.UI.Button`을 조합해 Stage 이름 목록을 그리고, `game/StagePlayback.lua`에서 Core `MusicPlayback`·`PlaybackTransport`·`StageRuntime`을 조합해 음악, beat와 관리 노드를 실행한다. `game/Game.lua`는 두 모듈의 화면 전환만 조립한다. Sample은 같은 `StageRuntime`으로 Event 시점을 받고 `game/events/SampleGameplay/<EventName>.lua`에서 Spawn Actors, Guide Turn, Player Turn과 Cue & Response의 Sprite·SFX·이동 상태를 처리한다. 공통 입력 동작이 필요하면 Editor를 불러오지 않고 `Core.UI`를 기반으로 Project 전용 스타일과 동작을 조합한다. 프로젝트 앱의 렌더링 계약은 `draw(width, height)`다. Launcher는 전체 창 크기를, TestPlayer는 preview Canvas 크기를 전달한다.
 
 ## 데이터 흐름
 

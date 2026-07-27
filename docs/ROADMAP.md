@@ -55,10 +55,12 @@
 - [x] None·Good·Bad·Miss Project 판정 Auto Play
 - [x] 고정 메모리 동적 BPM beat 클릭과 Metronome Period 강박 그룹
 - [x] Music 없음, Offset, duration 종료와 희소 설정 통합 경로
-- [x] 단일 Game Manager End·Set Input Enabled 실행과 End 없는 Music 자동 종료
+- [x] Core StageRuntime 기반 Game Manager End·Set Input Enabled와 Project Event 공통 전개
+- [x] End 없는 Music 자동 종료
 - [ ] Project Pattern Event 실행
 - [x] 입력 활성 상태를 반영한 Space와 현재 beat 전달
 - [x] Sample Sprite 상태 피드백과 Core BeatTween 기반 0.5박 Turn 이동
+- [x] Rhythm Dotgeo 독립 실행 Stage 목록과 클릭 시 Music·beat 시작
 
 ## 5. 배포와 엔진 버전 관리
 

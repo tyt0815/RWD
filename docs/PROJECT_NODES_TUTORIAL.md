@@ -13,7 +13,8 @@ Project 기능을 만들기 전에는 `require("core")`가 이미 제공하는 �
 Sample 참고 파일:
 
 - 등록: `projects/sample/project.lua`
-- 실행·화면·입력: `projects/sample/game/SampleGame.lua`
+- 실행 조립·화면·입력: `projects/sample/game/SampleGame.lua`
+- Event 구현: `projects/sample/game/events/SampleGameplay/<EventName>.lua`
 - 사운드: `projects/sample/game/SampleSounds.lua`
 - Sprite 로딩: `projects/sample/game/SampleSprites.lua`
 
@@ -79,38 +80,64 @@ return {
 
 `eventId`는 Project 등록 ID와 같아야 한다. Project별 값은 `params` 안에 둔다.
 
-## 4. Stage 실행
+## 4. Stage 실행과 Event 파일 분리
 
-게임 객체에 `startStage(stage, startBeat)`를 구현하면 Editor Play가 현재 Stage를 전달한다.
+게임 객체에 `startStage(stage, startBeat)`를 구현하면 Editor Play가 현재 Stage를 전달한다. Event 시점, 중간 beat 시작 상태 복원, `Set Input Enabled`와 `End`는 직접 다시 계산하지 않고 `Core.StageRuntime`을 조합한다.
 
 ```lua
 local Core = require("core")
+local EVENT_HANDLERS = {
+    cueResponse = require("projects.mygame.game.events.Gameplay.CueResponse"),
+}
 
 function MyGame:startStage(stage, startBeat)
     self.stage = stage
+    self.currentBeat = startBeat or 0
+    self.stageRuntime = Core.StageRuntime.new()
     self.judgment = Core.TapJudgment.new({
         goodWindowBeats = 0.1,
         badWindowBeats = 0.25,
     })
+    local occurrences = assert(self.stageRuntime:start(stage, self.currentBeat))
+    self:applyStageOccurrences(occurrences)
+end
 
-    for _, event in ipairs(stage.events) do
-        if event.type == "projectEvent" and event.eventId == "cueResponse" then
-            local targetBeat = event.startBeat + event.params.responseDelayBeats
-            self.judgment:addNote(event.id, targetBeat)
+function MyGame:applyStageOccurrences(occurrences)
+    for _, occurrence in ipairs(occurrences) do
+        local event = occurrence.event
+        if event.type == "projectEvent" then
+            assert(EVENT_HANDLERS[event.eventId], "Unknown Project Event")
+            EVENT_HANDLERS[event.eventId].apply(self, event, occurrence)
         end
     end
 end
-```
 
-`update(deltaTime, beat)`에는 재생 속도가 적용된 delta와 현재 Timeline beat가 전달된다. cue 발생과 MISS 처리는 이 beat를 기준으로 한다.
-
-```lua
 function MyGame:update(deltaTime, beat)
+    self.currentBeat = beat
+    self:applyStageOccurrences(assert(self.stageRuntime:update(beat)))
     for _, result in ipairs(self.judgment:update(beat)) do
         self:showResult(result)
     end
 end
 ```
+
+Category와 Event 이름을 PascalCase 경로로 바꿔 `game/events/<CategoryName>/<EventName>.lua`에 둔다. Event 파일은 Core가 정한 시점을 받아 Project 전용 상태만 바꾼다.
+
+```lua
+local CueResponse = {}
+
+function CueResponse.apply(game, event, occurrence)
+    local targetBeat = event.startBeat + event.params.responseDelayBeats
+    game.judgment:addNote(event.id, targetBeat)
+    if not occurrence.catchUp then
+        game.sounds:play("cue")
+    end
+end
+
+return CueResponse
+```
+
+`occurrence.catchUp`은 중간 beat에서 시작하면서 과거 Event 상태를 복원하는 호출이다. 이때 Sprite 위치 같은 지속 상태는 적용하되 이미 지난 SFX 같은 일회성 연출은 다시 재생하지 않는다.
 
 ## 5. Editor Auto Play
 
@@ -163,11 +190,12 @@ local progress = self.rightMovement:getValue(currentBeat)
 ## 8. 새 노드 체크리스트
 
 1. `project.lua`에 고유 Category/Event ID와 프로퍼티를 등록한다.
-2. 게임의 `startStage`에서 해당 `eventId`를 런타임 상태로 전개한다.
-3. `update`에서 beat 도달 및 MISS를 처리한다.
-4. Auto Play를 지원하면 `setAutoPlay`에서 선택값을 받고 Project 판정창에 맞춰 자동 입력한다.
-5. `keypressed`에서 필요한 입력만 Core 판정기로 전달한다.
-6. 기존 Core API 조합으로 가능한지 확인한 뒤 Project 안에서 화면과 사운드를 구현한다.
-7. 공통 규칙을 Core에 추가했다면 공개 API 테스트와 이 튜토리얼을 갱신한다.
-8. Event 등록, Stage 왕복, 판정과 연출 상태를 테스트한다.
-9. Stage 필드 계약을 바꾸면 `docs/STAGE_FORMAT.md`도 갱신한다.
+2. `game/events/<CategoryName>/<EventName>.lua`에 Project 전용 연출 handler를 작성한다.
+3. 게임의 handler map에 `eventId`와 모듈을 연결하고 `Core.StageRuntime` occurrence를 전달한다.
+4. `update`에서 판정과 MISS처럼 Event 이후 계속 진행되는 Project 상태를 처리한다.
+5. Auto Play를 지원하면 `setAutoPlay`에서 선택값을 받고 Project 판정창에 맞춰 자동 입력한다.
+6. `keypressed`에서 필요한 입력만 Core 판정기로 전달한다.
+7. 기존 Core API 조합으로 가능한지 확인한 뒤 Project 안에서 화면과 사운드를 구현한다.
+8. 공통 규칙을 Core에 추가했다면 공개 API 테스트와 이 튜토리얼을 갱신한다.
+9. Event 등록, Stage 왕복, 판정과 연출 상태를 테스트한다.
+10. Stage 필드 계약을 바꾸면 `docs/STAGE_FORMAT.md`도 갱신한다.

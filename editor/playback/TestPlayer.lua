@@ -47,13 +47,16 @@ function TestPlayer:start(project, stage, startBeat, autoPlay)
     end
 
     if stage and game.startStage then
-        local stageStarted, stageError = pcall(
+        local stageCalled, stageResult, stageError = pcall(
             game.startStage,
             game,
             stage,
             startBeat or 0
         )
-        if not stageStarted then
+        if not stageCalled then
+            return nil, "Project Stage start failed: " .. tostring(stageResult)
+        end
+        if stageResult == false or (stageResult == nil and stageError ~= nil) then
             return nil, "Project Stage start failed: " .. tostring(stageError)
         end
     end

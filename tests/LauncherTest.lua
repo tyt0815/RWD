@@ -91,6 +91,18 @@ return {
         end,
     },
     {
+        name = "2 키로 Rhythm Dotgeo 프로젝트를 연다",
+        run = function(test)
+            local Launcher = require("launcher.Launcher")
+            local launcher = Launcher.new()
+
+            launcher:keypressed("2")
+
+            test.assertEqual(launcher:getMode(), "project:rhythm_dotgeo")
+            test.assertEqual(launcher.activeApp:getScreen(), "stageSelect")
+        end,
+    },
+    {
         name = "없는 프로젝트는 메뉴에 남아 오류를 기록한다",
         run = function(test)
             local Launcher = require("launcher.Launcher")
@@ -212,6 +224,23 @@ return {
             assert(launcher:openProject("sample"))
             launcher:wheelmoved(0, -1)
             test.assertEqual(launcher:getMode(), "project:sample")
+        end,
+    },
+    {
+        name = "Project에서 Launcher로 돌아갈 때 재생을 정리한다",
+        run = function(test)
+            local Launcher = require("launcher.Launcher")
+            local launcher = Launcher.new()
+            local stopped = false
+            launcher.activeApp = {
+                stop = function() stopped = true end,
+            }
+            launcher.mode = "project:test"
+
+            launcher:returnToMenu()
+
+            test.assertEqual(stopped, true)
+            test.assertEqual(launcher:getMode(), "menu")
         end,
     },
     {

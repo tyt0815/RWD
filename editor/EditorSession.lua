@@ -109,6 +109,7 @@ function EditorSession.new(options)
         project = nil,
         document = nil,
         transport = nil,
+        stageRuntime = nil,
         anchorBeat = 0,
         timelineStartBeat = 0,
         inputEnabled = true,
@@ -213,6 +214,7 @@ function EditorSession:replaceStage(project, document)
     self.project = project
     self.document = document
     self.transport = transport
+    self.stageRuntime = nil
     self.anchorBeat = 0
     self.timelineStartBeat = 0
     self.inputEnabled = true
@@ -461,16 +463,16 @@ function EditorSession:play()
         if not seeked then return nil, seekError end
     end
 
-    self.inputEnabled = true
-    local latestInputBeat = -math.huge
-    for _, event in ipairs(self.document:getEvents()) do
-        if event.type == "setInputEnabled"
-            and event.startBeat <= self.anchorBeat
-            and event.startBeat >= latestInputBeat then
-            self.inputEnabled = event.enabled
-            latestInputBeat = event.startBeat
-        end
+    self.stageRuntime = Core.StageRuntime.new()
+    local _, runtimeError = self.stageRuntime:start(
+        self.document:toTable(),
+        self.anchorBeat
+    )
+    if runtimeError then
+        self.stageRuntime = nil
+        return nil, runtimeError
     end
+    self.inputEnabled = self.stageRuntime:isInputEnabled()
 
     local mixtape = self.document:getMixtape()
     local editorSettings = self.document:getEditorSettings()
@@ -522,6 +524,7 @@ function EditorSession:pause()
     if self.transport then self.transport:pause() end
     self.metronome:pause()
     self.testPlayer:stop()
+    self.stageRuntime = nil
 end
 
 function EditorSession:update(deltaTime, visibleBeatCount)
@@ -535,39 +538,20 @@ function EditorSession:update(deltaTime, visibleBeatCount)
     end
 
     local currentBeat = self.transport:getBeat()
-    local reachedEndBeat
-    local hasEndEvent = false
-    local events = self.document:getEvents()
-    for _, event in ipairs(events) do
-        if event.type == "end" then hasEndEvent = true end
-        if event.type == "end"
-            and event.startBeat >= previousBeat
-            and event.startBeat <= currentBeat
-            and (reachedEndBeat == nil or event.startBeat < reachedEndBeat) then
-            reachedEndBeat = event.startBeat
-        end
-    end
-
-    local eventCutoffBeat = reachedEndBeat or currentBeat
-    local latestInputBeat = -math.huge
-    local latestInputEnabled
-    for _, event in ipairs(events) do
-        if event.type == "setInputEnabled"
-            and event.startBeat > previousBeat
-            and event.startBeat <= eventCutoffBeat
-            and event.startBeat >= latestInputBeat then
-            latestInputBeat = event.startBeat
-            latestInputEnabled = event.enabled
-        end
-    end
-    if latestInputEnabled ~= nil then self.inputEnabled = latestInputEnabled end
-    if reachedEndBeat ~= nil then
+    local _, runtimeError = self.stageRuntime:update(currentBeat)
+    if runtimeError then
         self:pause()
-        local seeked, seekError = self.transport:seekBeat(reachedEndBeat)
+        return nil, runtimeError
+    end
+    self.inputEnabled = self.stageRuntime:isInputEnabled()
+    if self.stageRuntime:isEnded() then
+        local endBeat = self.stageRuntime:getEndBeat()
+        self:pause()
+        local seeked, seekError = self.transport:seekBeat(endBeat)
         if not seeked then return nil, seekError end
         return true, nil
     end
-    if not hasEndEvent
+    if not self.stageRuntime:hasEndEvent()
         and self.transport.isMusicFinished
         and self.transport:isMusicFinished() then
         self:pause()

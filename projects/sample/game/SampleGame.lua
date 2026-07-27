@@ -1,6 +1,7 @@
 local Core = require("core")
 local SampleSounds = require("projects.sample.game.SampleSounds")
 local SampleSprites = require("projects.sample.game.SampleSprites")
+local EVENT_HANDLERS = require("projects.sample.game.events.init")
 
 local SampleGame = {}
 SampleGame.__index = SampleGame
@@ -17,12 +18,15 @@ function SampleGame.new(project)
         currentBeat = 0,
         actorsSpawned = false,
         cueEvents = {},
-        turnEvents = {},
+        stageRuntime = Core.StageRuntime.new(),
         judgment = nil,
         guideFlashRemaining = 0,
         playerFlashRemaining = 0,
         playerResult = nil,
         autoPlay = "none",
+        flashSeconds = FLASH_SECONDS,
+        badWindowBeats = 0.25,
+        autoBadOffsetBeats = AUTO_BAD_OFFSET_BEATS,
         leftMovement = Core.BeatTween.new(0),
         rightMovement = Core.BeatTween.new(0),
         sounds = SampleSounds.new(),
@@ -58,7 +62,7 @@ function SampleGame:startStage(stage, startBeat)
     self.currentBeat = startBeat or 0
     self.actorsSpawned = false
     self.cueEvents = {}
-    self.turnEvents = {}
+    self.stageRuntime = Core.StageRuntime.new()
     self.leftMovement = Core.BeatTween.new(0)
     self.rightMovement = Core.BeatTween.new(0)
     self.judgment = Core.TapJudgment.new({
@@ -66,55 +70,19 @@ function SampleGame:startStage(stage, startBeat)
         badWindowBeats = 0.25,
     })
 
-    for _, event in ipairs(stage.events or {}) do
-        if event.type == "projectEvent" and event.eventId == "spawnActors"
-            and event.startBeat <= self.currentBeat then
-            self.actorsSpawned = true
-        elseif event.type == "projectEvent"
-            and (event.eventId == "guideTurn" or event.eventId == "playerTurn") then
-            table.insert(self.turnEvents, {
-                eventId = event.eventId,
-                startBeat = event.startBeat,
-                triggered = event.startBeat <= self.currentBeat,
-            })
-        elseif event.type == "projectEvent" and event.eventId == "cueResponse" then
-            local responseBeat = event.startBeat + event.params.responseDelayBeats
-            local cue = {
-                id = event.id,
-                cueBeat = event.startBeat,
-                responseBeat = responseBeat,
-                cuePlayed = event.startBeat < self.currentBeat,
-                autoPlayed = false,
-            }
-            table.insert(self.cueEvents, cue)
-            if math.abs(event.startBeat - self.currentBeat) < 0.000001 then
-                cue.cuePlayed = true
-                self.guideFlashRemaining = FLASH_SECONDS
-                self.sounds:play("cue")
-            end
-            if responseBeat + 0.25 >= self.currentBeat then
-                self.judgment:addNote(event.id, responseBeat)
-            end
-        end
-    end
+    local occurrences, runtimeError = self.stageRuntime:start(stage, self.currentBeat)
+    if not occurrences then error(runtimeError) end
+    self:applyStageOccurrences(occurrences)
+end
 
-    if self.autoPlay == "good" or self.autoPlay == "bad" then
-        local offset = self.autoPlay == "bad" and AUTO_BAD_OFFSET_BEATS or 0
-        for _, cue in ipairs(self.cueEvents) do
-            local inputBeat = cue.responseBeat + offset
-            if inputBeat <= self.currentBeat
-                and cue.responseBeat + 0.25 >= self.currentBeat then
-                cue.autoPlayed = true
-                self:showResult(self.judgment:input(inputBeat))
-            end
+function SampleGame:applyStageOccurrences(occurrences)
+    for _, occurrence in ipairs(occurrences) do
+        local event = occurrence.event
+        if event.type == "projectEvent" then
+            local handler = EVENT_HANDLERS[event.eventId]
+            if not handler then error("Unknown Sample Project Event: " .. tostring(event.eventId)) end
+            handler.apply(self, event, occurrence)
         end
-    end
-
-    table.sort(self.turnEvents, function(first, second)
-        return first.startBeat < second.startBeat
-    end)
-    for _, event in ipairs(self.turnEvents) do
-        if event.triggered then self:applyTurn(event.eventId, event.startBeat) end
     end
 end
 
@@ -135,37 +103,21 @@ function SampleGame:update(deltaTime, beat)
     if not self.stage or beat == nil then return end
 
     local previousBeat = self.currentBeat
-    self.currentBeat = beat
-    for _, event in ipairs(self.stage.events or {}) do
-        if event.type == "projectEvent" and event.eventId == "spawnActors"
-            and crossed(previousBeat, beat, event.startBeat) then
-            self.actorsSpawned = true
-        end
-    end
-    for _, turn in ipairs(self.turnEvents) do
-        if not turn.triggered and crossed(previousBeat, beat, turn.startBeat) then
-            turn.triggered = true
-            self:applyTurn(turn.eventId, turn.startBeat)
-        end
-    end
-    for _, cue in ipairs(self.cueEvents) do
-        if not cue.cuePlayed and crossed(previousBeat, beat, cue.cueBeat) then
-            cue.cuePlayed = true
-            self.guideFlashRemaining = FLASH_SECONDS
-            self.sounds:play("cue")
-        end
-    end
+    local occurrences, runtimeError = self.stageRuntime:update(beat)
+    if not occurrences then error(runtimeError) end
+    self.currentBeat = self.stageRuntime:getCurrentBeat()
+    self:applyStageOccurrences(occurrences)
     if self.autoPlay == "good" or self.autoPlay == "bad" then
         local offset = self.autoPlay == "bad" and AUTO_BAD_OFFSET_BEATS or 0
         for _, cue in ipairs(self.cueEvents) do
             local inputBeat = cue.responseBeat + offset
-            if not cue.autoPlayed and crossed(previousBeat, beat, inputBeat) then
+            if not cue.autoPlayed and crossed(previousBeat, self.currentBeat, inputBeat) then
                 cue.autoPlayed = true
                 self:showResult(self.judgment:input(inputBeat))
             end
         end
     end
-    for _, result in ipairs(self.judgment:update(beat)) do
+    for _, result in ipairs(self.judgment:update(self.currentBeat)) do
         self:showResult(result)
     end
 end
@@ -173,7 +125,8 @@ end
 -- 입력키와 현재 beat는 Editor가 전달한다. 판정 규칙은 Project에서 다시 만들지 않고
 -- Core.TapJudgment를 조합하며, 색과 소리는 이 Sample Project가 결정한다.
 function SampleGame:keypressed(key, beat)
-    if key ~= "space" or not self.stage or self.autoPlay ~= "none" then return end
+    if key ~= "space" or not self.stage or self.autoPlay ~= "none"
+        or not self.stageRuntime:isInputEnabled() then return end
     self:showResult(self.judgment:input(beat))
 end
 

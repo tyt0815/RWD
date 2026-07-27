@@ -43,7 +43,9 @@ function Launcher:openProject(projectId)
         return false
     end
 
-    local game, createError = ProjectLoader.createGame(project)
+    local game, createError = ProjectLoader.createGame(project, {
+        standalone = true,
+    })
     if not game then
         self.activeApp = nil
         self.mode = "menu"
@@ -58,6 +60,9 @@ function Launcher:openProject(projectId)
 end
 
 function Launcher:returnToMenu()
+    if self.activeApp and self.activeApp.stop then
+        self.activeApp:stop()
+    end
     self.activeApp = nil
     self.mode = "menu"
     self.errorMessage = nil
@@ -107,7 +112,8 @@ local function drawMenu(errorMessage)
     love.graphics.printf("RWD", 0, height * 0.28, width, "center")
     love.graphics.printf("E: Editor", 0, height * 0.42, width, "center")
     love.graphics.printf("1: Sample Project", 0, height * 0.42 + 32, width, "center")
-    love.graphics.printf("Esc: Quit", 0, height * 0.42 + 64, width, "center")
+    love.graphics.printf("2: Rhythm Dotgeo", 0, height * 0.42 + 64, width, "center")
+    love.graphics.printf("Esc: Quit", 0, height * 0.42 + 96, width, "center")
 
     if errorMessage then
         love.graphics.setColor(1, 0.45, 0.45, 1)
@@ -141,6 +147,8 @@ function Launcher:keypressed(key, scanCode, isRepeat)
         self:openEditor()
     elseif key == "1" then
         self:openProject("sample")
+    elseif key == "2" then
+        self:openProject("rhythm_dotgeo")
     elseif key == "escape" then
         love.event.quit()
     end

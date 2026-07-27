@@ -22,6 +22,42 @@ return {
         end,
     },
     {
+        name = "게임 생성자에 StageStore를 주입한다",
+        run = function(test)
+            local ProjectLoader = require("launcher.ProjectLoader")
+            local gameModuleName = "projects.stage-store-test.game.Game"
+            local receivedOptions
+            package.preload[gameModuleName] = function()
+                return {
+                    new = function(_, options)
+                        receivedOptions = options
+                        return {}
+                    end,
+                }
+            end
+            package.loaded[gameModuleName] = nil
+            local stageStore = {}
+            local transportFactory = function() end
+
+            local game, errorMessage = ProjectLoader.createGame({
+                id = "stage-store-test",
+                entryModule = gameModuleName,
+            }, {
+                stageStore = stageStore,
+                standalone = true,
+                transportFactory = transportFactory,
+            })
+
+            package.preload[gameModuleName] = nil
+            package.loaded[gameModuleName] = nil
+
+            test.assertTrue(game ~= nil, errorMessage)
+            test.assertEqual(receivedOptions.stageStore, stageStore)
+            test.assertEqual(receivedOptions.standalone, true)
+            test.assertEqual(receivedOptions.transportFactory, transportFactory)
+        end,
+    },
+    {
         name = "코어 API 버전이 다르면 프로젝트를 거부한다",
         run = function(test)
             local ProjectLoader = require("launcher.ProjectLoader")

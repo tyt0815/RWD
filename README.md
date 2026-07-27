@@ -4,9 +4,9 @@ RWD는 LÖVE2D 11.5로 여러 개의 리듬게임을 제작하기 위한 공통 
 
 ## 현재 상태
 
-공통 Launcher에서 Stage 에디터와 Sample Project를 열 수 있다. 에디터는 Stage JSON 버전 2를 만들고 열고 저장하며, Project 음악과 고정 BPM Transport를 Project Canvas에 맞춰 미리 재생한다. Editor 전용 Playback Rate, Metronome, Timeline Scale, Snap, Onset Threshold와 preview 화면 비율을 Stage에 희소 저장한다.
+공통 Launcher에서 Stage 에디터, Sample Project와 Rhythm Dotgeo Project를 열 수 있다. Rhythm Dotgeo는 열릴 때 Stage 목록을 표시하고 항목을 클릭하면 Stage 음악·beat와 공통 관리 노드 실행을 시작한다. 에디터는 Stage JSON 버전 2를 만들고 열고 저장하며, Project 음악과 고정 BPM Transport를 Project Canvas에 맞춰 미리 재생한다. Editor 전용 Playback Rate, Metronome, Timeline Scale, Snap, Onset Threshold와 preview 화면 비율을 Stage에 희소 저장한다.
 
-Game Manager의 End와 Set Input Enabled Event를 편집할 수 있다. Sample Project는 `Spawn Actors`, `Guide Turn`, `Player Turn`, `Cue & Response`를 등록하며 Play 시 현재 Stage의 검은 게임 화면, Sprite 액터, Space 입력과 Core Tap 판정을 실행한다. 일반 Pattern 전개와 Long Note 판정은 아직 구현하지 않았다.
+Core StageRuntime이 End와 Set Input Enabled, Project Event의 beat 순서 실행과 시작 위치 상태 복원을 공통 처리한다. Game Manager의 End와 Set Input Enabled Event를 편집할 수 있다. Sample Project는 `Spawn Actors`, `Guide Turn`, `Player Turn`, `Cue & Response`를 등록하며 Play 시 현재 Stage의 검은 게임 화면, Sprite 액터, Space 입력과 Core Tap 판정을 실행한다. 일반 Pattern 전개와 Long Note 판정은 아직 구현하지 않았다.
 
 ## 실행 환경
 
@@ -22,6 +22,7 @@ love .
 
 - `E`: 에디터 열기
 - `1`: Sample Project 열기
+- `2`: Rhythm Dotgeo Project의 Stage 선택 화면 열기
 - `Esc`: Project 화면에서 Launcher로 돌아가기, Launcher에서는 종료
 
 자동 테스트:

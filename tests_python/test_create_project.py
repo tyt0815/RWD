@@ -30,13 +30,18 @@ class CreateProjectTest(unittest.TestCase):
         self.assertIn('entryModule = "projects.my-game.game.Game"', manifest)
 
         game = (project_path / "game" / "Game.lua").read_text(encoding="utf-8")
-        self.assertIn("function Game.new(project)", game)
+        self.assertIn('local Core = require("core")', game)
+        self.assertIn("function Game.new(project, options)", game)
+        self.assertIn("stageStore = options.stageStore", game)
+        self.assertIn("stageRuntime = Core.StageRuntime.new()", game)
         self.assertIn("function Game:startStage(stage, startBeat)", game)
+        self.assertIn("self.stageRuntime:start(stage, self.currentBeat)", game)
         self.assertIn("function Game:update(deltaTime, beat)", game)
         self.assertIn("function Game:draw(width, height)", game)
 
         for relative_path in (
             "stages/README.md",
+            "game/events/README.md",
             "assets/audio/music/README.md",
             "assets/audio/sfx/README.md",
             "assets/image/README.md",

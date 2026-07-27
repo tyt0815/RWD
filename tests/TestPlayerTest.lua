@@ -126,6 +126,33 @@ return {
         end,
     },
     {
+        name = "TestPlayer는 Project Stage 시작 반환 오류를 전달한다",
+        run = function(test)
+            local TestPlayer = require("editor.playback.TestPlayer")
+            local player = TestPlayer.new({
+                createGame = function()
+                    return {
+                        startStage = function()
+                            return nil, "unknown event"
+                        end,
+                    }, nil
+                end,
+                graphics = newGraphics(),
+            })
+
+            local started, errorMessage = player:start(
+                { id = "sample" },
+                { events = {} },
+                0
+            )
+
+            test.assertEqual(started, nil)
+            test.assertContains(errorMessage, "Project Stage start failed")
+            test.assertContains(errorMessage, "unknown event")
+            test.assertEqual(player:isPlaying(), false)
+        end,
+    },
+    {
         name = "TestPlayer update forwards deltaTime to the Project game",
         run = function(test)
             local TestPlayer = require("editor.playback.TestPlayer")

@@ -31,6 +31,7 @@ Game Manager의 End와 Set Input Enabled Event를 처리한다. Project Event Ca
 - `Core.TapJudgment.new`; `addNote`, `input`, `update`
 - `Core.BeatTween.new`; `start`, `moveTo`, `getValue`, `isActive`
 - `Core.ProjectEvents.validate`, `getCategories`, `getEvent`, `getDefaultParams`, `validateParams`
+- `Core.StageRuntime.new`; `start`, `update`, `getCurrentBeat`, `isInputEnabled`, `hasEndEvent`, `isEnded`, `getEndBeat`
 - `Core.MixtapeSettings.validate`, `resolve`, `compact`
 - `Core.TempoMap.new`; `beatToSeconds`, `secondsToBeat`, `getBpm`
 - `Core.MusicPlayback.new`; `prepare`, `play`, `update`, `pause`, `stop`
@@ -88,7 +89,7 @@ Stage 계약은 schemaVersion 2, 최상위 `bpm`, 선택적 `mixtape`, 선택적
 - Long Note 판정
 - Pattern 등록 및 참조 전개
 - Project Pattern Event 실행
-- 독립 실행용 Stage 선택 흐름
+- 모든 Project에 공통 적용되는 독립 실행용 Stage 선택 흐름(Rhythm Dotgeo 전용 흐름은 구현됨)
 - 독립 게임 패키징
 
 ## Sample 게임플레이 노드 (2026-07-27)
@@ -368,3 +369,25 @@ Stage 계약은 schemaVersion 2, 최상위 `bpm`, 선택적 `mixtape`, 선택적
 - RED: `tests_python/test_create_project.py`를 먼저 추가한 뒤 `ModuleNotFoundError: No module named 'tools'` 실패를 확인했다.
 - GREEN: `python -m unittest discover -s tests_python -v` → `Ran 5 tests`, `OK`; 생성 결과를 별도 LÖVE 앱에서 `ProjectLoader.loadProject/createGame`으로 불러와 `PASS: generated Project load and create`를 확인했다.
 - 전체 회귀 검증: `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 261 tests`; `python -m py_compile tools/create_project.py tests_python/test_create_project.py` 통과. 최종 `git diff --check`와 작업 트리 상태는 완료 보고 전에 다시 확인한다.
+
+## Rhythm Dotgeo Stage 선택 화면 (2026-07-27)
+
+- Launcher에 `2: Rhythm Dotgeo` 진입을 추가했다. Project를 열면 `StageStore`가 검증한 `projects/rhythm_dotgeo/stages/*.json`을 이름 목록으로 표시하고, `Core.UI.Button` 기반 항목을 클릭하면 JSON을 다시 읽어 `startStage(stage, 0)`로 시작한다.
+- `ProjectLoader.createGame(project, options?)`가 게임 생성자의 두 번째 인자로 StageStore를 주입한다. Project는 `require("core")`만 사용하고 Editor 내부 모듈이나 JSON 라이브러리를 직접 불러오지 않는다. Sample은 추가 인자를 무시해 기존 직접 실행 동작을 유지한다.
+- 게임 진입 계약 변경에 맞춰 빈 Project 생성기의 `Game.new(project, options)`도 `options.stageStore`를 보관하도록 갱신했다. Python 기대값을 먼저 바꿔 기존 `Game.new(project)` 때문에 1건 실패한 뒤 템플릿을 수정했다.
+- RED: StageStore 주입, 목록 view model·렌더링, 클릭 시작과 Launcher `2` 진입 테스트를 먼저 추가해 `4 test(s)` 실패를 확인했다.
+- GREEN: fake StageStore 단위 경로와 실제 `speaki_song.json` 통합 경로를 포함해 `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 266 tests`; 생성기 회귀는 `python -m unittest discover -s tests_python -v` → `Ran 5 tests`, `OK`.
+- 검증: `speaki_song.json`은 PowerShell `ConvertFrom-Json` 통과, Rhythm Dotgeo의 Core 내부·Editor·Launcher·vendor 직접 require 검색 출력 없음, 숨김 LÖVE 기동은 `LOVE_SMOKE_RUNNING=True`였다. 실제 마우스 클릭 화면은 자동 상태·렌더링 테스트로 검증했으며 사람이 수동 확인하지는 못했다.
+
+## Rhythm 독립 재생·Core StageRuntime·Sample Event 분리 (2026-07-27)
+
+- 이전 Rhythm Stage 선택 구현은 `startStage`와 화면 전환만 수행해 Music을 재생하지 않는 불완전한 상태였다. 독립 실행 클릭 시 Stage BPM과 resolved Mixtape(Music, Volume, Beat 0 Offset)를 Core `MusicPlayback`·`PlaybackTransport`에 연결하고 rate `1.0`으로 재생하며 update에서 Transport beat를 StageRuntime에 전달하도록 수정했다.
+- Core 공개 API에 `StageRuntime`을 추가했다. Stage Event를 beat와 원래 배열 순서로 한 번씩 occurrence로 전개하고, 중간 beat 시작의 `catchUp`, `Set Input Enabled`, 최초 `End` beat와 종료 상태를 공통 처리한다. EditorSession, Sample과 Rhythm Dotgeo가 이 API를 사용해 Event crossing과 Game Manager 처리를 중복 구현하지 않는다.
+- Rhythm Dotgeo도 `game/StageSelect.lua`가 목록 UI를, `game/StagePlayback.lua`가 Music·Transport·StageRuntime 조합을, `game/Game.lua`가 화면 전환을 맡도록 분리했다.
+- Sample Project 전용 Event 로직을 `game/events/SampleGameplay/SpawnActors.lua`, `GuideTurn.lua`, `PlayerTurn.lua`, `CueResponse.lua`로 분리했다. `SampleGame.lua`는 handler map, Core 런타임·판정 조합과 화면 상태 연결을 맡고 각 Event 파일은 Sprite/SFX/이동 관련 Project 상태만 바꾼다.
+- Launcher가 Project 게임을 만들 때 `standalone = true`를 전달하고 Project 이탈 시 선택적 `stop()`을 호출해 Music을 정리한다. Editor TestPlayer 생성 경로는 standalone이 아니므로 Editor Transport와 Project Music이 중복 재생되지 않는다. TestPlayer는 `startStage`의 `nil, error` 반환도 실패로 전달해 정의되지 않은 Project Event 오류를 숨기지 않는다.
+- 빈 Project 생성기는 `Core.StageRuntime`을 기본 조합하고 `game/events/README.md`에 `<CategoryName>/<EventName>.lua` 규칙을 안내한다. Python 기대값을 먼저 변경해 Event README와 StageRuntime 조합 부재 실패를 확인한 뒤 템플릿을 갱신했다.
+- RED: Core StageRuntime 4건과 Rhythm Music/beat 1건을 먼저 추가해 `5 test(s)` 실패를 확인했다. 생성기에는 Event 폴더 및 StageRuntime 기대를 각각 먼저 추가해 실패를 확인했다.
+- GREEN: Core occurrence/catch-up/End/input, Editor 회귀, Sample 연출 모듈, Rhythm Music·관리 노드와 Launcher 정리를 포함해 `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 274 tests`; `python -m unittest discover -s tests_python -v` → `Ran 5 tests`, `OK`.
+- 생성기 smoke: 새 템플릿으로 임시 Project를 만든 뒤 LÖVE에서 로드하고 Set Input Enabled와 beat 갱신을 실행해 `PASS: generated Project StageRuntime`을 확인한 후 삭제했다.
+- 실제 MP3 smoke: 별도 임시 LÖVE 앱에서 실제 `speaki_song.json`을 클릭하고 `Moai_Doo-Wop.mp3` stream Source의 `isPlaying()`과 beat 진행을 확인해 `PASS: Rhythm audio playing, beat=1.267`를 얻은 뒤 임시 앱을 삭제했다. 사람이 곡을 끝까지 청취하거나 실제 창에서 클릭하지는 못했다.

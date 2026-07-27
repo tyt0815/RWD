@@ -5,7 +5,8 @@ return {
     entryModule = "projects.sample.game.SampleGame",
 
     -- 이 선언은 Editor가 Sample 전용 노드를 표시하기 위한 등록 계약이다.
-    -- 새 Project에서는 아래 Category/Event를 복사한 뒤 id, property와 연출만 바꿀 수 있다.
+    -- 실행 연출은 game/events/SampleGameplay/<EventName>.lua로 나뉜다.
+    -- 새 Project에서는 선언 형식만 참고하고 Project별 Sprite/SFX/이동은 Event 파일에 둔다.
     eventCategories = {
         {
             id = "sampleGameplay",

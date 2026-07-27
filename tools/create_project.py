@@ -61,13 +61,18 @@ def project_manifest(project_id, title, core_api_version):
 
 
 def game_module():
-    return """local Game = {}
+    return """local Core = require(\"core\")
+
+local Game = {}
 Game.__index = Game
 
-function Game.new(project)
+function Game.new(project, options)
+    options = options or {}
     return setmetatable({
         project = project,
+        stageStore = options.stageStore,
         stage = nil,
+        stageRuntime = Core.StageRuntime.new(),
         currentBeat = 0,
     }, Game)
 end
@@ -75,12 +80,20 @@ end
 function Game:startStage(stage, startBeat)
     self.stage = stage
     self.currentBeat = startBeat or 0
+    self.stageRuntime = Core.StageRuntime.new()
+    local occurrences, errorMessage = self.stageRuntime:start(stage, self.currentBeat)
+    if not occurrences then error(errorMessage) end
 end
 
 function Game:update(deltaTime, beat)
-    if beat ~= nil then
-        self.currentBeat = beat
-    end
+    if beat == nil or not self.stage then return end
+    local occurrences, errorMessage = self.stageRuntime:update(beat)
+    if not occurrences then error(errorMessage) end
+    self.currentBeat = self.stageRuntime:getCurrentBeat()
+end
+
+function Game:isInputEnabled()
+    return self.stageRuntime:isInputEnabled()
 end
 
 function Game:draw(width, height)
@@ -98,6 +111,12 @@ def write_template(project_path, project_id, title, core_api_version):
         "project.lua": project_manifest(project_id, title, core_api_version),
         "game/Game.lua": game_module(),
         "stages/README.md": "# Stages\n\n에디터가 생성한 Stage JSON을 이 폴더에 저장한다.\n",
+        "game/events/README.md": (
+            "# Project Events\n\n"
+            "Project Event 구현은 `game/events/<CategoryName>/<EventName>.lua`에 둔다. "
+            "Core StageRuntime이 실행 시점을 정하고 각 파일은 Sprite, SFX와 이동 등 "
+            "Project 전용 연출만 처리한다.\n"
+        ),
         "assets/audio/music/README.md": (
             "# Music\n\nProject 음악 파일(`.ogg`, `.mp3`, `.wav`)을 이 폴더 또는 하위 폴더에 둔다.\n"
         ),

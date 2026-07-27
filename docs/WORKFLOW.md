@@ -14,6 +14,7 @@ Project ID는 소문자 영숫자로 시작하고 이후 소문자 영숫자, `_
 projects/my-game/
 ├─ project.lua
 ├─ game/Game.lua
+├─ game/events/README.md
 ├─ stages/README.md
 └─ assets/
    ├─ audio/music/README.md
@@ -21,7 +22,7 @@ projects/my-game/
    └─ image/README.md
 ```
 
-`project.lua`는 생성 시점의 `core/init.lua`에서 Core API 버전을 읽고 Project ID, 표시 이름과 `projects.<projectId>.game.Game` 진입 모듈을 선언한다. `Game.lua`는 Launcher와 Editor preview에서 실행 가능한 `new`, `startStage`, `update`, `draw` 계약만 제공하며 Sample의 노드나 게임 규칙은 복사하지 않는다. 게임별 UI, 사운드, 연출과 리소스는 해당 Project 밖으로 새지 않게 한다.
+`project.lua`는 생성 시점의 `core/init.lua`에서 Core API 버전을 읽고 Project ID, 표시 이름과 `projects.<projectId>.game.Game` 진입 모듈을 선언한다. `Game.lua`는 Launcher와 Editor preview에서 실행 가능한 `new`, `startStage`, `update`, `draw` 계약과 Core `StageRuntime` 조합만 제공하며 Sample의 노드나 게임 규칙은 복사하지 않는다. 생성자의 선택적 두 번째 인자 `options.stageStore`에는 검증된 Stage 목록과 데이터를 읽는 Store가 주입된다. Project Event 구현은 `game/events/<CategoryName>/<EventName>.lua`에 두고 Sprite, SFX, 이동처럼 Project별로 달라지는 동작만 작성한다. 게임별 UI, 사운드, 연출과 리소스는 해당 Project 밖으로 새지 않게 한다.
 
 ## 2. Project 오디오 배치
 
@@ -31,7 +32,7 @@ projects/my-game/
 
 Pattern은 여러 beat에 걸친 신호와 플레이어 반응을 코드로 묶는 재사용 단위다. Core가 판정할 원시 노트 종류는 Tap Note와 Long Note이며, Pattern은 실행 시 이 두 노트의 일정을 생성한다.
 
-내장 `Game Manager` Category는 `End`와 `Set Input Enabled` Event를 제공한다. Project는 manifest의 `eventCategories`로 Project 전용 Category, Event, number 프로퍼티와 Timeline geometry를 등록한다. 자세한 제작 순서는 `docs/PROJECT_NODES_TUTORIAL.md`를 따른다. 일반 Pattern 등록과 전개는 아직 구현하지 않았다.
+내장 `Game Manager` Category는 `End`와 `Set Input Enabled` Event를 제공한다. Core `StageRuntime`이 모든 Stage Event의 beat 순서 실행, 중간 시작 catch-up, 입력 활성 상태와 End를 공통 처리한다. Project는 manifest의 `eventCategories`로 Project 전용 Category, Event, number 프로퍼티와 Timeline geometry를 등록하고 Category/Event별 Lua 파일에서 연출을 구현한다. 자세한 제작 순서는 `docs/PROJECT_NODES_TUTORIAL.md`를 따른다. 일반 Pattern 등록과 전개는 아직 구현하지 않았다.
 
 ## 4. Stage 생성과 재생 속성 편집
 
@@ -89,10 +90,14 @@ decode, Source, preview 시작·update·draw가 실패하면 오류 모달을 �
 
 현재 preview는 현재 Stage와 기준 beat를 Project의 `startStage`에 전달한다. Auto Play가 `None`이 아니고 Project가 선택적 `setAutoPlay(value)`를 구현하면 Stage 시작 전에 `good`, `bad`, `miss` 중 선택값을 전달한다. 입력 상태는 기본 true이고 `Set Input Enabled` 도달 시 바뀌며, 활성 상태의 Space를 현재 beat와 함께 Project `keypressed`로 전달한다. `End` 도달 시 해당 beat에서 끝나고, End가 없고 Music이 있으면 Music duration에서 자동 종료한다. Sample은 검은 Stage 화면에서 Sprite 기반 Spawn Actors와 Cue & Response를 실행하고 Core TapJudgment로 GOOD/BAD/MISS/EMPTY_INPUT을 판정한다. Guide Turn과 Player Turn은 Core BeatTween을 조합해 반대편 액터를 0.5박 동안 화면 밖으로 이동시키며 오른쪽 액터는 좌우 반전한다. 일반 Pattern 실행과 Long Note 판정은 후속 작업이다.
 
-## 6. 게임 연출
+## 6. 독립 실행 Stage 선택
+
+Launcher의 `2`로 Rhythm Dotgeo를 열면 `projects/rhythm_dotgeo/stages/*.json`의 검증된 Stage 이름 목록을 표시한다. 목록 항목은 `Core.UI.Button`의 클릭 판정을 사용하며 클릭 시 최신 Stage JSON을 다시 읽어 `startStage(stage, 0)`로 시작한다. Stage의 BPM, Music, Volume과 Beat 0 Offset은 Core `PlaybackTransport`에 적용되어 독립 실행 rate `1.0`으로 재생된다. Stage 목록·JSON 로딩은 Launcher가 주입한 기존 StageStore를 사용하므로 Project는 Editor 내부 모듈이나 JSON 라이브러리를 직접 불러오지 않는다. 현재 이 선택 화면은 Rhythm Dotgeo 전용이며 Sample은 기존 직접 실행 흐름을 유지한다.
+
+## 7. 게임 연출
 
 Core는 `JudgmentResult`만 전달한다. Project는 `GOOD`, `BAD`, `MISS`, `EMPTY_INPUT`에 대응하는 화면, 사운드와 UX를 구현한다.
 
-## 7. 독립 배포
+## 8. 독립 배포
 
 배포 시에는 선택 Project의 코드·리소스·Stage와 호환 Core만 포함한다. Editor와 다른 Project는 포함하지 않는다. 패키징 도구는 로드맵의 후속 단계에서 구현한다.
