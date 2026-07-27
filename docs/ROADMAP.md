@@ -33,7 +33,7 @@
 - [x] EditorSession의 Stage 생성, 열기와 저장 상태
 - [x] Core.UI Button·TextInput·ComboBox·ScrollArea와 Editor 스타일 조합
 - [x] 콘텐츠 15행 높이의 고정 상단 패널과 Categories·Events 독립/Properties·Values 연동 조건부 스크롤
-- [x] Project Music 재귀 검색과 선택 모달
+- [x] `assets/audio/music/` Project Music 재귀 검색과 SFX를 제외한 선택 모달
 - [x] 권장 Threshold 기본값 `0.01`의 Music 첫 소리 검출과 Beat 0 Offset 자동·수동 설정
 - [x] Scale 기반 Timeline, 빈 첫 칸과 Period 경계 눈금, 공통 Snap, 상단 click·adaptive edge-scroll drag, cursor anchor wheel zoom, 중간 버튼 pan과 F·R 재생 단축키
 - [x] 내장 Game Manager Category와 End·Set Input Enabled 목록

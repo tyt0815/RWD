@@ -32,7 +32,7 @@ love . --test
 
 ## Project 음악 배치
 
-Project 음악은 `projects/<projectId>/assets/audio/` 또는 그 하위 폴더에 둔다. 에디터는 `.ogg`, `.mp3`, `.wav` 파일을 재귀 검색해 Music 선택 모달에 Project 상대 경로로 표시한다. 저작권이 있는 오디오 파일은 저장소에 추가하지 않는다.
+Project 음악은 `projects/<projectId>/assets/audio/music/` 또는 그 하위 폴더에, 효과음은 `assets/audio/sfx/`에 둔다. 에디터는 `music/` 아래의 `.ogg`, `.mp3`, `.wav` 파일만 재귀 검색해 Music 선택 모달에 Project 상대 경로로 표시한다. 저작권이 있는 오디오 파일은 저장소에 추가하지 않는다.
 
 ## 에디터 Menu와 Properties
 

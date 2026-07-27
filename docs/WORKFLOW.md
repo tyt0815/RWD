@@ -6,7 +6,7 @@
 
 ## 2. Project 오디오 배치
 
-음악 파일은 `projects/<projectId>/assets/audio/` 또는 그 하위 폴더에 둔다. 지원 확장자는 `.ogg`, `.mp3`, `.wav`다. 에디터 Music 모달은 이 폴더를 재귀 검색해 `assets/audio/...` Project 상대 경로로 표시한다. 저작권이 있는 파일은 저장소에 추가하지 않는다.
+음악 파일은 `projects/<projectId>/assets/audio/music/` 또는 그 하위 폴더에, 효과음은 `assets/audio/sfx/`에 둔다. 지원 확장자는 `.ogg`, `.mp3`, `.wav`다. 에디터 Music 모달은 `music/`만 재귀 검색해 `assets/audio/music/...` Project 상대 경로로 표시하므로 SFX는 목록에 포함되지 않는다. 저작권이 있는 파일은 저장소에 추가하지 않는다.
 
 ## 3. Pattern 작성과 에디터 등록
 
@@ -28,7 +28,7 @@ New는 Project, Stage ID, Name과 BPM으로 `events: []`인 schemaVersion 2 Stag
 
 `Mixtape Properties`는 다음 순서다.
 
-1. Music: `None` 또는 현재 Project의 오디오 파일 선택
+1. Music: `None` 또는 현재 Project의 `assets/audio/music/` 아래 음악 파일 선택
 2. Volume: `0.0~1.0`
 3. Beat 0 Offset: 음악 시작을 논리 beat 0과 맞추는 seconds 값. Music 선택 시 현재 값이 기본값 `0`이면 첫 소리 위치를 자동 설정하고, 오른쪽 `Auto` 버튼은 현재 값과 관계없이 다시 분석한다.
 4. Onset Threshold: Beat 0 Offset Auto 분석의 RMS 기준 `0.0~1.0`. 저장은 Editor 전용 설정이며 기본값 `0.01`은 작은 압축 노이즈를 제외하는 일반 권장값이다.

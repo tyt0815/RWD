@@ -351,3 +351,11 @@ Stage 계약은 schemaVersion 2, 최상위 `bpm`, 선택적 `mixtape`, 선택적
 - `TimelineSnap.snapEventBeat`를 생성·drag preview·단일 이동 API가 공유해 노드 스냅 규칙을 한 곳에서 관리한다.
 - RED: 셀 스냅 API 부재와 Snap 4의 11.9 beat drag가 12로 반올림되는 통합 테스트 실패 2건을 확인했다.
 - GREEN 및 최종 검증: `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 261 tests`; `git diff --check`와 Editor/Project의 Core 내부 require 검색은 출력 없음; Project JSON은 PowerShell `ConvertFrom-Json` 통과; 숨김 창 기동은 `LOVE_SMOKE_RUNNING=True`였다. 실제 마우스 조작 화면은 사람이 수동 확인하지 못했다.
+
+## Project Music·SFX 폴더 분리 (2026-07-27)
+
+- Project 오디오를 `assets/audio/music/`과 `assets/audio/sfx/`로 구분했다. 에디터 `MusicCatalog`는 `music/`만 재귀 검색하므로 SFX는 Music 선택 목록에 포함되지 않는다.
+- Sample 음악과 Stage 참조를 `assets/audio/music/HifumiDaisuki.mp3`로 이동하고, SFX 폴더 안내와 README·아키텍처·워크플로우·Stage 형식·로드맵을 갱신했다.
+- 기존 schemaVersion 2 Stage 호환성을 위해 `MixtapeSettings`의 `assets/audio/` 경로 검증은 유지하고, 새 에디터 검색·문서·Sample 경로만 `assets/audio/music/`을 사용한다.
+- RED: MusicCatalog 테스트의 검색 루트와 기대 경로를 먼저 `assets/audio/music/`으로 변경해 전체 suite에서 2건 실패를 확인했다.
+- GREEN 및 최종 검증: `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 261 tests`; Project JSON은 PowerShell `ConvertFrom-Json` 통과; `git diff --check` 출력 없음. 기존 사용자 변경인 `projects/sample/assets/audio/HifumiDaisuki copy.mp3` 삭제는 건드리지 않았다.

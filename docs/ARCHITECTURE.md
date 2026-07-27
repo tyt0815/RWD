@@ -6,7 +6,7 @@
 Launcher → Editor → Core 공개 API
         ↘ Project → Core 공개 API
         ↘ ProjectLoader.createGame → Editor TestPlayer
-Editor → Project Manifest·assets/audio
+Editor → Project Manifest·assets/audio/music
 ```
 
 Core는 Editor와 Project를 알지 못한다. Project는 Editor를 알지 못하며, `editor/`와 `projects/`는 `require("core")` 공개 진입점만 사용한다. 스타일 독립적인 공통 UI 동작은 Core가 제공하고 Editor와 Project가 각자 스타일·배치와 도메인 동작을 조합한다. Project 상대 Music 경로를 실제 경로로 바꾸고 Editor 전용 설정을 적용하는 책임은 Editor에 있다.
@@ -54,7 +54,7 @@ Editor는 `Menu | Categories | Events | Properties | Values`의 392px 고정 상
 ## 데이터 흐름
 
 ```text
-Project assets/audio → Editor Music 선택 → Stage의 희소 Mixtape 설정
+Project assets/audio/music → Editor Music 선택 → Stage의 희소 Mixtape 설정
 → EditorSession이 Project 경로 해석 → Core PlaybackTransport와 MusicPlayback
 
 Project가 Categories/Events 등록 → Editor가 TimelineEvent 배치 → Stage JSON 저장

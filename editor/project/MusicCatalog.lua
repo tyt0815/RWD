@@ -38,7 +38,7 @@ function MusicCatalog:list(projectId)
         return nil, "Invalid Project id."
     end
 
-    local rootPath = "projects/" .. projectId .. "/assets/audio"
+    local rootPath = "projects/" .. projectId .. "/assets/audio/music"
     local infoSucceeded, rootInfo = pcall(self.getInfo, rootPath)
     if not infoSucceeded then
         return nil, filesystemError(rootInfo)
@@ -79,7 +79,7 @@ function MusicCatalog:list(projectId)
         return true, nil
     end
 
-    local walked, errorMessage = walk(rootPath, "assets/audio")
+    local walked, errorMessage = walk(rootPath, "assets/audio/music")
     if not walked then return nil, errorMessage end
 
     table.sort(files)

@@ -25,7 +25,7 @@ Mixtape와 Editor 설정이 모두 기본값이면 `mixtape`와 `editorSettings`
   "name": "Tutorial Remix",
   "bpm": 128,
   "mixtape": {
-    "music": "assets/audio/tutorial.ogg",
+    "music": "assets/audio/music/tutorial.ogg",
     "volume": 0.8,
     "beat0Offset": -0.5
   },
@@ -92,7 +92,7 @@ Mixtape와 Editor 설정이 모두 기본값이면 `mixtape`와 `editorSettings`
 
 | 필드 | 기본값 | 검증 |
 | --- | ---: | --- |
-| `music` | 없음 | `assets/audio/` 아래 Project 상대 `.ogg`, `.mp3`, `.wav` 경로 |
+| `music` | 없음 | `assets/audio/` 아래 Project 상대 `.ogg`, `.mp3`, `.wav` 경로. 새 음악은 `assets/audio/music/`에 배치 |
 | `volume` | `1.0` | `0.0~1.0` 유한 수 |
 | `beat0Offset` | `0.0` | 유한 seconds 값 |
 

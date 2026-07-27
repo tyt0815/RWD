@@ -20,7 +20,7 @@ end
 
 return {
     {
-        name = "audio 폴더가 없으면 빈 Music 목록을 반환한다",
+        name = "music 폴더가 없으면 빈 Music 목록을 반환한다",
         run = function(test)
             local catalog = newCatalog({})
             local files, errorMessage = catalog:list("sample")
@@ -32,7 +32,7 @@ return {
     {
         name = "Music 목록은 하위 폴더의 지원 파일만 Project 상대 경로로 정렬한다",
         run = function(test)
-            local root = "projects/sample/assets/audio"
+            local root = "projects/sample/assets/audio/music"
             local catalog = newCatalog({
                 entries = {
                     [root] = { "z.wav", "sub", "ignore.txt" },
@@ -47,14 +47,14 @@ return {
             local files = assert(catalog:list("sample"))
             test.assertEqual(
                 table.concat(files, "|"),
-                "assets/audio/sub/a.ogg|assets/audio/sub/b.MP3|assets/audio/z.wav"
+                "assets/audio/music/sub/a.ogg|assets/audio/music/sub/b.MP3|assets/audio/music/z.wav"
             )
         end,
     },
     {
         name = "Music 파일시스템 예외는 오류 값으로 반환한다",
         run = function(test)
-            local root = "projects/sample/assets/audio"
+            local root = "projects/sample/assets/audio/music"
             local catalog = newCatalog({
                 directories = { [root] = true },
                 listDirectory = function()
