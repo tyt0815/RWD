@@ -26,6 +26,12 @@
 - Project 기능을 구현하기 전에 Core 공개 API를 검색하고, 기존 Core 인스턴스 조합으로 해결할지 공통 기능을 Core에 추가할지 판단한다. Lua에서는 상속보다 조합을 우선하며 선택 근거가 불명확하면 구현 전에 질문한다.
 - 공통 기능을 Core에 추가하면 공개 API와 Core 테스트를 함께 변경하고, 새 Project 제작자가 알아야 하는 경우 Sample 참고 주석과 `docs/PROJECT_NODES_TUTORIAL.md`도 갱신한다.
 
+## Project 템플릿 유지보수
+
+- 새 Project는 수동으로 기본 폴더를 만들지 않고 `python tools/create_project.py <projectId> "<title>"`로 생성한다.
+- Project 매니페스트 필수 필드, 게임 진입 계약, 필수 리소스 폴더처럼 빈 Project가 기본으로 가져야 할 구조가 바뀌면 같은 작업에서 `tools/create_project.py`, `tests_python/test_create_project.py`와 `docs/WORKFLOW.md`를 함께 갱신한다.
+- 생성기는 Sample의 게임 규칙·노드·연출을 복사하지 않고 실행 가능한 최소 Project만 만든다.
+
 ## 코드 컨벤션
 
 - 클래스 역할의 테이블과 파일 이름: `PascalCase`

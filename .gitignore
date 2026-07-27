@@ -2,6 +2,8 @@
 .superpowers/
 dist/
 *.love
+__pycache__/
+*.py[cod]
 Thumbs.db
 .DS_Store
 .references

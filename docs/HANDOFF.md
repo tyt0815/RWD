@@ -359,3 +359,12 @@ Stage 계약은 schemaVersion 2, 최상위 `bpm`, 선택적 `mixtape`, 선택적
 - 기존 schemaVersion 2 Stage 호환성을 위해 `MixtapeSettings`의 `assets/audio/` 경로 검증은 유지하고, 새 에디터 검색·문서·Sample 경로만 `assets/audio/music/`을 사용한다.
 - RED: MusicCatalog 테스트의 검색 루트와 기대 경로를 먼저 `assets/audio/music/`으로 변경해 전체 suite에서 2건 실패를 확인했다.
 - GREEN 및 최종 검증: `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 261 tests`; Project JSON은 PowerShell `ConvertFrom-Json` 통과; `git diff --check` 출력 없음. 기존 사용자 변경인 `projects/sample/assets/audio/HifumiDaisuki copy.mp3` 삭제는 건드리지 않았다.
+
+## 빈 Project 생성기 (2026-07-27)
+
+- `python tools/create_project.py <projectId> "<title>"` 명령을 추가했다. 생성기는 현재 `core/init.lua`의 API 버전을 읽고 `project.lua`, `game/Game.lua`, `stages/`, `assets/audio/music/`, `assets/audio/sfx/`, `assets/image/`의 실행 가능한 최소 구조를 만든다.
+- 안전한 소문자 ID와 Windows 예약 이름을 검사하고 기존 Project를 덮어쓰지 않는다. 임시 폴더에 전체 템플릿을 쓴 뒤 최종 Project 경로로 이동하며 실패 시 임시 파일을 정리한다.
+- `AGENTS.md`에 빈 Project 필수 구조나 진입 계약 변경 시 생성기, Python 테스트와 워크플로우 문서를 같은 작업에서 갱신하는 지침을 추가했다. 생성기는 Sample 게임 규칙을 복사하지 않는다.
+- RED: `tests_python/test_create_project.py`를 먼저 추가한 뒤 `ModuleNotFoundError: No module named 'tools'` 실패를 확인했다.
+- GREEN: `python -m unittest discover -s tests_python -v` → `Ran 5 tests`, `OK`; 생성 결과를 별도 LÖVE 앱에서 `ProjectLoader.loadProject/createGame`으로 불러와 `PASS: generated Project load and create`를 확인했다.
+- 전체 회귀 검증: `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 261 tests`; `python -m py_compile tools/create_project.py tests_python/test_create_project.py` 통과. 최종 `git diff --check`와 작업 트리 상태는 완료 보고 전에 다시 확인한다.

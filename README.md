@@ -28,7 +28,18 @@ love .
 
 ```powershell
 love . --test
+python -m unittest discover -s tests_python -v
 ```
+
+## 새 Project 생성
+
+저장소 루트에서 Project ID와 표시 이름을 지정한다.
+
+```powershell
+python tools/create_project.py my-game "My Game"
+```
+
+생성기는 `projects/my-game/` 아래에 현재 Core API 버전의 매니페스트, 최소 게임 진입 모듈, Stage와 음악·효과음·이미지 폴더를 만든다. Project ID는 소문자 영숫자로 시작하고 이후 소문자 영숫자, `_`, `-`만 사용할 수 있다. 기존 Project는 덮어쓰지 않는다.
 
 ## Project 음악 배치
 
@@ -67,9 +78,11 @@ Timeline 위에 마우스를 두고 wheel을 돌리면 커서가 가리키는 be
 core/       공통 시간·음악·리듬게임과 스타일 독립 UI API
 editor/     Stage 에디터와 Editor 전용 재생 도구
 launcher/   개발용 모드 및 프로젝트 선택
-projects/   서로 독립적인 게임 프로젝트
-tests/      외부 프레임워크 없는 자동 테스트
-docs/       아키텍처, 제작 흐름, Stage 형식, 로드맵, 인수인계
+projects/       서로 독립적인 게임 프로젝트
+tools/          Project 생성 등 개발용 도구
+tests/          외부 프레임워크 없는 LÖVE 자동 테스트
+tests_python/   개발용 Python 도구 테스트
+docs/           아키텍처, 제작 흐름, Stage 형식, 로드맵, 인수인계
 ```
 
 ## 제작 방향

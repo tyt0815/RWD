@@ -3,11 +3,14 @@
 ## 의존 방향
 
 ```text
+Project 생성기 → Project 기본 파일·폴더
 Launcher → Editor → Core 공개 API
         ↘ Project → Core 공개 API
         ↘ ProjectLoader.createGame → Editor TestPlayer
 Editor → Project Manifest·assets/audio/music
 ```
+
+`tools/create_project.py`는 개발 시에만 실행되며 런타임 모듈에 의존하지 않는다. `core/init.lua`에서 현재 API 버전을 읽어 최소 Project 매니페스트와 게임 진입 모듈을 생성한다.
 
 Core는 Editor와 Project를 알지 못한다. Project는 Editor를 알지 못하며, `editor/`와 `projects/`는 `require("core")` 공개 진입점만 사용한다. 스타일 독립적인 공통 UI 동작은 Core가 제공하고 Editor와 Project가 각자 스타일·배치와 도메인 동작을 조합한다. Project 상대 Music 경로를 실제 경로로 바꾸고 Editor 전용 설정을 적용하는 책임은 Editor에 있다.
 

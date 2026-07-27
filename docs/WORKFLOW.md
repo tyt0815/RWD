@@ -2,7 +2,26 @@
 
 ## 1. Project 생성
 
-게임별 코드는 `projects/<projectId>/`에 둔다. `project.lua`는 Project ID, 표시 이름, 요구 Core API 버전과 게임 진입 모듈을 선언한다. UI, 사운드, 연출과 리소스는 해당 Project 밖으로 새지 않게 한다.
+저장소 루트에서 생성기를 실행한다.
+
+```powershell
+python tools/create_project.py my-game "My Game"
+```
+
+Project ID는 소문자 영숫자로 시작하고 이후 소문자 영숫자, `_`, `-`만 사용할 수 있으며 Windows 예약 이름은 사용할 수 없다. 생성기는 기존 경로를 덮어쓰지 않고 다음 실행 가능한 최소 구조를 만든다.
+
+```text
+projects/my-game/
+├─ project.lua
+├─ game/Game.lua
+├─ stages/README.md
+└─ assets/
+   ├─ audio/music/README.md
+   ├─ audio/sfx/README.md
+   └─ image/README.md
+```
+
+`project.lua`는 생성 시점의 `core/init.lua`에서 Core API 버전을 읽고 Project ID, 표시 이름과 `projects.<projectId>.game.Game` 진입 모듈을 선언한다. `Game.lua`는 Launcher와 Editor preview에서 실행 가능한 `new`, `startStage`, `update`, `draw` 계약만 제공하며 Sample의 노드나 게임 규칙은 복사하지 않는다. 게임별 UI, 사운드, 연출과 리소스는 해당 Project 밖으로 새지 않게 한다.
 
 ## 2. Project 오디오 배치
 
