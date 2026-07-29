@@ -11,6 +11,7 @@ Core.JudgmentResult = {
 
 Core.PlaybackClock = require("core.PlaybackClock")
 Core.TapJudgment = require("core.TapJudgment")
+Core.LongNoteJudgment = require("core.LongNoteJudgment")
 Core.BeatTween = require("core.BeatTween")
 Core.ProjectEvents = require("core.ProjectEvents")
 Core.ProjectCategories = require("core.ProjectCategories")

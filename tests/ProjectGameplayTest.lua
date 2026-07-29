@@ -81,6 +81,10 @@ return {
                             received.key = key
                             received.inputBeat = beat
                         end,
+                        keyreleased = function(_, key, beat)
+                            received.releasedKey = key
+                            received.releaseBeat = beat
+                        end,
                     }
                 end,
             })
@@ -88,11 +92,14 @@ return {
             assert(player:start({ id = "sample" }, stage, 3))
             assert(player:update(0.1, 3.5))
             assert(player:keypressed("space", 3.6))
+            assert(player:keyreleased("space", 3.8))
             test.assertEqual(received.stage, stage)
             test.assertEqual(received.startBeat, 3)
             test.assertEqual(received.updateBeat, 3.5)
             test.assertEqual(received.key, "space")
             test.assertEqual(received.inputBeat, 3.6)
+            test.assertEqual(received.releasedKey, "space")
+            test.assertEqual(received.releaseBeat, 3.8)
         end,
     },
     {

@@ -96,12 +96,12 @@ function TestPlayer:update(deltaTime, beat)
     return true, nil
 end
 
-function TestPlayer:keypressed(key, beat)
-    if not self.playing or not self.game or not self.game.keypressed then
+local function sendInput(self, methodName, key, beat)
+    if not self.playing or not self.game or not self.game[methodName] then
         return true, nil
     end
     local succeeded, errorMessage = pcall(
-        self.game.keypressed,
+        self.game[methodName],
         self.game,
         key,
         beat
@@ -110,6 +110,14 @@ function TestPlayer:keypressed(key, beat)
         return nil, "Project preview input failed: " .. tostring(errorMessage)
     end
     return true, nil
+end
+
+function TestPlayer:keypressed(key, beat)
+    return sendInput(self, "keypressed", key, beat)
+end
+
+function TestPlayer:keyreleased(key, beat)
+    return sendInput(self, "keyreleased", key, beat)
 end
 
 function TestPlayer:draw(rect)

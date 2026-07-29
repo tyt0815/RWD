@@ -32,6 +32,31 @@ end
 
 return {
     {
+        name = "앱 기본 폰트는 한글을 지원하는 D2Coding TTC를 사용한다",
+        run = function(test)
+            local AppFont = require("launcher.AppFont")
+            local state = {}
+            local graphics = {
+                newFont = function(path, size)
+                    state.path = path
+                    state.size = size
+                    return { id = "font" }
+                end,
+                setFont = function(font) state.font = font end,
+            }
+
+            local font = AppFont.apply(graphics)
+
+            test.assertEqual(state.path,
+                "assets/fonts/D2Coding-Ver1.3.3-20260725-all.ttc")
+            test.assertEqual(state.size, 14)
+            test.assertEqual(state.font, font)
+
+            local actualFont = love.graphics.newFont(state.path, state.size)
+            test.assertTrue(actualFont:hasGlyphs("스피키송", "흐에", "네르지마세요"))
+        end,
+    },
+    {
         name = "LÖVE wheel과 mouse release callback이 등록된다",
         run = function(test)
             test.assertTrue(type(love.wheelmoved) == "function")

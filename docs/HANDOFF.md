@@ -6,7 +6,7 @@ LÖVE2D 11.5 Launcher에서 Sample Project와 Stage 에디터를 열 수 있다.
 
 `Editor Properties`는 Snap, Scale, Playback Rate, Auto Play, Metronome, Metronome Period, Track, Preview Aspect Width, Preview Aspect Height를, `Mixtape Properties`는 Music, Volume, Beat 0 Offset, Onset Threshold, BPM을 순서대로 제공한다. 숫자 직접 편집, boolean 전환, Project Music 선택 모달, cursor anchor wheel zoom, 상단 click·adaptive edge-scroll 재생 바 drag, F·Ctrl+S·R 단축키, 재생 오류 정리와 beat rollback이 연결되었다. 기본값은 Stage JSON에서 희소화된다.
 
-Game Manager의 End와 Set Input Enabled Event를 처리한다. Project Event Category·number Property 등록, 현재 Stage의 Project 전달과 활성 상태의 Space 입력 전달을 지원한다. Sample Project는 Spawn Actors와 Cue & Response, Core beat 기반 Tap 판정과 결과별 화면·사운드를 구현했다. 일반 Pattern 실행과 Long Note 판정은 아직 구현하지 않았다.
+Game Manager의 End와 Set Input Enabled Event를 처리한다. Project Event Category·number Property 등록, 현재 Stage의 Project 전달과 활성 상태의 Space 누름·뗌 전달을 지원한다. Sample Project는 Core beat 기반 Tap 판정 예제를 제공한다. Rhythm Dotgeo에는 배경·액터 소환, Tap/Long 큐 응답과 턴을 제공하는 스피키송 Category가 있으며 Core beat 기반 Long Note 판정도 구현되었다. 일반 Pattern 실행은 아직 구현하지 않았다.
 
 ## 이번 기능 범위와 커밋
 
@@ -83,11 +83,10 @@ Stage 계약은 schemaVersion 2, 최상위 `bpm`, 선택적 `mixtape`, 선택적
 
 ## 다음 작업
 
-다음 개발 단위는 일반 Pattern Event 등록·전개와 Long Note 판정 방식을 정의하는 작업이다. Sample의 임시 beat 판정창을 프로젝트 요구에 따라 ms 기반으로 확장할지도 함께 결정한다.
+다음 개발 단위는 일반 Pattern Event 등록·전개다. 현재 Tap과 Long Note의 임시 beat 판정창을 프로젝트 요구에 따라 ms 기반으로 확장할지도 함께 결정한다.
 
 ## 현재 범위 밖인 기능
 
-- Long Note 판정
 - Pattern 등록 및 참조 전개
 - Project Pattern Event 실행
 - 모든 Project에 공통 적용되는 독립 실행용 Stage 선택 흐름(Rhythm Dotgeo 전용 흐름은 구현됨)
@@ -413,3 +412,21 @@ Stage 계약은 schemaVersion 2, 최상위 `bpm`, 선택적 `mixtape`, 선택적
 - RED: Core discovery와 Runtime routing 테스트를 먼저 추가해 `Core.ProjectCategories` 부재 2건을 확인했다. Sample 이동 직후 기존 테스트가 Game 내부 상태를 직접 보던 4건 실패를 Category Runtime·Actor 경계 기대값으로 전환했다.
 - GREEN: `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 276 tests`; `python -m unittest discover -s tests_python -v` → `Ran 5 tests`, `OK`; Python compile과 `git diff --check` 통과. Project JSON 전체는 PowerShell `ConvertFrom-Json` 통과, 숨김 LÖVE 기동은 `LOVE_SMOKE_RUNNING=True`였다.
 - 폴더-only smoke: 생성기로 만든 임시 Project에 `game/NewGameSample/Definition.lua`와 `Runtime.lua`만 추가하고 기존 manifest·Game을 수정하지 않은 채 LÖVE에서 Editor 등록 데이터와 Runtime Event 처리를 확인해 `PASS: folder-only Category auto registration and runtime`을 얻은 뒤 임시 Project를 삭제했다.
+
+## Rhythm Dotgeo 스피키송 Category (2026-07-29)
+
+- `projects/rhythm_dotgeo/game/SpeakiSong/`을 추가했다. Editor에는 `스피키송 > 스피키송`, `흐에`, `네르지마세요`, `좌피키`, `우피키`가 자동 등록된다. Spawn은 `ghost_basic.png` 배경과 좌피키·좌우 반전 우피키를 만들고, Turn은 0.5박 동안 한 Actor를 원위치로, 반대 Actor를 화면 밖으로 이동한다.
+- `흐에`는 `Response Delay (Beats)`와 `Long Note Length (Beats)`를 사용한다. 좌피키가 `speaki_uu.png`에서 `speaki_ner.png`로 좌하단 압박되는 가이드를 보인 뒤 우피키가 Space 누름·뗌으로 응답한다. `네르지마세요`는 같은 Response Delay 뒤 `speaki_uu.png`로 우하단 왕복·진동한다.
+- Core 공개 API에 `LongNoteJudgment`를 추가했다. 시작과 종료를 각각 GOOD/BAD로 판정하고 시작 누락, 종료 누락과 판정창 밖 release를 MISS로 처리한다. Main·Launcher·Editor TestPlayer·Category Host에 `keyreleased` 전달을 연결했다.
+- Rhythm Dotgeo manifest와 Game은 Category 자동 발견·Host를 조합한다. 이미지 캐시는 Category에서 한 번 만들며 향후 SFX는 `SpeakiSong/Sounds.lua`가 `assets/audio/sfx` Source를 소유하도록 경계를 남겼다.
+- 위치·크기·이동 조절 상수는 `SpeakiActor.lua` 상단에 설명 주석과 함께 모았다.
+- RED: LongNoteJudgment 부재 3건, 스피키송 등록 부재와 미등록 Event 실행 2건으로 `FAIL: 5 test(s)`를 확인했다.
+- GREEN: Core Long Note, 스피키송 등록·판정·연출·턴, Space release 전달과 우피키 반전을 포함해 `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 282 tests`; Python 생성기 회귀는 `Ran 5 tests`, `OK`였다.
+- 최종 검증: `git diff --check`는 CRLF 안내 외 오류 없음, Project JSON 전체는 PowerShell `ConvertFrom-Json` 통과, Project의 Core 내부·Editor·Launcher 직접 require 검색 출력 없음, 숨김 LÖVE 기동은 `LOVE_SMOKE_RUNNING=True`였다. 실제 애니메이션 속도와 배치는 사람이 화면에서 조절 확인해야 한다.
+
+## D2Coding 한글 기본 폰트 (2026-07-29)
+
+- `launcher/AppFont.lua`가 앱 시작 시 `assets/fonts/D2Coding-Ver1.3.3-20260725-all.ttc`를 14px로 한 번 로드해 LÖVE 기본 폰트로 설정한다. Launcher, Editor와 Project가 같은 기본 Font를 사용하므로 스피키송 등 한글 이름이 깨지지 않는다.
+- RED: 폰트 경로·크기·적용 계약 테스트가 `module 'launcher.AppFont' not found`로 1건 실패함을 확인했다.
+- GREEN: fake graphics 적용 계약과 실제 TTC의 `스피키송`, `흐에`, `네르지마세요` glyph 보유 검사를 포함해 `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 283 tests`.
+- 실제 앱의 TTC 로드를 포함한 숨김 LÖVE 기동은 `LOVE_FONT_SMOKE_RUNNING=True`였다. 실제 글자 크기와 가독성은 사람이 화면에서 최종 확인해야 한다.

@@ -599,6 +599,13 @@ function EditorSession:handleInput(key)
     return handled, errorMessage
 end
 
+function EditorSession:handleInputReleased(key)
+    if not self:isPlaying() or not self.inputEnabled then return true, nil end
+    local handled, errorMessage = self.testPlayer:keyreleased(key, self:getBeat())
+    if not handled then self:pause() end
+    return handled, errorMessage
+end
+
 function EditorSession:drawPreview(rect)
     local settings = self.document:getEditorSettings()
     local previewRect = fitPreviewRect(

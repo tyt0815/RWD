@@ -18,7 +18,7 @@
 - [x] Source 생성·duration·active seek·drift를 감싼 `MusicPlayback`
 - [x] Offset과 Playback Rate를 조정하는 공통 `PlaybackTransport`
 - [x] beat 판정창 기반 Tap Note GOOD/BAD/MISS/EMPTY_INPUT 판정
-- [ ] Long Note 판정 방식 설계 및 구현
+- [x] beat 기반 Long Note 누름·뗌 GOOD/BAD/MISS 판정
 - [x] `GOOD`, `BAD`, `MISS`, `EMPTY_INPUT` 판정 테스트
 
 ## 2. Pattern과 Stage 런타임
@@ -34,6 +34,7 @@
 - [x] Project와 Stage 선택
 - [x] EditorSession의 Stage 생성, 열기와 저장 상태
 - [x] Core.UI Button·TextInput·ComboBox·ScrollArea와 Editor 스타일 조합
+- [x] D2Coding 기본 폰트로 Launcher·Editor·Project 한글 렌더링 통일
 - [x] 콘텐츠 15행 높이의 고정 상단 패널과 Categories·Events 독립/Properties·Values 연동 조건부 스크롤
 - [x] `assets/audio/music/` Project Music 재귀 검색과 SFX를 제외한 선택 모달
 - [x] 권장 Threshold 기본값 `0.01`의 Music 첫 소리 검출과 Beat 0 Offset 자동·수동 설정
@@ -62,6 +63,7 @@
 - [x] 입력 활성 상태를 반영한 Space와 현재 beat 전달
 - [x] Sample Sprite 상태 피드백과 Core BeatTween 기반 0.5박 Turn 이동
 - [x] Rhythm Dotgeo 독립 실행 Stage 목록과 클릭 시 Music·beat 시작
+- [x] Rhythm Dotgeo 스피키송 Category의 배경·액터 소환, Tap/Long 큐 응답과 턴
 
 ## 5. 배포와 엔진 버전 관리
 

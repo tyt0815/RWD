@@ -160,6 +160,10 @@ function Host:keypressed(key, beat)
     callEach(self, "keypressed", key, beat)
 end
 
+function Host:keyreleased(key, beat)
+    callEach(self, "keyreleased", key, beat)
+end
+
 function Host:draw(width, height)
     callEach(self, "draw", width, height)
 end

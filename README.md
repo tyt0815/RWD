@@ -6,13 +6,14 @@ RWD는 LÖVE2D 11.5로 여러 개의 리듬게임을 제작하기 위한 공통 
 
 공통 Launcher에서 Stage 에디터, Sample Project와 Rhythm Dotgeo Project를 열 수 있다. Rhythm Dotgeo는 열릴 때 Stage 목록을 표시하고 항목을 클릭하면 Stage 음악·beat와 공통 관리 노드 실행을 시작한다. 에디터는 Stage JSON 버전 2를 만들고 열고 저장하며, Project 음악과 고정 BPM Transport를 Project Canvas에 맞춰 미리 재생한다. Editor 전용 Playback Rate, Metronome, Timeline Scale, Snap, Onset Threshold와 preview 화면 비율을 Stage에 희소 저장한다.
 
-Core StageRuntime이 End와 Set Input Enabled, Project Event의 beat 순서 실행과 시작 위치 상태 복원을 공통 처리한다. ProjectCategories는 `game/<CategoryName>/Definition.lua`와 `Runtime.lua`를 자동 발견해 기존 manifest와 Game 수정 없이 Editor 등록과 런타임 실행을 연결한다. Game Manager의 End와 Set Input Enabled Event를 편집할 수 있다. Sample Project는 `Spawn Actors`, `Guide Turn`, `Player Turn`, `Cue & Response`를 등록하며 Play 시 현재 Stage의 검은 게임 화면, Sprite 액터, Space 입력과 Core Tap 판정을 실행한다. 일반 Pattern 전개와 Long Note 판정은 아직 구현하지 않았다.
+Core StageRuntime이 End와 Set Input Enabled, Project Event의 beat 순서 실행과 시작 위치 상태 복원을 공통 처리한다. ProjectCategories는 `game/<CategoryName>/Definition.lua`와 `Runtime.lua`를 자동 발견해 기존 manifest와 Game 수정 없이 Editor 등록과 런타임 실행을 연결한다. Game Manager의 End와 Set Input Enabled Event를 편집할 수 있다. Sample Project는 Tap 판정 예제를 제공한다. Rhythm Dotgeo의 `스피키송` Category는 배경·좌피키·좌우 반전 우피키 소환, 턴, Tap 큐 응답과 길이를 설정하는 Long Note 큐 응답을 제공한다. Core는 누름·뗌을 함께 처리하는 beat 기반 Long Note 판정을 제공하며 일반 Pattern 전개는 아직 구현하지 않았다.
 
 ## 실행 환경
 
 - LÖVE2D 11.5
 - Windows PowerShell 기준 명령
 - 기본 창 해상도: 1920×1080(FHD), 최소 크기 1280×720, 비율 제한 없이 크기 조절 가능
+- 기본 UI 폰트: `assets/fonts/D2Coding-Ver1.3.3-20260725-all.ttc` 14px
 
 ## 실행
 

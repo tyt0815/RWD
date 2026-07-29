@@ -29,7 +29,9 @@ function love.load(arguments)
         return
     end
 
+    local AppFont = require("launcher.AppFont")
     local Launcher = require("launcher.Launcher")
+    AppFont.apply()
     activeApp = Launcher.new()
 end
 
@@ -48,6 +50,12 @@ end
 function love.keypressed(key, scanCode, isRepeat)
     if activeApp and activeApp.keypressed then
         activeApp:keypressed(key, scanCode, isRepeat)
+    end
+end
+
+function love.keyreleased(key, scanCode)
+    if activeApp and activeApp.keyreleased then
+        activeApp:keyreleased(key, scanCode)
     end
 end
 

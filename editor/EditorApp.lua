@@ -1182,6 +1182,14 @@ function EditorApp:textinput(text)
     return true
 end
 
+function EditorApp:keyreleased(key)
+    if key == "space" and self.session:isPlaying() then
+        local handled, errorMessage = self.session:handleInputReleased("space")
+        if not handled then self:showError(errorMessage) end
+    end
+    return true
+end
+
 function EditorApp:keypressed(key, _, isRepeat)
     if self.dialog then
         self.dialog:keypressed(key)

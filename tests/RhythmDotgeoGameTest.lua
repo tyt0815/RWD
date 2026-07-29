@@ -27,6 +27,109 @@ end
 
 return {
     {
+        name = "Rhythm Dotgeo는 스피키송 Category 노드를 자동 등록한다",
+        run = function(test)
+            local project = require("projects.rhythm_dotgeo.project")
+            local category = project.eventCategories[1]
+            test.assertEqual(category.id, "speakiSong")
+            test.assertEqual(category.label, "스피키송")
+            test.assertEqual(category.events[1].label, "스피키송")
+            test.assertEqual(category.events[2].label, "흐에")
+            test.assertEqual(category.events[2].properties[1].id, "responseDelayBeats")
+            test.assertEqual(category.events[2].properties[2].id, "longNoteLengthBeats")
+            test.assertEqual(category.events[3].label, "네르지마세요")
+            test.assertEqual(category.events[4].label, "좌피키")
+            test.assertEqual(category.events[5].label, "우피키")
+        end,
+    },
+    {
+        name = "스피키송 노드는 액터를 소환하고 턴과 큐 응답 상태를 실행한다",
+        run = function(test)
+            local Game = require("projects.rhythm_dotgeo.game.Game")
+            local project = require("projects.rhythm_dotgeo.project")
+            local game = Game.new(project, { stageStore = createStageStore() })
+            local stage = {
+                projectId = "rhythm_dotgeo",
+                stageId = "effects",
+                name = "Effects",
+                bpm = 120,
+                events = {
+                    { id = "spawn", type = "projectEvent", eventId = "speakiSong",
+                        startBeat = 0, track = 1, params = {} },
+                    { id = "long", type = "projectEvent", eventId = "heue",
+                        startBeat = 1, track = 1,
+                        params = { responseDelayBeats = 2, longNoteLengthBeats = 1 } },
+                    { id = "tap", type = "projectEvent", eventId = "doNotNer",
+                        startBeat = 5, track = 1,
+                        params = { responseDelayBeats = 2 } },
+                    { id = "player", type = "projectEvent", eventId = "playerTurn",
+                        startBeat = 9, track = 1, params = {} },
+                },
+            }
+            assert(game:startStage(stage, 0))
+            local runtime = game:getCategoryRuntime("speakiSong")
+            test.assertEqual(runtime.guideActor.spawned, true)
+            test.assertEqual(runtime.playerActor.spawned, true)
+            test.assertEqual(runtime.background.spawned, true)
+            game:update(0.1, 1)
+            test.assertEqual(runtime.guideActor.effect, "long")
+
+            game:update(0.1, 3)
+            game:keypressed("space")
+            test.assertEqual(runtime.playerActor.effect, "long")
+            game:update(0.1, 4)
+            game:keyreleased("space")
+            test.assertEqual(runtime.longResult, "GOOD")
+
+            game:update(0.1, 5)
+            test.assertEqual(runtime.guideActor.effect, "tap")
+            game:update(0.1, 7)
+            game:keypressed("space")
+            test.assertEqual(runtime.tapResult, "GOOD")
+            test.assertEqual(runtime.playerActor.effect, "tap")
+
+            game:update(0.1, 9.25)
+            test.assertNear(runtime.guideActor.movement:getValue(9.25), 0.5, 0.000001)
+            test.assertNear(runtime.playerActor.movement:getValue(9.25), 0, 0.000001)
+        end,
+    },
+    {
+        name = "스피키송 우피키는 좌우 반전되어 렌더링된다",
+        run = function(test)
+            local Game = require("projects.rhythm_dotgeo.game.Game")
+            local project = require("projects.rhythm_dotgeo.project")
+            local game = Game.new(project, { stageStore = createStageStore() })
+            assert(game:startStage({
+                projectId = "rhythm_dotgeo",
+                stageId = "draw",
+                name = "Draw",
+                bpm = 120,
+                events = {
+                    { id = "spawn", type = "projectEvent", eventId = "speakiSong",
+                        startBeat = 0, track = 1, params = {} },
+                },
+            }, 0))
+            local scales = {}
+            local previousLove = love
+            love = {
+                graphics = {
+                    clear = function() end,
+                    setColor = function() end,
+                    printf = function() end,
+                    draw = function(_, _, _, _, scaleX)
+                        table.insert(scales, scaleX)
+                    end,
+                },
+            }
+            local succeeded, errorMessage = pcall(function() game:draw(640, 360) end)
+            love = previousLove
+
+            test.assertTrue(succeeded, errorMessage)
+            test.assertTrue(scales[2] > 0)
+            test.assertTrue(scales[3] < 0)
+        end,
+    },
+    {
         name = "Rhythm Dotgeo는 열리면 Stage 목록을 표시한다",
         run = function(test)
             local Game = require("projects.rhythm_dotgeo.game.Game")

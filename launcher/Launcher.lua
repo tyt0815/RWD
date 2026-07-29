@@ -131,6 +131,13 @@ function Launcher:draw()
     drawMenu(self.errorMessage)
 end
 
+function Launcher:keyreleased(key, scanCode)
+    if self.activeApp and self.activeApp.keyreleased then
+        return self.activeApp:keyreleased(key, scanCode)
+    end
+    return false
+end
+
 function Launcher:keypressed(key, scanCode, isRepeat)
     if self.activeApp then
         if self.activeApp.keypressed

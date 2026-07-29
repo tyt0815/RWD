@@ -21,33 +21,35 @@ function StagePlayback.new(project, options)
         project = project,
         standalone = options.standalone == true,
         transportFactory = options.transportFactory or defaultTransportFactory,
-        eventHandlers = options.eventHandlers or {},
+        categoryHost = options.categoryHost,
         runtime = nil,
         transport = nil,
     }, StagePlayback)
 end
 
-function StagePlayback:applyOccurrences(game, occurrences)
-    for _, occurrence in ipairs(occurrences) do
-        local event = occurrence.event
-        if event.type == "projectEvent" then
-            local handler = self.eventHandlers[event.eventId]
-            if not handler then
-                return nil, "Unknown Rhythm Dotgeo Project Event: " .. tostring(event.eventId)
-            end
-            local succeeded, handlerError = pcall(handler.apply, game, event, occurrence)
-            if not succeeded then return nil, tostring(handlerError) end
-        end
-    end
+function StagePlayback:applyOccurrences(_, occurrences, beat)
+    if not self.categoryHost then return true, nil end
+    local succeeded, hostError = pcall(
+        self.categoryHost.applyOccurrences,
+        self.categoryHost,
+        occurrences,
+        beat
+    )
+    if not succeeded then return nil, tostring(hostError) end
     return true, nil
 end
 
 function StagePlayback:start(game, stage, startBeat)
     self:stop()
     self.runtime = Core.StageRuntime.new()
+    if self.categoryHost then self.categoryHost:startStage(stage, startBeat or 0) end
     local occurrences, runtimeError = self.runtime:start(stage, startBeat or 0)
     if not occurrences then return nil, runtimeError end
-    local applied, applyError = self:applyOccurrences(game, occurrences)
+    local applied, applyError = self:applyOccurrences(
+        game,
+        occurrences,
+        self.runtime:getCurrentBeat()
+    )
     if not applied then return nil, applyError end
     if not self.standalone or self.runtime:isEnded() then return true, nil end
 
@@ -79,8 +81,10 @@ function StagePlayback:update(game, deltaTime, externalBeat)
 
     local occurrences, runtimeError = self.runtime:update(beat)
     if not occurrences then return nil, runtimeError end
-    local applied, applyError = self:applyOccurrences(game, occurrences)
+    local currentBeat = self.runtime:getCurrentBeat()
+    local applied, applyError = self:applyOccurrences(game, occurrences, currentBeat)
     if not applied then return nil, applyError end
+    if self.categoryHost then self.categoryHost:update(deltaTime, currentBeat) end
 
     if self.runtime:isEnded() and self.transport then
         self.transport:pause()

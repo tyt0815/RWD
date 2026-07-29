@@ -187,6 +187,18 @@ end
 
 일반 상용 리듬게임은 BPM과 무관한 ms 판정창을 자주 사용한다. 이 샘플은 초기 제작 편의를 위해 beat 기반 임시값을 명시적으로 전달한다. 결과 색, 사운드와 점멸은 Core가 아니라 Project에서 구현한다.
 
+### Long Note 누름·뗌 판정
+
+`Core.LongNoteJudgment`는 `addNote(noteId, startBeat, endBeat)`로 길이가 있는 노트를 등록한다. Project는 Space 누름을 `press(beat)`, 뗌을 `release(beat)`로 전달하고 매 frame `update(beat)`의 MISS 결과를 처리한다. 반환값의 `phase`는 `PRESS` 또는 `RELEASE`다. 시작·종료가 모두 GOOD이면 최종 GOOD, 둘 중 하나가 BAD이면 최종 BAD, 판정창을 벗어나거나 입력을 생략하면 MISS다.
+
+```lua
+self.longJudgment:addNote(event.id, responseBeat, responseBeat + lengthBeats)
+local pressResult = self.longJudgment:press(beat)
+local finalResult = self.longJudgment:release(beat)
+```
+
+롱 노트를 사용하는 게임은 `keyreleased(key, beat)`도 구현해야 한다. Main, Launcher, Editor TestPlayer와 Category Host가 현재 beat를 이 메서드까지 전달한다. 길이·판정 결과에 따른 Sprite와 SFX는 Project Category가 소유한다.
+
 ## 7. Beat 기반 액터 이동
 
 `Core.BeatTween`은 BPM을 직접 알 필요 없이 현재 beat로 값을 선형 보간한다. Sample의 Guide Turn과 Player Turn은 이를 상속하지 않고 좌우 액터마다 하나씩 조합한다.

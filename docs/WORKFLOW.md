@@ -90,11 +90,11 @@ Music이 `None`이어도 Transport와 Project preview는 정상 동작한다. Pr
 
 decode, Source, preview 시작·update·draw가 실패하면 오류 모달을 표시하고 `EditorSession:pause()`를 통해 Transport, Metronome과 TestPlayer를 함께 정리한다. TestPlayer update 실패는 pause 뒤 이전 beat로 rollback한다.
 
-현재 preview는 현재 Stage와 기준 beat를 Project의 `startStage`에 전달한다. Auto Play가 `None`이 아니고 Project가 선택적 `setAutoPlay(value)`를 구현하면 Stage 시작 전에 `good`, `bad`, `miss` 중 선택값을 전달한다. 입력 상태는 기본 true이고 `Set Input Enabled` 도달 시 바뀌며, 활성 상태의 Space를 현재 beat와 함께 Project `keypressed`로 전달한다. `End` 도달 시 해당 beat에서 끝나고, End가 없고 Music이 있으면 Music duration에서 자동 종료한다. Sample은 검은 Stage 화면에서 Sprite 기반 Spawn Actors와 Cue & Response를 실행하고 Core TapJudgment로 GOOD/BAD/MISS/EMPTY_INPUT을 판정한다. Guide Turn과 Player Turn은 Core BeatTween을 조합해 반대편 액터를 0.5박 동안 화면 밖으로 이동시키며 오른쪽 액터는 좌우 반전한다. 일반 Pattern 실행과 Long Note 판정은 후속 작업이다.
+현재 preview는 현재 Stage와 기준 beat를 Project의 `startStage`에 전달한다. Auto Play가 `None`이 아니고 Project가 선택적 `setAutoPlay(value)`를 구현하면 Stage 시작 전에 `good`, `bad`, `miss` 중 선택값을 전달한다. 입력 상태는 기본 true이고 `Set Input Enabled` 도달 시 바뀌며, 활성 상태의 Space 누름·뗌을 현재 beat와 함께 Project `keypressed`·`keyreleased`로 전달한다. `End` 도달 시 해당 beat에서 끝나고, End가 없고 Music이 있으면 Music duration에서 자동 종료한다. Sample은 Core TapJudgment 예제와 Turn을 제공한다. Rhythm Dotgeo의 스피키송은 `Response Delay (Beats)` 뒤 Tap 또는 Long 응답을 만들며 Long은 `Long Note Length (Beats)`만큼 Space를 유지한 뒤 떼도록 Core LongNoteJudgment로 판정한다. 일반 Pattern 실행은 후속 작업이다.
 
 ## 6. 독립 실행 Stage 선택
 
-Launcher의 `2`로 Rhythm Dotgeo를 열면 `projects/rhythm_dotgeo/stages/*.json`의 검증된 Stage 이름 목록을 표시한다. 목록 항목은 `Core.UI.Button`의 클릭 판정을 사용하며 클릭 시 최신 Stage JSON을 다시 읽어 `startStage(stage, 0)`로 시작한다. Stage의 BPM, Music, Volume과 Beat 0 Offset은 Core `PlaybackTransport`에 적용되어 독립 실행 rate `1.0`으로 재생된다. Stage 목록·JSON 로딩은 Launcher가 주입한 기존 StageStore를 사용하므로 Project는 Editor 내부 모듈이나 JSON 라이브러리를 직접 불러오지 않는다. 현재 이 선택 화면은 Rhythm Dotgeo 전용이며 Sample은 기존 직접 실행 흐름을 유지한다.
+Launcher의 `2`로 Rhythm Dotgeo를 열면 `projects/rhythm_dotgeo/stages/*.json`의 검증된 Stage 이름 목록을 표시한다. 목록 항목은 `Core.UI.Button`의 클릭 판정을 사용하며 클릭 시 최신 Stage JSON을 다시 읽어 `startStage(stage, 0)`로 시작한다. Stage의 BPM, Music, Volume과 Beat 0 Offset은 Core `PlaybackTransport`에 적용되어 독립 실행 rate `1.0`으로 재생된다. Stage 목록·JSON 로딩은 Launcher가 주입한 기존 StageStore를 사용하므로 Project는 Editor 내부 모듈이나 JSON 라이브러리를 직접 불러오지 않는다. 현재 이 선택 화면은 Rhythm Dotgeo 전용이며 Sample은 기존 직접 실행 흐름을 유지한다. 스피키송 노드는 `game/SpeakiSong/Definition.lua`와 `Runtime.lua` 자동 발견 경계 안에서 실행되므로 새 Stage에서는 Editor의 `스피키송` Category에서 배치한다.
 
 ## 7. 게임 연출
 
