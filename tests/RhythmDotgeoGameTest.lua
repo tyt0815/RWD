@@ -46,6 +46,34 @@ return {
         end,
     },
     {
+        name = "스피키송 턴 스케줄은 다른 Category의 동명 Event를 무시한다",
+        run = function(test)
+            local Game = require("projects.rhythm_dotgeo.game.Game")
+            local project = require("projects.rhythm_dotgeo.project")
+            local game = Game.new(project, { stageStore = createStageStore() })
+            local stage = {
+                schemaVersion = 3,
+                projectId = "rhythm_dotgeo",
+                stageId = "category_collision",
+                name = "Category Collision",
+                bpm = 120,
+                events = {
+                    { id = "own", type = "projectEvent",
+                        categoryId = "speakiSong", eventId = "heue",
+                        startBeat = 4, track = 1,
+                        params = { responseDelayBeats = 2, longNoteLengthBeats = 1 } },
+                    { id = "foreign", type = "projectEvent",
+                        categoryId = "other", eventId = "heue",
+                        startBeat = 8, track = 1 },
+                },
+            }
+
+            assert(game:startStage(stage, 0))
+            local runtime = game:getCategoryRuntime("speakiSong")
+            test.assertEqual(#runtime.turnSchedule, 2)
+        end,
+    },
+    {
         name = "스피키송 노드는 액터를 소환하고 턴과 큐 응답 상태를 실행한다",
         run = function(test)
             local Game = require("projects.rhythm_dotgeo.game.Game")

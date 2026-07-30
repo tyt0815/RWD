@@ -199,10 +199,12 @@ function EditorApp:getViewModel()
                 groupId = groupId,
                 value = value,
             }
-            if selectedEvent.id == "mixtapeProperties"
+            if self.selectedCategoryId == "global"
+                and selectedEvent.id == "mixtapeProperties"
                 and property.id == "beat0Offset" then
                 viewProperty.actionButton = self.beat0AutoButton
-            elseif selectedEvent.id == "editorProperties"
+            elseif self.selectedCategoryId == "global"
+                and selectedEvent.id == "editorProperties"
                 and property.id == "autoPlay" then
                 if self.autoPlayComboBox:getValue() ~= value then
                     self.autoPlayComboBox:select(value)
@@ -401,7 +403,8 @@ function EditorApp:handleValueEditClick(x, y, button)
         or selectedEvent.id
     )
     local actionClicked = false
-    if self.selectedEventId == "mixtapeProperties" then
+    if self.selectedCategoryId == "global"
+        and self.selectedEventId == "mixtapeProperties" then
         local actionRect = EditorLayout.getPropertyActionRect(
             self.layout,
             3,
@@ -1146,7 +1149,8 @@ function EditorApp:mousepressed(x, y, button, _, presses)
         self.autoPlayComboBox:close()
     end
     local actionClicked = false
-    if self.selectedEventId == "mixtapeProperties" and button == 1 then
+    if self.selectedCategoryId == "global"
+        and self.selectedEventId == "mixtapeProperties" and button == 1 then
         local actionRect = EditorLayout.getPropertyActionRect(
             self.layout,
             3,

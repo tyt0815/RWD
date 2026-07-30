@@ -98,6 +98,41 @@ local function clearValueEdit(app)
     end
 end
 
+local function createGlobalIdCollisionProject()
+    return {
+        id = "sample",
+        title = "Sample",
+        entryModule = "sample.game",
+        eventCategories = {
+            {
+                id = "collision",
+                label = "Collision",
+                runtimeModule = "sample.game.Collision.Runtime",
+                events = {
+                    {
+                        id = "mixtapeProperties",
+                        label = "Project Mixtape Properties",
+                        properties = {
+                            { id = "first", label = "First", kind = "number", default = 1 },
+                            { id = "second", label = "Second", kind = "number", default = 2 },
+                            { id = "beat0Offset", label = "Project Offset",
+                                kind = "number", default = 3 },
+                        },
+                    },
+                    {
+                        id = "editorProperties",
+                        label = "Project Editor Properties",
+                        properties = {
+                            { id = "autoPlay", label = "Project Auto Play",
+                                kind = "number", default = 4 },
+                        },
+                    },
+                },
+            },
+        },
+    }
+end
+
 return {
     {
         name = "Stage가 없으면 보이지 않는 Event 행 클릭을 무시한다",
@@ -1088,6 +1123,89 @@ return {
             for _, event in ipairs(events) do
                 test.assertEqual(event.params.responseDelayBeats, 8)
             end
+        end,
+    },
+    {
+        name = "Project mixtapeProperties는 전역 Auto 버튼을 표시하지 않는다",
+        run = function(test)
+            local app = newFixture({ project = createGlobalIdCollisionProject() })
+            createStageThroughDialog(app, "project-mixtape-controls")
+            app.selectedCategoryId = "collision"
+            app.selectedEventId = "mixtapeProperties"
+
+            local properties = app:getViewModel().properties
+            test.assertEqual(properties[3].actionButton, nil)
+        end,
+    },
+    {
+        name = "Project editorProperties는 전역 Auto Play ComboBox를 표시하지 않는다",
+        run = function(test)
+            local app = newFixture({ project = createGlobalIdCollisionProject() })
+            createStageThroughDialog(app, "project-editor-controls")
+            app.selectedCategoryId = "collision"
+            app.selectedEventId = "editorProperties"
+
+            local properties = app:getViewModel().properties
+            test.assertEqual(properties[1].comboBox, nil)
+        end,
+    },
+    {
+        name = "Project mixtapeProperties의 같은 값 클릭은 편집을 유지한다",
+        run = function(test)
+            local EditorLayout = require("editor.ui.EditorLayout")
+            local app = newFixture({ project = createGlobalIdCollisionProject() })
+            createStageThroughDialog(app, "project-mixtape-edit")
+            app.selectedCategoryId = "collision"
+            app.selectedEventId = "mixtapeProperties"
+            app:getViewModel()
+            app:beginValueEdit(
+                "project:collision:mixtapeProperties",
+                "beat0Offset"
+            )
+            local actionRect = EditorLayout.getPropertyActionRect(app.layout, 3)
+
+            app:mousepressed(
+                actionRect.x + actionRect.width / 2,
+                actionRect.y + actionRect.height / 2,
+                1
+            )
+
+            test.assertTrue(app:getViewModel().valueEdit ~= nil)
+        end,
+    },
+    {
+        name = "Project mixtapeProperties 클릭은 전역 음악 분석을 실행하지 않는다",
+        run = function(test)
+            local EditorLayout = require("editor.ui.EditorLayout")
+            local detectCount = 0
+            local app = newFixture({
+                project = createGlobalIdCollisionProject(),
+                musicOnsetDetector = {
+                    detect = function()
+                        detectCount = detectCount + 1
+                        return 0.25, nil
+                    end,
+                },
+            })
+            createStageThroughDialog(app, "project-mixtape-action")
+            assert(app:getSession():setProperty(
+                "mixtapeProperties",
+                "music",
+                "assets/audio/a.ogg"
+            ))
+            app.selectedCategoryId = "collision"
+            app.selectedEventId = "mixtapeProperties"
+            app:getViewModel()
+            local actionRect = EditorLayout.getPropertyActionRect(app.layout, 3)
+
+            app:mousepressed(
+                actionRect.x + actionRect.width / 2,
+                actionRect.y + actionRect.height / 2,
+                1
+            )
+
+            test.assertEqual(detectCount, 0)
+            test.assertTrue(app:getViewModel().valueEdit ~= nil)
         end,
     },
     {

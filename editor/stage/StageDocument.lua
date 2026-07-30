@@ -147,11 +147,7 @@ function StageDocument:setEditorSetting(key, value)
 end
 
 function StageDocument:getEvents()
-    local events = deepCopy(self.data.events)
-    for _, event in ipairs(events) do
-        if event.track == nil then event.track = 1 end
-    end
-    return events
+    return deepCopy(self.data.events)
 end
 
 function StageDocument:addEvent(
@@ -162,14 +158,6 @@ function StageDocument:addEvent(
     projectEventId,
     params
 )
-    if eventType == "end" then
-        for _, event in ipairs(self.data.events) do
-            if event.type == "end" then
-                return nil, "Stage allows only one End Event."
-            end
-        end
-    end
-
     local sequence = 1
     local eventId
     repeat

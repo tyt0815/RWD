@@ -295,6 +295,28 @@ return {
         end,
     },
     {
+        name = "StageDocument는 Core가 보존한 누락 Track을 기본값으로 바꾸지 않는다",
+        run = function(test)
+            local Core = require("core")
+            local StageDocument = require("editor.stage.StageDocument")
+            local data = validStage()
+            data.events = {
+                {
+                    id = "pattern",
+                    type = "pattern",
+                    patternId = "empty",
+                    startBeat = 0,
+                    params = {},
+                },
+            }
+
+            local normalized = assert(Core.StageSchema.normalize(data))
+            test.assertEqual(normalized.events[1].track, nil)
+            local document = assert(StageDocument.fromTable(data))
+            test.assertEqual(document:getEvents()[1].track, nil)
+        end,
+    },
+    {
         name = "Game Manager Event는 Track과 노드별 Enabled를 저장하고 이동한다",
         run = function(test)
             local StageDocument = require("editor.stage.StageDocument")
@@ -316,8 +338,9 @@ return {
         end,
     },
     {
-        name = "Stage는 End Event를 하나만 허용한다",
+        name = "StageDocument는 End 중복 오류를 Core StageSchema에서 받는다",
         run = function(test)
+            local Core = require("core")
             local StageDocument = require("editor.stage.StageDocument")
             local data = validStage()
             data.events = {
@@ -325,12 +348,14 @@ return {
                 { id = "end-2", type = "end", startBeat = 8, track = 2 },
             }
             assertInvalidStage(test, data, "only one End")
+            local normalized, coreError = Core.StageSchema.normalize(data)
+            test.assertEqual(normalized, nil)
 
             local document = assert(StageDocument.fromTable(validStage()))
             assert(document:addEvent("end", 4, 1))
             local added, errorMessage = document:addEvent("end", 8, 2)
             test.assertEqual(added, nil)
-            test.assertContains(errorMessage, "only one End")
+            test.assertEqual(errorMessage, coreError)
             test.assertEqual(#document:getEvents(), 1)
         end,
     },

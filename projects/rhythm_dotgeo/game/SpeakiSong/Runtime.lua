@@ -29,10 +29,12 @@ local CUE_EVENTS = {
     doNotNer = true,
 }
 
-local function buildTurnSchedule(stage)
+local function buildTurnSchedule(stage, categoryId)
     local moments = {}
     for index, event in ipairs(stage.events or {}) do
-        if event.type == "projectEvent" and CUE_EVENTS[event.eventId] then
+        if event.type == "projectEvent"
+            and event.categoryId == categoryId
+            and CUE_EVENTS[event.eventId] then
             local responseDelayBeats = event.params.responseDelayBeats
             table.insert(moments, {
                 role = "guide",
@@ -114,7 +116,7 @@ function Runtime:startStage(stage, startBeat)
     self.stage = stage
     self.currentBeat = startBeat or 0
     self.lastUpdatedBeat = self.currentBeat
-    self.turnSchedule = buildTurnSchedule(stage)
+    self.turnSchedule = buildTurnSchedule(stage, self.category.id)
     self.nextTurnIndex = 1
     self.tapCues = {}
     self.longCues = {}
