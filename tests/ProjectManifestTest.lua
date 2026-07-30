@@ -55,6 +55,21 @@ return {
         end,
     },
     {
+        name = "ProjectManifest는 runtimeModule이 없는 Category를 거부한다",
+        run = function(test)
+            local valid, _, code = validate(projectWith({
+                {
+                    id = "foo",
+                    label = "Foo",
+                    events = {},
+                },
+            }))
+
+            test.assertEqual(valid, nil)
+            test.assertEqual(code, "INVALID_PROJECT")
+        end,
+    },
+    {
         name = "ProjectManifest는 manifest 구조 오류를 INVALID_PROJECT로 반환한다",
         run = function(test)
             local cases = {

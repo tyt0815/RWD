@@ -76,8 +76,7 @@ function ProjectManifest.validate(project, options)
         if type(category.label) ~= "string" or category.label == "" then
             return invalid("Project Event Category label must be a non-empty string.")
         end
-        if category.runtimeModule ~= nil
-            and (type(category.runtimeModule) ~= "string" or category.runtimeModule == "") then
+        if type(category.runtimeModule) ~= "string" or category.runtimeModule == "" then
             return invalid("Project Event Category runtimeModule must be a non-empty string.")
         end
         if not isArray(category.events) then
