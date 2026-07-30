@@ -8,7 +8,6 @@ local ProjectCatalog = require("editor.project.ProjectCatalog")
 local PropertyCatalog = require("editor.properties.PropertyCatalog")
 local TimelineEventGeometry = require("editor.timeline.TimelineEventGeometry")
 local TimelineSnap = require("editor.timeline.TimelineSnap")
-local StageStore = require("editor.stage.StageStore")
 local TestPlayer = require("editor.playback.TestPlayer")
 local Core = require("core")
 local TextInput = Core.UI.TextInput
@@ -38,11 +37,13 @@ end
 
 function EditorApp.new(options)
     options = options or {}
+    if not options.session then
+        assert(options.stageRepository, "stageRepository is required")
+    end
     local projectCatalog = options.projectCatalog or ProjectCatalog.new({
         createGame = options.createGame,
     })
     local musicCatalog = options.musicCatalog or MusicCatalog.new()
-    local stageStore = options.stageStore or StageStore.new()
     local testPlayer = options.testPlayer or TestPlayer.new({
         createGame = function(project)
             return projectCatalog:createGame(project)
@@ -50,7 +51,7 @@ function EditorApp.new(options)
     })
     local session = options.session or EditorSession.new({
         projectCatalog = projectCatalog,
-        stageStore = stageStore,
+        stageRepository = options.stageRepository,
         testPlayer = testPlayer,
     })
 

@@ -1,4 +1,4 @@
-local function createStageStore()
+local function createStageRepository()
     local stages = {
         speaki_song = {
             schemaVersion = 3,
@@ -50,7 +50,9 @@ return {
         run = function(test)
             local Game = require("projects.rhythm_dotgeo.game.Game")
             local project = require("projects.rhythm_dotgeo.project")
-            local game = Game.new(project, { stageStore = createStageStore() })
+            local game = Game.new(project, {
+                stageRepository = createStageRepository(),
+            })
             local stage = {
                 schemaVersion = 3,
                 projectId = "rhythm_dotgeo",
@@ -78,7 +80,9 @@ return {
         run = function(test)
             local Game = require("projects.rhythm_dotgeo.game.Game")
             local project = require("projects.rhythm_dotgeo.project")
-            local game = Game.new(project, { stageStore = createStageStore() })
+            local game = Game.new(project, {
+                stageRepository = createStageRepository(),
+            })
             local stage = {
                 projectId = "rhythm_dotgeo",
                 stageId = "effects",
@@ -270,7 +274,7 @@ return {
                 getHeight = function() return 306 end,
             }
             local game = Game.new(project, {
-                stageStore = createStageStore(),
+                stageRepository = createStageRepository(),
                 categoryOptions = {
                     sprites = { get = function() return image end },
                     sounds = sounds,
@@ -339,7 +343,9 @@ return {
         run = function(test)
             local Game = require("projects.rhythm_dotgeo.game.Game")
             local project = require("projects.rhythm_dotgeo.project")
-            local game = Game.new(project, { stageStore = createStageStore() })
+            local game = Game.new(project, {
+                stageRepository = createStageRepository(),
+            })
             assert(game:startStage({
                 projectId = "rhythm_dotgeo",
                 stageId = "draw",
@@ -376,7 +382,9 @@ return {
         run = function(test)
             local Game = require("projects.rhythm_dotgeo.game.Game")
             local project = require("projects.rhythm_dotgeo.project")
-            local game = Game.new(project, { stageStore = createStageStore() })
+            local game = Game.new(project, {
+                stageRepository = createStageRepository(),
+            })
 
             test.assertEqual(game:getScreen(), "stageSelect")
             local viewModel = game:getViewModel(1280, 720)
@@ -413,7 +421,21 @@ return {
         run = function(test)
             local ProjectLoader = require("launcher.ProjectLoader")
             local project = require("projects.rhythm_dotgeo.project")
-            local game, createError = ProjectLoader.createGame(project)
+            local game, createError = ProjectLoader.createGame(project, {
+                stageRepository = require("core").StageRepository.new({
+                    fileSystem = require("launcher.NativeFileSystem").new(),
+                    paths = {
+                        stageDirectory = function(projectId)
+                            return "projects/" .. projectId .. "/stages"
+                        end,
+                        stageFile = function(projectId, stageId)
+                            return "projects/" .. projectId .. "/stages/"
+                                .. stageId .. ".json"
+                        end,
+                    },
+                    json = require("vendor.dkjson"),
+                }),
+            })
             test.assertTrue(game ~= nil, createError)
             local speakiSong
             for _, stage in ipairs(game:getViewModel().stages) do
@@ -464,7 +486,7 @@ return {
                 end,
             }
             local game = Game.new(project, {
-                stageStore = createStageStore(),
+                stageRepository = createStageRepository(),
                 standalone = true,
                 transportFactory = function(stage)
                     state.bpm = stage.bpm
@@ -505,7 +527,7 @@ return {
                         categoryId = "speakiSong", eventId = "unknown", startBeat = 3 },
                 },
             }
-            local stageStore = {
+            local stageRepository = {
                 listStages = function() return { "manager_nodes" }, nil end,
                 load = function() return stage, nil end,
             }
@@ -520,7 +542,7 @@ return {
                 seekBeat = function(_, beat) state.seekBeat = beat return true, nil end,
             }
             local game = Game.new(project, {
-                stageStore = stageStore,
+                stageRepository = stageRepository,
                 standalone = true,
                 transportFactory = function() return transport, nil end,
             })
@@ -541,8 +563,10 @@ return {
         run = function(test)
             local Game = require("projects.rhythm_dotgeo.game.Game")
             local project = require("projects.rhythm_dotgeo.project")
-            local stageStore = createStageStore()
-            local game = Game.new(project, { stageStore = stageStore })
+            local stageRepository = createStageRepository()
+            local game = Game.new(project, {
+                stageRepository = stageRepository,
+            })
             local stageItem = game:getViewModel().stages[1]
 
             local handled = game:mousepressed(
@@ -555,7 +579,7 @@ return {
             test.assertEqual(game:getScreen(), "stage")
             test.assertEqual(game.stage.stageId, "speaki_song")
             test.assertEqual(game.currentBeat, 0)
-            test.assertEqual(stageStore.loadCount, 2)
+            test.assertEqual(stageRepository.loadCount, 2)
         end,
     },
 }

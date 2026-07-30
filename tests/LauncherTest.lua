@@ -30,6 +30,15 @@ local function withProjectFixture(projectId, gameModuleFactory, run)
     end
 end
 
+local function newStageRepository()
+    return {
+        listStages = function() return {}, nil end,
+        stageExists = function() return false, nil end,
+        load = function() return nil, "not used", "NOT_FOUND" end,
+        save = function() return true, nil end,
+    }
+end
+
 return {
     {
         name = "앱 기본 폰트는 한글을 지원하는 D2Coding TTC를 사용한다",
@@ -81,6 +90,68 @@ return {
             launcher:openEditor()
             test.assertEqual(launcher:getMode(), "editor")
             test.assertTrue(launcher.activeApp ~= nil)
+        end,
+    },
+    {
+        name = "실행기는 주입된 StageRepository를 에디터 세션에 그대로 전달한다",
+        run = function(test)
+            local Launcher = require("launcher.Launcher")
+            local stageRepository = newStageRepository()
+            local launcher = Launcher.new({
+                stageRepository = stageRepository,
+            })
+
+            launcher:openEditor()
+
+            test.assertEqual(
+                launcher.activeApp:getSession().stageRepository,
+                stageRepository
+            )
+        end,
+    },
+    {
+        name = "실행기는 같은 StageRepository를 Rhythm Dotgeo에 전달한다",
+        run = function(test)
+            local Launcher = require("launcher.Launcher")
+            local stageRepository = newStageRepository()
+            local launcher = Launcher.new({
+                stageRepository = stageRepository,
+            })
+
+            local opened = launcher:openProject("rhythm_dotgeo")
+
+            test.assertEqual(opened, true)
+            test.assertEqual(launcher.activeApp.stageRepository, stageRepository)
+        end,
+    },
+    {
+        name = "에디터 preview 게임 factory도 같은 StageRepository를 전달한다",
+        run = function(test)
+            local receivedOptions
+            withProjectFixture("preview-repository", function()
+                return {
+                    new = function(_, options)
+                        receivedOptions = options
+                        return {}
+                    end,
+                }
+            end, function()
+                local Launcher = require("launcher.Launcher")
+                local stageRepository = newStageRepository()
+                local launcher = Launcher.new({
+                    stageRepository = stageRepository,
+                })
+                launcher:openEditor()
+                local session = launcher.activeApp:getSession()
+                local project = assert(
+                    session.projectCatalog:getProject("preview-repository")
+                )
+
+                local game, errorMessage = session.projectCatalog:createGame(project)
+
+                test.assertTrue(game ~= nil, errorMessage)
+                test.assertEqual(receivedOptions.stageRepository, stageRepository)
+            end)
         end,
     },
     {

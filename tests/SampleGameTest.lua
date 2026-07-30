@@ -4,7 +4,9 @@ return {
         run = function(test)
             local ProjectLoader = require("launcher.ProjectLoader")
             local project = assert(ProjectLoader.loadProject("sample", 2))
-            local game, errorMessage = ProjectLoader.createGame(project)
+            local game, errorMessage = ProjectLoader.createGame(project, {
+                stageRepository = {},
+            })
 
             test.assertEqual(errorMessage, nil)
             test.assertEqual(game.project.title, "Sample Project")
@@ -33,7 +35,9 @@ return {
         run = function(test)
             local ProjectLoader = require("launcher.ProjectLoader")
             local project = assert(ProjectLoader.loadProject("sample", 2))
-            local game = assert(ProjectLoader.createGame(project))
+            local game = assert(ProjectLoader.createGame(project, {
+                stageRepository = {},
+            }))
 
             game:update(0.25)
             test.assertEqual(game.elapsedTime, 0.25)

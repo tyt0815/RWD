@@ -45,7 +45,7 @@ return {
                     listProjects = function() return {}, nil end,
                     getProject = function() return nil, "missing" end,
                 },
-                stageStore = {
+                stageRepository = {
                     listStages = function() return {}, nil end,
                     stageExists = function() return false, nil end,
                 },

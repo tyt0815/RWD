@@ -17,9 +17,9 @@ local function buttonRect(index, width, height)
     }
 end
 
-function StageSelect.new(stageStore, projectId)
+function StageSelect.new(stageRepository, projectId)
     return setmetatable({
-        stageStore = stageStore,
+        stageRepository = stageRepository,
         projectId = projectId,
         button = Core.UI.Button.new(),
         entries = {},
@@ -28,12 +28,14 @@ end
 
 function StageSelect:refresh()
     self.entries = {}
-    if not self.stageStore then return nil, "StageStore is not configured." end
+    if not self.stageRepository then
+        return nil, "StageRepository is not configured."
+    end
 
-    local stageIds, listError = self.stageStore:listStages(self.projectId)
+    local stageIds, listError = self.stageRepository:listStages(self.projectId)
     if not stageIds then return nil, listError end
     for _, stageId in ipairs(stageIds) do
-        local stage, loadError = self.stageStore:load(self.projectId, stageId)
+        local stage, loadError = self.stageRepository:load(self.projectId, stageId)
         if not stage then return nil, loadError end
         table.insert(self.entries, {
             id = stageId,

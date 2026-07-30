@@ -100,12 +100,12 @@ end
 
 function EditorSession.new(options)
     assert(options and options.projectCatalog, "projectCatalog is required")
-    assert(options.stageStore, "stageStore is required")
+    assert(options.stageRepository, "stageRepository is required")
     assert(options.testPlayer, "testPlayer is required")
 
     return setmetatable({
         projectCatalog = options.projectCatalog,
-        stageStore = options.stageStore,
+        stageRepository = options.stageRepository,
         testPlayer = options.testPlayer,
         transportFactory = options.transportFactory or defaultTransportFactory,
         metronome = options.metronome or MetronomePlayback.new(),
@@ -253,7 +253,7 @@ function EditorSession:listProjects()
 end
 
 function EditorSession:listStages(projectId)
-    return self.stageStore:listStages(projectId)
+    return self.stageRepository:listStages(projectId)
 end
 
 function EditorSession:replaceStage(project, document)
@@ -278,7 +278,7 @@ function EditorSession:createStage(projectId, stageId, name, bpm)
     local project, projectError = self.projectCatalog:getProject(projectId)
     if not project then return nil, projectError end
 
-    local exists, existsError = self.stageStore:stageExists(projectId, stageId)
+    local exists, existsError = self.stageRepository:stageExists(projectId, stageId)
     if exists == nil then return nil, existsError end
     if exists then return nil, "Stage already exists: " .. stageId end
 
@@ -291,7 +291,7 @@ function EditorSession:openStage(projectId, stageId)
     local project, projectError = self.projectCatalog:getProject(projectId)
     if not project then return nil, projectError end
 
-    local data, loadError = self.stageStore:load(projectId, stageId)
+    local data, loadError = self.stageRepository:load(projectId, stageId)
     if not data then return nil, loadError end
 
     local document, documentError = StageDocument.fromTable(data)
@@ -302,7 +302,7 @@ end
 function EditorSession:save()
     if not self.document then return nil, "No Stage is open." end
 
-    local saved, errorMessage, errorCode = self.stageStore:save(
+    local saved, errorMessage, errorCode = self.stageRepository:save(
         self.document:toTable(),
         true
     )
@@ -322,7 +322,7 @@ function EditorSession:saveAs(stageId, name, overwrite)
     local copy, copyError = self.document:cloneAs(stageId, name)
     if not copy then return nil, copyError end
 
-    local saved, errorMessage, errorCode = self.stageStore:save(
+    local saved, errorMessage, errorCode = self.stageRepository:save(
         copy:toTable(),
         overwrite == true
     )

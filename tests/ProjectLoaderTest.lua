@@ -22,10 +22,10 @@ return {
         end,
     },
     {
-        name = "게임 생성자에 StageStore를 주입한다",
+        name = "게임 생성자에 StageRepository를 주입한다",
         run = function(test)
             local ProjectLoader = require("launcher.ProjectLoader")
-            local gameModuleName = "projects.stage-store-test.game.Game"
+            local gameModuleName = "projects.stage-repository-test.game.Game"
             local receivedOptions
             package.preload[gameModuleName] = function()
                 return {
@@ -36,25 +36,56 @@ return {
                 }
             end
             package.loaded[gameModuleName] = nil
-            local stageStore = {}
+            local stageRepository = {}
             local transportFactory = function() end
+            local eventHandlers = {}
 
             local game, errorMessage = ProjectLoader.createGame({
-                id = "stage-store-test",
+                id = "stage-repository-test",
                 entryModule = gameModuleName,
             }, {
-                stageStore = stageStore,
+                stageRepository = stageRepository,
                 standalone = true,
                 transportFactory = transportFactory,
+                eventHandlers = eventHandlers,
             })
 
             package.preload[gameModuleName] = nil
             package.loaded[gameModuleName] = nil
 
             test.assertTrue(game ~= nil, errorMessage)
-            test.assertEqual(receivedOptions.stageStore, stageStore)
+            test.assertEqual(receivedOptions.stageRepository, stageRepository)
             test.assertEqual(receivedOptions.standalone, true)
             test.assertEqual(receivedOptions.transportFactory, transportFactory)
+            test.assertEqual(receivedOptions.eventHandlers, eventHandlers)
+        end,
+    },
+    {
+        name = "게임 생성은 StageRepository 주입을 필수로 요구한다",
+        run = function(test)
+            local ProjectLoader = require("launcher.ProjectLoader")
+            local gameModuleName = "projects.repository-required-test.game.Game"
+            package.preload[gameModuleName] = function()
+                return {
+                    new = function()
+                        return {}
+                    end,
+                }
+            end
+            package.loaded[gameModuleName] = nil
+
+            local succeeded, errorMessage = pcall(function()
+                ProjectLoader.createGame({
+                    id = "repository-required-test",
+                    entryModule = gameModuleName,
+                }, {})
+            end)
+
+            package.preload[gameModuleName] = nil
+            package.loaded[gameModuleName] = nil
+
+            test.assertEqual(succeeded, false)
+            test.assertContains(errorMessage, "stageRepository is required")
         end,
     },
     {

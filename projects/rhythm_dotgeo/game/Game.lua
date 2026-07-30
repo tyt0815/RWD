@@ -7,7 +7,7 @@ Game.__index = Game
 
 function Game.new(project, options)
     options = options or {}
-    local stageSelect = StageSelect.new(options.stageStore, project.id)
+    local stageSelect = StageSelect.new(options.stageRepository, project.id)
     local categoryHost, hostError = Core.ProjectCategories.createHost(project, {
         runtimeOptions = options.categoryOptions,
     })
@@ -17,7 +17,7 @@ function Game.new(project, options)
     playbackOptions.categoryHost = categoryHost
     local self = setmetatable({
         project = project,
-        stageStore = options.stageStore,
+        stageRepository = options.stageRepository,
         stageSelect = stageSelect,
         categoryHost = categoryHost,
         playback = StagePlayback.new(project, playbackOptions),
@@ -67,7 +67,7 @@ function Game:returnToStageSelect(errorMessage)
 end
 
 function Game:startSelectedStage(stageId)
-    local stage, loadError = self.stageStore:load(self.project.id, stageId)
+    local stage, loadError = self.stageRepository:load(self.project.id, stageId)
     if not stage then
         self.errorMessage = loadError
         return false

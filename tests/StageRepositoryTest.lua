@@ -284,6 +284,53 @@ return {
         end,
     },
     {
+        name = "StageRepository rejects JSON null where arrays or objects are required",
+        run = function(test)
+            local fileSystem = newFakeFileSystem()
+            local path = PATHS.stageFile("sample", "tutorial")
+            fileSystem.files[path] = [[
+                {
+                    "schemaVersion": 3,
+                    "projectId": "sample",
+                    "stageId": "tutorial",
+                    "name": "Tutorial",
+                    "bpm": 120,
+                    "events": [null]
+                }
+            ]]
+            local repository = newRepository(fileSystem)
+            assertError(
+                test,
+                "INVALID_STAGE",
+                "$.events[1]",
+                repository:load("sample", "tutorial")
+            )
+
+            fileSystem.files[path] = [[
+                {
+                    "schemaVersion": 3,
+                    "projectId": "sample",
+                    "stageId": "tutorial",
+                    "name": "Tutorial",
+                    "bpm": 120,
+                    "events": [{
+                        "id": "event-1",
+                        "type": "pattern",
+                        "patternId": "nullable",
+                        "startBeat": 0,
+                        "params": null
+                    }]
+                }
+            ]]
+            assertError(
+                test,
+                "INVALID_STAGE",
+                "$.events[1].params must be an object",
+                repository:load("sample", "tutorial")
+            )
+        end,
+    },
+    {
         name = "StageRepository verifies decoded IDs against the selected path",
         run = function(test)
             local json = require("vendor.dkjson")
@@ -359,6 +406,15 @@ return {
             test.assertEqual(getmetatable(stage.events[1].params), nil)
             test.assertTrue(fileSystem.files[path]:find('"categoryId"', 1, true)
                 < fileSystem.files[path]:find('"eventId"', 1, true))
+            local saved = assert(require("vendor.dkjson").decode(
+                fileSystem.files[path],
+                1,
+                require("vendor.dkjson").null
+            ))
+            test.assertEqual(
+                getmetatable(saved.events[1].params).__jsontype,
+                "object"
+            )
         end,
     },
     {

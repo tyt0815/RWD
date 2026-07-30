@@ -40,17 +40,6 @@ local function findEvent(data, eventId)
     return nil, nil
 end
 
--- Task 5에서 StageStore와 함께 제거할 임시 호환 adapter다.
-function StageDocument.validate(data)
-    local valid, errorMessage = Core.StageSchema.validate(data)
-    return valid and nil or errorMessage
-end
-
--- Task 5에서 StageStore와 함께 제거할 임시 호환 adapter다.
-function StageDocument.isSafeId(value)
-    return Core.StageSchema.isSafeId(value)
-end
-
 function StageDocument.create(projectId, stageId, name, bpm)
     return newDocument({
         schemaVersion = 3,

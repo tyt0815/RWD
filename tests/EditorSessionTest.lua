@@ -196,7 +196,7 @@ local function newSession(options)
     local catalog, store, testPlayer, state = newFixture(options)
     return EditorSession.new({
         projectCatalog = catalog,
-        stageStore = store,
+        stageRepository = store,
         testPlayer = testPlayer,
         transportFactory = state.transportFactory,
         metronome = state.metronome,

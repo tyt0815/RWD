@@ -26,6 +26,7 @@ end
 
 function ProjectLoader.createGame(project, options)
     options = options or {}
+    assert(options.stageRepository, "stageRepository is required")
     local succeeded, gameModuleOrError = pcall(require, project.entryModule)
 
     if not succeeded then
@@ -36,14 +37,8 @@ function ProjectLoader.createGame(project, options)
         return nil, "Game entry module must provide new(project)."
     end
 
-    local stageStore = options.stageStore
-    if not stageStore then
-        local StageStore = require("editor.stage.StageStore")
-        stageStore = StageStore.new()
-    end
-
     local created, gameOrError = pcall(gameModuleOrError.new, project, {
-        stageStore = stageStore,
+        stageRepository = options.stageRepository,
         standalone = options.standalone == true,
         transportFactory = options.transportFactory,
         eventHandlers = options.eventHandlers,

@@ -34,7 +34,7 @@ class CreateProjectTest(unittest.TestCase):
         game = (project_path / "game" / "Game.lua").read_text(encoding="utf-8")
         self.assertIn('local Core = require("core")', game)
         self.assertIn("function Game.new(project, options)", game)
-        self.assertIn("stageStore = options.stageStore", game)
+        self.assertIn("stageRepository = options.stageRepository", game)
         self.assertIn("Core.ProjectCategories.createHost", game)
         self.assertIn("stageRuntime = Core.StageRuntime.new()", game)
         self.assertIn("function Game:startStage(stage, startBeat)", game)

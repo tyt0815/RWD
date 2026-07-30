@@ -16,7 +16,7 @@ local function newFixture(config)
         end,
         createGame = function() return {}, nil end,
     }
-    local store = config.stageStore or {
+    local stageRepository = config.stageRepository or {
         listStages = function() return { "tutorial" }, nil end,
         stageExists = function(_, _, stageId) return state.saved[stageId] ~= nil, nil end,
         load = function(_, _, stageId)
@@ -59,7 +59,7 @@ local function newFixture(config)
     local EditorSession = require("editor.EditorSession")
     local session = EditorSession.new({
         projectCatalog = catalog,
-        stageStore = store,
+        stageRepository = stageRepository,
         testPlayer = testPlayer,
         transportFactory = config.transportFactory,
         metronome = config.metronome,
@@ -68,7 +68,7 @@ local function newFixture(config)
     local app = EditorApp.new({
         projectCatalog = catalog,
         musicCatalog = musicCatalog,
-        stageStore = store,
+        stageRepository = stageRepository,
         testPlayer = testPlayer,
         session = session,
         musicOnsetDetector = config.musicOnsetDetector or {
@@ -1490,18 +1490,45 @@ return {
         name = "wheel zoom 뒤 Save한 JSON은 non-default Scale만 희소 저장한다",
         run = function(test)
             local json = require("vendor.dkjson")
-            local StageStore = require("editor.stage.StageStore")
+            local Core = require("core")
             local fileSystem = { files = {} }
             function fileSystem:list() return {}, nil end
             function fileSystem:read(path) return self.files[path], nil end
             function fileSystem:exists(path) return self.files[path] ~= nil end
             function fileSystem:isFile(path) return self.files[path] ~= nil end
-            function fileSystem:writeAtomic(path, contents)
+            function fileSystem:write(path, contents)
                 self.files[path] = contents
                 return true, nil
             end
+            function fileSystem:remove(path)
+                self.files[path] = nil
+                return true, nil
+            end
+            function fileSystem:rename(sourcePath, targetPath)
+                if self.files[sourcePath] == nil then return nil, "missing source" end
+                self.files[targetPath] = self.files[sourcePath]
+                self.files[sourcePath] = nil
+                return true, nil
+            end
+            function fileSystem:copy(sourcePath, targetPath)
+                if self.files[sourcePath] == nil then return nil, "missing source" end
+                self.files[targetPath] = self.files[sourcePath]
+                return true, nil
+            end
             local app = newFixture({
-                stageStore = StageStore.new(fileSystem, json),
+                stageRepository = Core.StageRepository.new({
+                    fileSystem = fileSystem,
+                    paths = {
+                        stageDirectory = function(projectId)
+                            return "projects/" .. projectId .. "/stages"
+                        end,
+                        stageFile = function(projectId, stageId)
+                            return "projects/" .. projectId .. "/stages/"
+                                .. stageId .. ".json"
+                        end,
+                    },
+                    json = json,
+                }),
             })
             createStageThroughDialog(app, "sparse-scale")
             local timeline = app.layout.timeline

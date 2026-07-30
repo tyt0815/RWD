@@ -26,7 +26,6 @@ local TEST_MODULES = {
     "tests.StageRepositoryTest",
     "tests.NativeFileSystemTest",
     "tests.StageDocumentTest",
-    "tests.StageStoreTest",
     "tests.ProjectLoaderTest",
     "tests.ProjectCatalogTest",
     "tests.MusicCatalogTest",

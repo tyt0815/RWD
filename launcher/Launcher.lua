@@ -1,15 +1,33 @@
 local Core = require("core")
 local Editor = require("editor")
+local json = require("vendor.dkjson")
+local NativeFileSystem = require("launcher.NativeFileSystem")
 local ProjectLoader = require("launcher.ProjectLoader")
 
 local Launcher = {}
 Launcher.__index = Launcher
 
-function Launcher.new()
+local STAGE_PATHS = {
+    stageDirectory = function(projectId)
+        return "projects/" .. projectId .. "/stages"
+    end,
+    stageFile = function(projectId, stageId)
+        return "projects/" .. projectId .. "/stages/" .. stageId .. ".json"
+    end,
+}
+
+function Launcher.new(options)
+    options = options or {}
+    local stageRepository = options.stageRepository or Core.StageRepository.new({
+        fileSystem = options.fileSystem or NativeFileSystem.new(),
+        paths = options.stagePaths or STAGE_PATHS,
+        json = options.json or json,
+    })
     return setmetatable({
         mode = "menu",
         activeApp = nil,
         errorMessage = nil,
+        stageRepository = stageRepository,
     }, Launcher)
 end
 
@@ -24,7 +42,12 @@ end
 function Launcher:openEditor()
     local launcher = self
     self.activeApp = Editor.createApp({
-        createGame = ProjectLoader.createGame,
+        stageRepository = self.stageRepository,
+        createGame = function(project)
+            return ProjectLoader.createGame(project, {
+                stageRepository = launcher.stageRepository,
+            })
+        end,
         onQuit = function()
             launcher:returnToMenu()
         end,
@@ -44,6 +67,7 @@ function Launcher:openProject(projectId)
     end
 
     local game, createError = ProjectLoader.createGame(project, {
+        stageRepository = self.stageRepository,
         standalone = true,
     })
     if not game then

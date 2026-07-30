@@ -80,7 +80,7 @@ function Game.new(project, options)
     if not categoryHost then error(hostError) end
     return setmetatable({
         project = project,
-        stageStore = options.stageStore,
+        stageRepository = options.stageRepository,
         categoryHost = categoryHost,
         stage = nil,
         stageRuntime = Core.StageRuntime.new(),
