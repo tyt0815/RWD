@@ -23,6 +23,7 @@ Core.MusicPlayback = require("core.MusicPlayback")
 Core.PlaybackTransport = require("core.PlaybackTransport")
 Core.MixtapeSettings = require("core.MixtapeSettings")
 Core.StageSchema = require("core.StageSchema")
+Core.StageRepository = require("core.StageRepository")
 Core.TempoMap = require("core.TempoMap")
 Core.UI = {
     Button = require("core.ui.Button"),
