@@ -73,14 +73,17 @@ Stage의 저장 계약과 기본값을 소유하는 순수 모듈이다. LÖVE �
 
 Editor 저장 설정은 Stage 파일 형식의 일부이므로 데이터 계약은 Core가 소유한다. 해당 설정을 화면에서 어떻게 편집하고 사용하는지는 Editor가 소유한다.
 
-StageSchema의 사용자 데이터 오류는 예외가 아니라 오류 값으로 반환한다. 구체적인 내부 helper 수보다 다음 외부 계약을 우선한다.
+현재 `editor/stage/EditorSettings.lua`의 기본값과 검증 규칙은 Core의 Stage 계약 내부로 이동한다. 구현을 별도 `core/StageSettings.lua`로 나누더라도 Editor와 Project는 내부 경로를 require하지 않고 `Core.StageSchema`만 사용한다.
+
+StageSchema의 사용자 데이터 오류는 예외가 아니라 오류 값으로 반환한다. 다음 공개 계약을 사용한다.
 
 ```lua
 local valid, message, code = Core.StageSchema.validate(stage)
 local normalized, message, code = Core.StageSchema.normalize(stage)
+local settings = Core.StageSchema.resolveEditorSettings(stage)
 ```
 
-성공 시 `validate`는 `true`, `normalize`는 호출자가 안전하게 소유할 수 있는 새 table을 반환한다.
+성공 시 `validate`는 `true`를 반환한다. `normalize`는 기본값과 같은 선택 필드를 제거한 정규 저장 형태의 새 table을 반환하며 입력 table을 변경하지 않는다. Editor가 화면과 재생에 사용할 완전한 설정값은 `resolveEditorSettings`로 읽는다. 따라서 열기와 저장이 같은 정규 형태를 사용하고 “resolved table”과 “희소 저장 table”의 의미가 섞이지 않는다.
 
 ### 4.2 `Core.StageRepository`
 
@@ -136,13 +139,15 @@ local valid, message, code = Core.ProjectManifest.validate(project, {
 
 Launcher와 Editor는 별도 검증 규칙을 추가하지 않는다.
 
+기존 `Core.ProjectEvents.validate(project)`의 manifest 구조 검증 책임은 ProjectManifest로 흡수한다. ProjectEvents는 Category/Event 조회, 기본 params와 Event params 값 검증만 유지해 두 공개 검증 경로가 다시 생기지 않게 한다.
+
 ## 5. 조립 계층과 기존 모듈
 
 ### Launcher
 
 Launcher는 앱 시작 시 실제 FileSystem, Stage 경로 규칙과 JSON 구현으로 StageRepository를 한 번 조립한다. 같은 Repository 인스턴스를 Editor와 독립 Project에 전달한다.
 
-현재 `editor/stage/NativeFileSystem.lua`의 네이티브 source 읽기와 원자 저장 구현은 Editor 소유가 아니므로 Launcher 조립 계층으로 이동한다. Project는 이 모듈을 직접 require하지 않고 생성 옵션으로 받은 Repository만 사용한다.
+현재 `editor/stage/NativeFileSystem.lua`의 네이티브 source 읽기와 원자 저장 구현은 Editor 소유가 아니므로 `launcher/NativeFileSystem.lua`로 이동한다. Project는 이 모듈을 직접 require하지 않고 생성 옵션으로 받은 Repository만 사용한다.
 
 `ProjectLoader.createGame`은 `stageStore` 대신 `stageRepository`를 전달한다. 기본값을 만들기 위해 Editor 모듈을 require하지 않는다. 프로덕션 조립은 Launcher가 담당하고 테스트는 fake Repository를 주입한다.
 
@@ -339,4 +344,3 @@ Core.UI는 TextInput, ComboBox, Button과 ScrollArea처럼 스타일 독립적�
 - Editor GUI 사용감과 기존 작업 흐름이 유지된다.
 - 관련 focused test가 모두 통과하고 전체 suite에 새 실패가 없다.
 - 현재 코드와 문서의 소유권 설명이 일치한다.
-
