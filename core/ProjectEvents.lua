@@ -5,44 +5,6 @@ local function isFinite(value)
         and value > -math.huge and value < math.huge
 end
 
-function ProjectEvents.validate(project)
-    local categories = project and project.eventCategories
-    if categories == nil then return nil end
-    if type(categories) ~= "table" then return "eventCategories must be an array." end
-    local categoryIds = {}
-    local eventIds = {}
-    for categoryIndex, category in ipairs(categories) do
-        if type(category.id) ~= "string" or category.id == "" then
-            return "eventCategories[" .. categoryIndex .. "].id must be a non-empty string."
-        end
-        if categoryIds[category.id] then return "Project Event Category ids must be unique." end
-        categoryIds[category.id] = true
-        if type(category.label) ~= "string" or category.label == "" then
-            return "Project Event Category label must be a non-empty string."
-        end
-        if type(category.events) ~= "table" then
-            return "Project Event Category events must be an array."
-        end
-        for _, event in ipairs(category.events) do
-            if type(event.id) ~= "string" or event.id == "" then
-                return "Project Event id must be a non-empty string."
-            end
-            if eventIds[event.id] then return "Project Event ids must be unique." end
-            eventIds[event.id] = true
-            if type(event.label) ~= "string" or event.label == "" then
-                return "Project Event label must be a non-empty string."
-            end
-            for _, property in ipairs(event.properties or {}) do
-                if type(property.id) ~= "string" or property.id == ""
-                    or property.kind ~= "number" or not isFinite(property.default) then
-                    return "Project Event properties require an id, number kind, and finite default."
-                end
-            end
-        end
-    end
-    return nil
-end
-
 function ProjectEvents.getCategories(project)
     return project and project.eventCategories or {}
 end

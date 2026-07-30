@@ -27,7 +27,6 @@ return {
                 },
             }
 
-            test.assertEqual(Core.ProjectEvents.validate(project), nil)
             local definition = Core.ProjectEvents.getEvent(project, "cueResponse")
             test.assertEqual(definition.label, "Cue & Response")
             local params = Core.ProjectEvents.getDefaultParams(definition)

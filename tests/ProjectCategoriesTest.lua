@@ -22,13 +22,11 @@ return {
                         return {
                             id = "newGameSample",
                             label = "New Game Sample",
-                            events = {},
                         }
                     end
                     return {
                         id = "sampleGameplay",
                         label = "Sample Gameplay",
-                        events = {},
                     }
                 end,
             })

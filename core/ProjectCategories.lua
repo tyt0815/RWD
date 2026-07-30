@@ -60,10 +60,6 @@ function ProjectCategories.discover(options)
                 return nil, "Project Category Runtime is missing: " .. runtimePath
             end
             definition.runtimeModule = options.modulePrefix .. "." .. folderName .. ".Runtime"
-            local validationError = ProjectEvents.validate({
-                eventCategories = { definition },
-            })
-            if validationError then return nil, validationError end
             table.insert(categories, definition)
         end
     end

@@ -43,9 +43,43 @@ return {
                 loadModule = function() return manifest("future", 2) end,
                 coreApiVersion = 1,
             })
-            local project, errorMessage = catalog:getProject("future")
+            local project, errorMessage, errorCode = catalog:getProject("future")
+            local Core = require("core")
+            local _, expectedMessage, expectedCode = Core.ProjectManifest.validate(
+                manifest("future", 2),
+                {
+                    expectedId = "future",
+                    expectedCoreApiVersion = 1,
+                }
+            )
             test.assertEqual(project, nil)
-            test.assertContains(errorMessage, "Core API")
+            test.assertEqual(errorMessage, expectedMessage)
+            test.assertEqual(errorCode, expectedCode)
+        end,
+    },
+    {
+        name = "Project directory ID 불일치는 ProjectManifest 오류 계약을 사용한다",
+        run = function(test)
+            local ProjectCatalog = require("editor.project.ProjectCatalog")
+            local project = manifest("other")
+            local catalog = ProjectCatalog.new({
+                listDirectory = function() return {} end,
+                loadModule = function() return project end,
+                coreApiVersion = 1,
+            })
+            local loadedProject, errorMessage, errorCode = catalog:getProject("expected")
+            local Core = require("core")
+            local _, expectedMessage, expectedCode = Core.ProjectManifest.validate(
+                project,
+                {
+                    expectedId = "expected",
+                    expectedCoreApiVersion = 1,
+                }
+            )
+
+            test.assertEqual(loadedProject, nil)
+            test.assertEqual(errorMessage, expectedMessage)
+            test.assertEqual(errorCode, expectedCode)
         end,
     },
     {

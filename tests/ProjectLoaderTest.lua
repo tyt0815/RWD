@@ -73,13 +73,14 @@ return {
             end
             package.loaded[moduleName] = nil
 
-            local project, errorMessage = ProjectLoader.loadProject("incompatible", 1)
+            local project, errorMessage, errorCode = ProjectLoader.loadProject("incompatible", 1)
 
             package.preload[moduleName] = nil
             package.loaded[moduleName] = nil
 
             test.assertEqual(project, nil)
             test.assertContains(errorMessage, "Core API version mismatch")
+            test.assertEqual(errorCode, "INVALID_PROJECT")
         end,
     },
 }

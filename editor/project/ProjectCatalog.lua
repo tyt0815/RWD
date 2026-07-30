@@ -11,28 +11,6 @@ local function defaultLoadModule(moduleName)
     return require(moduleName)
 end
 
-local function validateProject(project, expectedCoreApiVersion)
-    if type(project) ~= "table" then
-        return "Project manifest must be a table."
-    end
-
-    for _, fieldName in ipairs({ "id", "title", "entryModule" }) do
-        if type(project[fieldName]) ~= "string" or project[fieldName] == "" then
-            return "Invalid project field: " .. fieldName
-        end
-    end
-
-    if project.coreApiVersion ~= expectedCoreApiVersion then
-        return string.format(
-            "Core API version mismatch: project=%s, core=%s",
-            tostring(project.coreApiVersion),
-            tostring(expectedCoreApiVersion)
-        )
-    end
-
-    return Core.ProjectEvents.validate(project)
-end
-
 function ProjectCatalog.new(options)
     options = options or {}
     return setmetatable({
@@ -50,13 +28,15 @@ function ProjectCatalog:getProject(projectId)
         return nil, "Failed to load project: " .. projectId .. "\n" .. tostring(projectOrError)
     end
 
-    local validationError = validateProject(projectOrError, self.coreApiVersion)
-    if validationError then
-        return nil, validationError
-    end
-
-    if projectOrError.id ~= projectId then
-        return nil, "Project id does not match directory: " .. projectId
+    local valid, validationError, validationCode = Core.ProjectManifest.validate(
+        projectOrError,
+        {
+            expectedId = projectId,
+            expectedCoreApiVersion = self.coreApiVersion,
+        }
+    )
+    if not valid then
+        return nil, validationError, validationCode
     end
 
     return projectOrError, nil

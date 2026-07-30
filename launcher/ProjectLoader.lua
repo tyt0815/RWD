@@ -2,30 +2,7 @@ local Core = require("core")
 
 local ProjectLoader = {}
 
-local function validateProject(project, expectedCoreApiVersion)
-    if type(project) ~= "table" then
-        return "Project manifest must be a table."
-    end
-
-    local requiredStringFields = { "id", "title", "entryModule" }
-    for _, fieldName in ipairs(requiredStringFields) do
-        if type(project[fieldName]) ~= "string" or project[fieldName] == "" then
-            return "Invalid project field: " .. fieldName
-        end
-    end
-
-    if project.coreApiVersion ~= expectedCoreApiVersion then
-        return string.format(
-            "Core API version mismatch: project=%s, core=%s",
-            tostring(project.coreApiVersion),
-            tostring(expectedCoreApiVersion)
-        )
-    end
-
-    return Core.ProjectEvents.validate(project)
-end
-
-function ProjectLoader.loadProject(projectId, coreApiVersion)
+function ProjectLoader.loadProject(projectId, expectedCoreApiVersion)
     local moduleName = "projects." .. projectId .. ".project"
     local succeeded, projectOrError = pcall(require, moduleName)
 
@@ -33,9 +10,15 @@ function ProjectLoader.loadProject(projectId, coreApiVersion)
         return nil, "Failed to load project: " .. projectId .. "\n" .. projectOrError
     end
 
-    local validationError = validateProject(projectOrError, coreApiVersion)
-    if validationError then
-        return nil, validationError
+    local valid, validationError, validationCode = Core.ProjectManifest.validate(
+        projectOrError,
+        {
+            expectedId = projectId,
+            expectedCoreApiVersion = expectedCoreApiVersion,
+        }
+    )
+    if not valid then
+        return nil, validationError, validationCode
     end
 
     return projectOrError, nil
