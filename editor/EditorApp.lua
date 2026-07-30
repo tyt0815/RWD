@@ -62,11 +62,15 @@ function EditorApp.new(options)
         isControlDown = options.isControlDown or function()
             return love.keyboard.isDown("lctrl", "rctrl")
         end,
+        isShiftDown = options.isShiftDown or function()
+            return love.keyboard.isDown("lshift", "rshift")
+        end,
         dialog = nil,
         toasts = {},
         selectedCategoryId = "global",
         selectedEventId = "editorProperties",
         selectedTimelineEventIds = {},
+        timelineClipboard = {},
         hoveredTimelineEventId = nil,
         eventDefaults = {
             setInputEnabled = { enabled = false },
@@ -359,6 +363,49 @@ function EditorApp:commitValueEdit()
     return true, nil
 end
 
+function EditorApp:handleValueEditClick(x, y, button)
+    if button ~= 1 or not self.valueEdit or self.session:isPlaying() then
+        return false
+    end
+
+    local selectedEvent = PropertyCatalog.getEvent(
+        self.selectedEventId,
+        self.session:getProject()
+    )
+    local propertyOffset = self.scrollAreas.properties:getOffset()
+    local propertyRow = EditorLayout.hitTestPropertyValue(
+        self.layout,
+        selectedEvent and #selectedEvent.properties or 0,
+        x,
+        y,
+        propertyOffset
+    )
+    local clickedProperty = propertyRow
+        and selectedEvent.properties[propertyRow] or nil
+    local clickedGroupId = clickedProperty and (
+        clickedProperty.groupId
+        or selectedEvent.timelineType
+        or selectedEvent.id
+    )
+    local actionClicked = false
+    if self.selectedEventId == "mixtapeProperties" then
+        local actionRect = EditorLayout.getPropertyActionRect(
+            self.layout,
+            3,
+            propertyOffset
+        )
+        actionClicked = self.beat0AutoButton:contains(actionRect, x, y)
+    end
+
+    if not actionClicked
+        and clickedProperty
+        and self.valueEdit.groupId == clickedGroupId
+        and self.valueEdit.propertyId == clickedProperty.id then
+        return true
+    end
+    return not self:commitValueEdit()
+end
+
 function EditorApp:openNewDialog()
     local projects, errorMessage = self.session:listProjects()
     if not projects or #projects == 0 then
@@ -601,6 +648,47 @@ local function copySelection(selection)
         if selected then copy[eventId] = true end
     end
     return copy
+end
+
+function EditorApp:copyTimelineSelection()
+    local events = self.session:getTimelineEventCopies(
+        self.selectedTimelineEventIds
+    )
+    if #events == 0 then return nil end
+    self.timelineClipboard = events
+    return true
+end
+
+function EditorApp:cutTimelineSelection()
+    if not self:copyTimelineSelection() then return nil end
+    local deleted, errorMessage = self.session:deleteTimelineEvents(
+        self.selectedTimelineEventIds
+    )
+    if not deleted then return nil, errorMessage end
+    self.selectedTimelineEventIds = {}
+    self.hoveredTimelineEventId = nil
+    return true
+end
+
+function EditorApp:pasteTimelineClipboard()
+    if #self.timelineClipboard == 0 then return nil end
+    if self.mouseX == nil or self.mouseY == nil then return nil end
+    local timeline = self.layout.timeline
+    if self.mouseY < timeline.y + 32 then return nil end
+    local beat, track = self:getTimelinePosition(self.mouseX, self.mouseY)
+    if not beat or not track then return nil end
+    local added, errorMessage = self.session:pasteTimelineEvents(
+        self.timelineClipboard,
+        beat,
+        track
+    )
+    if not added then return nil, errorMessage end
+    self.selectedTimelineEventIds = {}
+    for _, event in ipairs(added) do
+        self.selectedTimelineEventIds[event.id] = true
+    end
+    self.hoveredTimelineEventId = nil
+    return true
 end
 
 function EditorApp:updateTimelineSelection(x, y)
@@ -886,6 +974,8 @@ function EditorApp:mousepressed(x, y, button, _, presses)
         return true
     end
 
+    if self:handleValueEditClick(x, y, button) then return true end
+
     local timeline = self.layout.timeline
     local insideTimeline = x >= timeline.x
         and x < timeline.x + timeline.width
@@ -1049,18 +1139,6 @@ function EditorApp:mousepressed(x, y, button, _, presses)
         )
         actionClicked = self.beat0AutoButton:contains(actionRect, x, y)
     end
-    if self.valueEdit then
-        local clickedProperty = propertyRow and selectedEvent.properties[propertyRow] or nil
-        if not actionClicked
-            and clickedProperty
-            and self.valueEdit.groupId
-                == (clickedProperty.groupId or selectedEvent.id)
-            and self.valueEdit.propertyId == clickedProperty.id then
-            return true
-        end
-        local committed = self:commitValueEdit()
-        if not committed then return true end
-    end
     if actionClicked then
         if self.beat0AutoButton.enabled then
             local detected, errorMessage = self:autoDetectBeat0Offset()
@@ -1212,6 +1290,36 @@ function EditorApp:keypressed(key, _, isRepeat)
             self:commitValueEdit()
         elseif key == "escape" then
             self.valueEdit = nil
+        end
+    elseif not isRepeat and self.isControlDown()
+        and self.session:hasStage() and not self.session:isPlaying()
+        and key == "c" then
+        self:copyTimelineSelection()
+    elseif not isRepeat and self.isControlDown()
+        and self.session:hasStage() and not self.session:isPlaying()
+        and key == "x" then
+        local cut, errorMessage = self:cutTimelineSelection()
+        if cut == nil and errorMessage then self:showToast(errorMessage, "error") end
+    elseif not isRepeat and self.isControlDown()
+        and self.session:hasStage() and not self.session:isPlaying()
+        and key == "v" then
+        local pasted, errorMessage = self:pasteTimelineClipboard()
+        if pasted == nil and errorMessage then self:showToast(errorMessage, "error") end
+    elseif not isRepeat and self.isControlDown()
+        and self.session:hasStage() and not self.session:isPlaying()
+        and key == "z" then
+        local changed, errorMessage
+        if self.isShiftDown() then
+            changed, errorMessage = self.session:redoTimelineEdit()
+        else
+            changed, errorMessage = self.session:undoTimelineEdit()
+        end
+        if changed then
+            self.selectedTimelineEventIds = {}
+            self.hoveredTimelineEventId = nil
+        elseif errorMessage ~= "Nothing to undo."
+            and errorMessage ~= "Nothing to redo." then
+            self:showToast(errorMessage, "error")
         end
     elseif not isRepeat and key == "delete" and self.session:hasStage()
         and not self.session:isPlaying()

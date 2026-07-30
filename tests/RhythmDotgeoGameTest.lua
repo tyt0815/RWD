@@ -37,9 +37,12 @@ return {
             test.assertEqual(category.events[2].label, "흐에")
             test.assertEqual(category.events[2].properties[1].id, "responseDelayBeats")
             test.assertEqual(category.events[2].properties[2].id, "longNoteLengthBeats")
+            test.assertEqual(category.events[2].geometry.startEndpointWidthProperty,
+                "longNoteLengthBeats")
+            test.assertEqual(category.events[2].geometry.endEndpointWidthProperty,
+                "longNoteLengthBeats")
             test.assertEqual(category.events[3].label, "네르지마세요")
-            test.assertEqual(category.events[4].label, "좌피키")
-            test.assertEqual(category.events[5].label, "우피키")
+            test.assertEqual(#category.events, 3)
         end,
     },
     {
@@ -59,11 +62,12 @@ return {
                     { id = "long", type = "projectEvent", eventId = "heue",
                         startBeat = 1, track = 1,
                         params = { responseDelayBeats = 2, longNoteLengthBeats = 1 } },
+                    { id = "next", type = "projectEvent", eventId = "doNotNer",
+                        startBeat = 2, track = 2,
+                        params = { responseDelayBeats = 10 } },
                     { id = "tap", type = "projectEvent", eventId = "doNotNer",
                         startBeat = 5, track = 1,
                         params = { responseDelayBeats = 2 } },
-                    { id = "player", type = "projectEvent", eventId = "playerTurn",
-                        startBeat = 9, track = 1, params = {} },
                 },
             }
             assert(game:startStage(stage, 0))
@@ -71,30 +75,233 @@ return {
             test.assertEqual(runtime.guideActor.spawned, true)
             test.assertEqual(runtime.playerActor.spawned, true)
             test.assertEqual(runtime.background.spawned, true)
-            game:update(0.1, 1)
-            test.assertEqual(runtime.guideActor.effect, "long")
 
+            game:update(0.1, 0.75)
+            test.assertNear(runtime.guideActor.movement:getValue(0.75), 0, 0.000001)
+            test.assertNear(runtime.playerActor.movement:getValue(0.75), 0.5, 0.000001)
+            game:update(0.1, 1)
+            test.assertNear(runtime.playerActor.movement:getValue(1), 1, 0.000001)
+            test.assertEqual(runtime.guideActor.effect, "long")
+            test.assertEqual(runtime.sounds.longHeld.guide, true)
+
+            game:update(0.1, 2)
+            test.assertEqual(runtime.sounds.longHeld.guide, false)
+            game:update(0.1, 2.75)
+            test.assertNear(runtime.guideActor.movement:getValue(2.75), 0.5, 0.000001)
+            test.assertNear(runtime.playerActor.movement:getValue(2.75), 0.5, 0.000001)
             game:update(0.1, 3)
+            test.assertNear(runtime.guideActor.movement:getValue(3), 1, 0.000001)
+            test.assertNear(runtime.playerActor.movement:getValue(3), 0, 0.000001)
             game:keypressed("space")
+            test.assertEqual(runtime.playerActor.effect, nil)
+            game:update(0.1, 3)
             test.assertEqual(runtime.playerActor.effect, "long")
             game:update(0.1, 4)
             game:keyreleased("space")
             test.assertEqual(runtime.longResult, "GOOD")
 
+            game:update(0.1, 4.75)
+            test.assertNear(runtime.guideActor.movement:getValue(4.75), 0.5, 0.000001)
+            test.assertNear(runtime.playerActor.movement:getValue(4.75), 0.5, 0.000001)
             game:update(0.1, 5)
+            test.assertNear(runtime.guideActor.movement:getValue(5), 0, 0.000001)
+            test.assertNear(runtime.playerActor.movement:getValue(5), 1, 0.000001)
             test.assertEqual(runtime.guideActor.effect, "tap")
+            game:update(0.1, 6.75)
+            test.assertNear(runtime.guideActor.movement:getValue(6.75), 0.5, 0.000001)
+            test.assertNear(runtime.playerActor.movement:getValue(6.75), 0.5, 0.000001)
             game:update(0.1, 7)
             game:keypressed("space")
+            test.assertNear(runtime.guideActor.movement:getValue(7), 1, 0.000001)
+            test.assertNear(runtime.playerActor.movement:getValue(7), 0, 0.000001)
+            test.assertEqual(runtime.playerActor.effect, nil)
+            game:keyreleased("space")
             test.assertEqual(runtime.tapResult, "GOOD")
             test.assertEqual(runtime.playerActor.effect, "tap")
-
-            game:update(0.1, 9.25)
-            test.assertNear(runtime.guideActor.movement:getValue(9.25), 0.5, 0.000001)
-            test.assertNear(runtime.playerActor.movement:getValue(9.25), 0, 0.000001)
         end,
     },
     {
-        name = "스피키송 우피키는 좌우 반전되어 렌더링된다",
+        name = "스피키송 플레이어는 같은 입력 위치에서 누른 시간으로 Tap·Long을 선택한다",
+        run = function(test)
+            local Runtime = require("projects.rhythm_dotgeo.game.SpeakiSong.Runtime")
+            local state = { playerTapCount = 0, playerLongCount = 0 }
+            local image = {
+                getWidth = function() return 300 end,
+                getHeight = function() return 306 end,
+            }
+            local sounds = {
+                configure = function() end,
+                resetTapIndex = function() end,
+                playTap = function(_, role)
+                    if role == "player" then
+                        state.playerTapCount = state.playerTapCount + 1
+                    end
+                end,
+                startLong = function(_, role)
+                    if role == "player" then
+                        state.playerLongCount = state.playerLongCount + 1
+                    end
+                end,
+                releaseLong = function() end,
+                update = function() end,
+                stop = function() end,
+            }
+            local runtime = Runtime.new({}, {}, {
+                sprites = { get = function() return image end },
+                sounds = sounds,
+                gameplayConfig = {
+                    load = function()
+                        return { longHoldThresholdMs = 100 }
+                    end,
+                },
+                config = {
+                    load = function()
+                        return {
+                            actor = {
+                                actorHeightRatio = 0.61,
+                                maxActorWidthRatio = 0.31,
+                                sideMarginRatio = 0.1,
+                                minMargin = 25,
+                                outsidePadding = 13,
+                                longPressBeats = 0.21,
+                                longShiftXRatio = 0.036,
+                                longShiftYRatio = 0.046,
+                                tapDurationBeats = 0.36,
+                                tapShiftXRatio = 0.071,
+                                tapShiftYRatio = 0.056,
+                                tapShakeRatio = 0.013,
+                            },
+                        }
+                    end,
+                },
+            })
+            runtime:startStage({ bpm = 120, events = {} }, 0)
+
+            runtime.tapJudgment:addNote("tap-short", 10)
+            runtime.longJudgment:addNote("long-short", 10, 11)
+            runtime:keypressed("space", 10)
+            test.assertEqual(state.playerTapCount, 0)
+            test.assertEqual(state.playerLongCount, 0)
+            runtime:keyreleased("space", 10.1)
+
+            test.assertEqual(state.playerTapCount, 1)
+            test.assertEqual(state.playerLongCount, 0)
+            test.assertEqual(runtime.playerActor.effect, "tap")
+            test.assertEqual(runtime.tapResult, "GOOD")
+
+            runtime:update(0, 11.5)
+            runtime.tapJudgment:addNote("tap-long", 12)
+            runtime.longJudgment:addNote("long-long", 12, 14)
+            runtime:keypressed("space", 12)
+            runtime:update(0.1, 12)
+
+            test.assertEqual(state.playerLongCount, 1)
+            test.assertEqual(state.playerTapCount, 1)
+            test.assertEqual(runtime.playerActor.effect, "long")
+            test.assertEqual(runtime.longResult, "GOOD")
+            runtime:keyreleased("space", 14)
+            test.assertEqual(runtime.playerActor.effect, nil)
+            test.assertEqual(runtime.longResult, "GOOD")
+
+            runtime:keypressed("space", 20)
+            runtime:update(0.1, 20.25)
+            test.assertEqual(state.playerLongCount, 2)
+            test.assertEqual(state.playerTapCount, 1)
+            test.assertEqual(runtime.playerActor.effect, "long")
+            runtime:keyreleased("space", 20.5)
+            test.assertEqual(runtime.playerActor.effect, nil)
+            test.assertEqual(runtime.longResult, "EMPTY_INPUT")
+        end,
+    },
+    {
+        name = "스피키송은 Play마다 Config를 다시 읽고 Turn별 Tap 인덱스를 초기화한다",
+        run = function(test)
+            local Game = require("projects.rhythm_dotgeo.game.Game")
+            local project = require("projects.rhythm_dotgeo.project")
+            local state = {
+                loadCount = 0,
+                configureCount = 0,
+                resets = { guide = 0, player = 0 },
+            }
+            local sounds = {
+                configure = function()
+                    state.configureCount = state.configureCount + 1
+                end,
+                resetTapIndex = function(_, role)
+                    state.resets[role] = state.resets[role] + 1
+                end,
+                playTap = function() end,
+                update = function() end,
+            }
+            local image = {
+                getWidth = function() return 300 end,
+                getHeight = function() return 306 end,
+            }
+            local game = Game.new(project, {
+                stageStore = createStageStore(),
+                categoryOptions = {
+                    sprites = { get = function() return image end },
+                    sounds = sounds,
+                    config = {
+                        load = function()
+                            state.loadCount = state.loadCount + 1
+                            return {
+                                longStartSound = "hue-start.mp3",
+                                longLoopSound = "hue-loop.mp3",
+                                longEndSound = "hue-end.mp3",
+                                tapSounds = {},
+                                actor = {
+                                    actorHeightRatio = 0.61,
+                                    maxActorWidthRatio = 0.31,
+                                    sideMarginRatio = 0.1,
+                                    minMargin = 25,
+                                    outsidePadding = 13,
+                                    longPressBeats = 0.21,
+                                    longShiftXRatio = 0.036,
+                                    longShiftYRatio = 0.046,
+                                    tapDurationBeats = 0.36,
+                                    tapShiftXRatio = 0.071,
+                                    tapShiftYRatio = 0.056,
+                                    tapShakeRatio = 0.013,
+                                },
+                            }
+                        end,
+                    },
+                },
+            })
+            local stage = {
+                projectId = "rhythm_dotgeo",
+                stageId = "reload",
+                name = "Reload",
+                bpm = 120,
+                events = {
+                    { id = "spawn", type = "projectEvent", eventId = "speakiSong",
+                        startBeat = 0, track = 1, params = {} },
+                    { id = "cue", type = "projectEvent", eventId = "doNotNer",
+                        startBeat = 0, track = 2,
+                        params = { responseDelayBeats = 1 } },
+                },
+            }
+
+            assert(game:startStage(stage, 0))
+            game:update(0, 0.5)
+            assert(game:startStage(stage, 0))
+            game:update(0, 0.5)
+
+            test.assertEqual(state.loadCount, 2)
+            test.assertEqual(state.configureCount, 2)
+            test.assertEqual(state.resets.guide, 4)
+            test.assertEqual(state.resets.player, 4)
+            local runtime = game:getCategoryRuntime("speakiSong")
+            test.assertNear(runtime.guideActor.settings.actorHeightRatio,
+                0.61, 0.000001)
+            test.assertNear(runtime.playerActor.settings.tapShakeRatio,
+                0.013, 0.000001)
+            test.assertNear(runtime.tapDurationBeats, 0.36, 0.000001)
+        end,
+    },
+    {
+        name = "스피키송 플레이어 액터는 좌우 반전되어 렌더링된다",
         run = function(test)
             local Game = require("projects.rhythm_dotgeo.game.Game")
             local project = require("projects.rhythm_dotgeo.project")
@@ -184,6 +391,13 @@ return {
             assert(game:mousepressed(speakiSong.rect.x + 4, speakiSong.rect.y + 4, 1))
             test.assertEqual(game.stage.stageId, "speaki_song")
             test.assertEqual(game.stage.name, "Speaki Song")
+            test.assertEqual(#game.stage.events, 5)
+            local runtime = game:getCategoryRuntime("speakiSong")
+            test.assertEqual(#runtime.turnSchedule, 2)
+            test.assertEqual(runtime.turnSchedule[1].role, "guide")
+            test.assertNear(runtime.turnSchedule[1].startBeat, 7.5, 0.000001)
+            test.assertEqual(runtime.turnSchedule[2].role, "player")
+            test.assertNear(runtime.turnSchedule[2].startBeat, 15.5, 0.000001)
         end,
     },
     {

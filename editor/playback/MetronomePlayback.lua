@@ -5,7 +5,7 @@ local SAMPLE_RATE = 44100
 local CLICK_SECONDS = 0.012
 local ACCENT_FREQUENCY = 1760
 local NORMAL_FREQUENCY = 880
-local AMPLITUDE = 0.35
+local AMPLITUDE = 1
 
 local function failureMessage(errorMessage)
     return nil, "Metronome playback failed: " .. tostring(errorMessage)

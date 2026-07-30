@@ -42,7 +42,15 @@ end
 function StagePlayback:start(game, stage, startBeat)
     self:stop()
     self.runtime = Core.StageRuntime.new()
-    if self.categoryHost then self.categoryHost:startStage(stage, startBeat or 0) end
+    if self.categoryHost then
+        local started, categoryError = pcall(
+            self.categoryHost.startStage,
+            self.categoryHost,
+            stage,
+            startBeat or 0
+        )
+        if not started then return nil, tostring(categoryError) end
+    end
     local occurrences, runtimeError = self.runtime:start(stage, startBeat or 0)
     if not occurrences then return nil, runtimeError end
     local applied, applyError = self:applyOccurrences(
@@ -70,7 +78,7 @@ function StagePlayback:start(game, stage, startBeat)
     return true, nil
 end
 
-function StagePlayback:update(game, deltaTime, externalBeat)
+function StagePlayback:update(game, deltaTime, externalBeat, realDeltaTime)
     local beat = externalBeat
     if self.transport and beat == nil then
         local updated, updateError = self.transport:update(deltaTime)
@@ -84,7 +92,9 @@ function StagePlayback:update(game, deltaTime, externalBeat)
     local currentBeat = self.runtime:getCurrentBeat()
     local applied, applyError = self:applyOccurrences(game, occurrences, currentBeat)
     if not applied then return nil, applyError end
-    if self.categoryHost then self.categoryHost:update(deltaTime, currentBeat) end
+    if self.categoryHost then
+        self.categoryHost:update(deltaTime, currentBeat, realDeltaTime or deltaTime)
+    end
 
     if self.runtime:isEnded() and self.transport then
         self.transport:pause()

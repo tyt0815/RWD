@@ -1,5 +1,27 @@
 return {
     {
+        name = "연결형 Project Event는 Property로 응답 블록 길이를 계산한다",
+        run = function(test)
+            local Geometry = require("editor.timeline.TimelineEventGeometry")
+            local resolved = Geometry.resolveConnector({
+                responseDelayBeats = 4,
+                longNoteLengthBeats = 2,
+            }, {
+                durationProperty = "responseDelayBeats",
+                endpointWidthBeats = 1,
+                startEndpointWidthProperty = "longNoteLengthBeats",
+                endEndpointWidthProperty = "longNoteLengthBeats",
+                connector = true,
+            })
+
+            test.assertNear(resolved.widthBeats, 6, 0.000001)
+            test.assertNear(resolved.startWidthBeats, 2, 0.000001)
+            test.assertNear(resolved.endWidthBeats, 2, 0.000001)
+            test.assertNear(resolved.collisionSegments[2].offsetBeats, 4, 0.000001)
+            test.assertNear(resolved.collisionSegments[2].widthBeats, 2, 0.000001)
+        end,
+    },
+    {
         name = "Timeline Event geometry는 기본 0.25박과 가변 길이를 계산한다",
         run = function(test)
             local Geometry = require("editor.timeline.TimelineEventGeometry")

@@ -36,6 +36,8 @@ return {
             geometry = {
                 durationProperty = "responseDelayBeats",
                 endpointWidthBeats = 1,
+                startEndpointWidthProperty = "longNoteLengthBeats",
+                endEndpointWidthProperty = "longNoteLengthBeats",
                 connector = true,
                 startColor = { 0.32, 0.68, 0.95, 1 },
                 endColor = { 1, 0.67, 0.2, 1 },
@@ -62,20 +64,6 @@ return {
                 startColor = { 0.32, 0.68, 0.95, 1 },
                 endColor = { 1, 0.67, 0.2, 1 },
             },
-        },
-        {
-            id = "guideTurn",
-            label = "좌피키",
-            color = { 0.32, 0.68, 0.95, 1 },
-            properties = {},
-            geometry = { widthBeats = 0.5 },
-        },
-        {
-            id = "playerTurn",
-            label = "우피키",
-            color = { 1, 0.67, 0.2, 1 },
-            properties = {},
-            geometry = { widthBeats = 0.5 },
         },
     },
 }

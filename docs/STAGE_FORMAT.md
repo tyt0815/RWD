@@ -134,7 +134,7 @@ Mixtape와 Editor 설정이 모두 기본값이면 `mixtape`와 `editorSettings`
 - `pattern`: 비어 있지 않은 `patternId`와 선택적 JSON 객체 `params`를 사용한다. `params`를 생략하면 빈 객체로 취급하며 내부 JSON null은 저장 왕복에서 보존한다. `params` 자체의 null이나 배열은 허용하지 않는다.
 - `tapNote`: 공통 필드만 사용한다.
 - `longNote`: 0보다 큰 유한 `durationBeats`를 추가한다.
-- `projectEvent`: 필수 `track`, 비어 있지 않은 `eventId`와 객체 `params`를 사용한다. `eventId`와 params의 구체적 계약은 현재 Project의 `eventCategories` 등록을 따른다. 연결형 노드는 가운데 표시 영역을 겹칠 수 있지만 등록된 시작·끝 충돌 영역은 다른 노드와 겹칠 수 없다.
+- `projectEvent`: 필수 `track`, 비어 있지 않은 `eventId`와 객체 `params`를 사용한다. `eventId`와 params의 구체적 계약은 현재 Project의 `eventCategories` 등록을 따른다. 연결형 노드는 가운데 표시 영역을 겹칠 수 있지만 등록된 시작·끝 충돌 영역은 다른 노드와 겹칠 수 없다. Project geometry가 `startEndpointWidthProperty` 또는 `endEndpointWidthProperty`를 등록하면 해당 params 값이 가이드 또는 응답 블록의 표시·충돌 beat 폭이 된다.
 - `end`: 필수 `track`을 사용하며 Stage 전체에 최대 하나만 존재할 수 있다. 에디터 재생이 이 beat에 도달하면 재생을 끝낸다. End가 없고 Music이 설정된 Stage는 Music duration에 도달할 때 자동 종료한다.
 - `setInputEnabled`: 필수 `track`과 boolean `enabled`를 사용한다. 플레이어 입력 상태는 기본 `true`이며 재생 중 이 값으로 설정된다. 새 노드의 `enabled` 기본값은 `false`다.
 

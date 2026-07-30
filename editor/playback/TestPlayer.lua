@@ -67,6 +67,7 @@ function TestPlayer:start(project, stage, startBeat, autoPlay)
 end
 
 function TestPlayer:stop()
+    if self.game and self.game.stop then pcall(self.game.stop, self.game) end
     self.game = nil
     self.canvas = nil
     self.canvasWidth = nil
@@ -78,7 +79,7 @@ function TestPlayer:isPlaying()
     return self.playing
 end
 
-function TestPlayer:update(deltaTime, beat)
+function TestPlayer:update(deltaTime, beat, realDeltaTime)
     if not self.playing or not self.game or not self.game.update then
         return true, nil
     end
@@ -87,7 +88,8 @@ function TestPlayer:update(deltaTime, beat)
         self.game.update,
         self.game,
         deltaTime,
-        beat
+        beat,
+        realDeltaTime
     )
     if not succeeded then
         return nil, "Project preview update failed: " .. tostring(errorMessage)

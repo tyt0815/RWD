@@ -8,7 +8,7 @@
 - Editor: 등록된 Category/Event 표시, Stage 저장, 배치와 재생
 - Project: 노드 이름·프로퍼티, 화면, Sprite, 색, 사운드, 입력 결과 연출
 
-Project 기능을 만들기 전에는 `require("core")`가 이미 제공하는 판정·시간·UI API를 먼저 확인한다. 기존 Core 객체를 Project가 조합하는 방식을 우선하고, 여러 Project에서 동일하게 쓸 스타일 독립 규칙이 없을 때만 Core 공개 API와 테스트를 추가한다. Core를 확장해 새 제작법이 생기면 이 문서도 함께 갱신한다.
+Project 기능을 만들기 전에는 `require("core")`가 이미 제공하는 판정·시간·UI·ProjectConfig API를 먼저 확인한다. 기존 Core 객체를 Project가 조합하는 방식을 우선하고, 여러 Project에서 동일하게 쓸 스타일 독립 규칙이 없을 때만 Core 공개 API와 테스트를 추가한다. Core를 확장해 새 제작법이 생기면 이 문서도 함께 갱신한다.
 
 현재 Sample은 다음 Category 완결 구조를 실제로 사용한다. `project.lua`와 `SampleGame.lua`는 자동 발견과 Core 위임만 담당하므로 새 Category를 추가할 때 수정하지 않는다.
 
@@ -73,7 +73,7 @@ return {
 
 같은 폴더의 `Runtime.lua`는 `new(project, category, options)`를 제공하고 `handleEvent(event, occurrence, beat)`에서 해당 폴더의 Event 모듈로 위임한다. Category 추가·수정에 필요한 코드는 이 폴더 안에만 둔다.
 
-현재 프로퍼티는 유한 `number`를 지원한다. `singleton = true`이면 Stage에 같은 Event를 하나만 배치할 수 있다. `geometry.widthBeats`는 고정 폭이다. `geometry.endpointWidthBeats`는 연결형 노드의 시작·끝 블록이 차지하는 beat 폭이며 Sample의 `1`은 각각 한 박을 뜻한다. 이 의미와 값은 Project가 선언하고 Editor가 Timeline 배율에 맞춰 렌더링·충돌 판정한다. `connector = true`이면 연결 영역은 기본 색의 18% alpha로 채우고 90% alpha 외곽선을 그리며, 시작·끝 상자만 충돌에 참여하므로 가운데에 다른 노드를 놓을 수 있다. 다른 노드의 색조를 덜 왜곡하려면 Sample처럼 중립적인 밝은 회색을 기본 색으로 사용하는 것이 좋다.
+현재 프로퍼티는 유한 `number`를 지원한다. `singleton = true`이면 Stage에 같은 Event를 하나만 배치할 수 있다. `geometry.widthBeats`는 고정 폭이다. `geometry.endpointWidthBeats`는 연결형 노드의 시작·끝 블록이 차지하는 기본 beat 폭이며 Sample의 `1`은 각각 한 박을 뜻한다. Long Note 가이드와 응답 블록이 모두 Property 길이를 사용해야 하면 `geometry.startEndpointWidthProperty`와 `geometry.endEndpointWidthProperty`에 `"longNoteLengthBeats"`를 등록한다. 한쪽만 동적으로 만들 수도 있으며 GUI 블록과 해당 충돌 영역이 Property 값만큼 늘어난다. 이 의미와 값은 Project가 선언하고 Editor가 Timeline 배율에 맞춰 렌더링·충돌 판정한다. `connector = true`이면 연결 영역은 기본 색의 18% alpha로 채우고 90% alpha 외곽선을 그리며, 시작·끝 상자만 충돌에 참여하므로 가운데에 다른 노드를 놓을 수 있다. 다른 노드의 색조를 덜 왜곡하려면 Sample처럼 중립적인 밝은 회색을 기본 색으로 사용하는 것이 좋다.
 
 ## 3. 저장 형식
 
@@ -168,15 +168,34 @@ end
 
 ## 6. Space 입력과 판정
 
-Editor는 입력이 활성화된 동안 `keypressed(key, beat)`로 Space와 입력 beat를 전달한다.
+Editor는 입력이 활성화된 동안 `keypressed(key, beat)`와 `keyreleased(key, beat)`로 Space와 입력 beat를 전달한다. Tap과 Long을 함께 지원할 때는 예정된 노트 종류를 먼저 조회하지 말고 `Core.PlayerAction`으로 실제 누름 길이를 분류한다. `longHoldThresholdMs` 전에 떼면 `TAP`, 임계점에 도달하면 `LONG_START`, 이후 떼면 `LONG_RELEASE`가 나온다. Tap과 Long 시작의 노트 판정에는 반환된 최초 `pressBeat`를 사용한다.
 
 ```lua
+self.playerAction = Core.PlayerAction.new({ longHoldThresholdMs = 100 })
+
 function Runtime:keypressed(key, beat)
-    if key == "space" then
-        self:showResult(self.judgment:input(beat))
+    if key == "space" then self.playerAction:press(beat) end
+end
+
+function Runtime:update(deltaTime, beat, realDeltaTime)
+    local action = self.playerAction:update(realDeltaTime or deltaTime)
+    if action and action.type == "LONG_START" then
+        self.longJudgment:press(action.pressBeat)
+    end
+end
+
+function Runtime:keyreleased(key, beat)
+    if key ~= "space" then return end
+    local action = self.playerAction:release(beat)
+    if action and action.type == "TAP" then
+        self.judgment:input(action.pressBeat)
+    elseif action and action.type == "LONG_RELEASE" then
+        self.longJudgment:release(action.releaseBeat)
     end
 end
 ```
+
+Editor preview의 세 번째 `realDeltaTime`은 Playback Rate가 적용되지 않은 실제 경과 시간이다. 독립 실행에서는 일반 `deltaTime`을 사용하면 된다. 임계값은 BPM과 무관한 Project 전역 JSON 설정으로 두고 Core 생성 옵션에 주입하며, Sprite와 SFX는 분류 결과를 받은 Project가 실행한다. Tap 전용 Project처럼 Long 구분이 필요 없는 경우에는 기존처럼 입력을 `TapJudgment`에 직접 전달할 수 있다.
 
 `Core.TapJudgment`의 현재 기본 샘플 판정은 다음과 같다.
 
@@ -189,7 +208,7 @@ end
 
 ### Long Note 누름·뗌 판정
 
-`Core.LongNoteJudgment`는 `addNote(noteId, startBeat, endBeat)`로 길이가 있는 노트를 등록한다. Project는 Space 누름을 `press(beat)`, 뗌을 `release(beat)`로 전달하고 매 frame `update(beat)`의 MISS 결과를 처리한다. 반환값의 `phase`는 `PRESS` 또는 `RELEASE`다. 시작·종료가 모두 GOOD이면 최종 GOOD, 둘 중 하나가 BAD이면 최종 BAD, 판정창을 벗어나거나 입력을 생략하면 MISS다.
+`Core.LongNoteJudgment`는 `addNote(noteId, startBeat, endBeat)`로 길이가 있는 노트를 등록한다. Project는 `PlayerAction`의 `LONG_START`에 보존된 최초 press beat를 `press(beat)`로, `LONG_RELEASE`의 실제 release beat를 `release(beat)`로 전달하고 매 frame `update(beat)`의 MISS 결과를 처리한다. 반환값의 `phase`는 `PRESS` 또는 `RELEASE`다. 시작·종료가 모두 GOOD이면 최종 GOOD, 둘 중 하나가 BAD이면 최종 BAD, 판정창을 벗어나거나 입력을 생략하면 MISS다.
 
 ```lua
 self.longJudgment:addNote(event.id, responseBeat, responseBeat + lengthBeats)
@@ -213,7 +232,19 @@ local progress = self.movement:getValue(currentBeat)
 
 0.5박 이동은 BPM이 높을수록 실제 seconds가 짧아진다. 어느 방향으로 움직이는지, 화면 안·밖 좌표, easing과 Sprite 렌더링은 Project 연출 책임이다. Sample 오른쪽 액터는 같은 Sprite를 음수 x scale로 그려 좌우 반전한다.
 
-## 8. 새 노드 체크리스트
+## 8. Stage와 독립적인 Project JSON 설정
+
+좌표, SFX 경로나 loop seconds처럼 모든 Stage가 공유하는 제작값은 `Core.ProjectConfig`로 Project의 `config/*.json`을 읽을 수 있다. 이 API는 값을 캐시하지 않으므로 Category Runtime의 `startStage`에서 `load(path)`를 호출하면 파일 수정이 다음 Play에 자동 반영된다. JSON decode와 파일 읽기는 Core 경계에 두고, 필드 이름·범위 검증과 실제 객체 반영은 Project가 소유한다.
+
+```lua
+local loader = Core.ProjectConfig.new()
+local data, errorMessage = loader:load("projects/mygame/config/gameplay.json")
+if not data then error(errorMessage) end
+```
+
+Stage별 노드 값은 계속 Event `params`를 사용한다. Project JSON은 Stage에 따라 달라지지 않는 값에만 사용하며 Runtime update마다 읽지 않고 Play 시작에 한 번만 읽는다.
+
+## 9. 새 노드 체크리스트
 
 1. `game/<CategoryName>/Definition.lua`에 고유 Category/Event ID와 프로퍼티를 등록한다.
 2. 같은 폴더에 `Runtime.lua`와 Project 전용 Event handler를 작성한다.

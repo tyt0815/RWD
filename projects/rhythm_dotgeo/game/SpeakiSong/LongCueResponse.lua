@@ -18,8 +18,9 @@ function LongCueResponse.apply(runtime, event, occurrence)
         })
     end
     local isCurrentCue = math.abs(event.startBeat - runtime.currentBeat) < 0.000001
-    if not occurrence.catchUp or isCurrentCue then
-        runtime.sounds:play("heueGuide")
+    if (not occurrence.catchUp or isCurrentCue)
+        and runtime.currentBeat <= event.startBeat + lengthBeats then
+        runtime:startGuideLongSound(event.startBeat, lengthBeats)
     end
 end
 

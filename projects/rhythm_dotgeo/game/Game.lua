@@ -81,9 +81,14 @@ function Game:startSelectedStage(stageId)
     return true
 end
 
-function Game:update(deltaTime, beat)
+function Game:update(deltaTime, beat, realDeltaTime)
     if self.screen ~= "stage" then return end
-    local updated, updateError = self.playback:update(self, deltaTime, beat)
+    local updated, updateError = self.playback:update(
+        self,
+        deltaTime,
+        beat,
+        realDeltaTime
+    )
     if not updated then
         self.errorMessage = updateError
         self.playback:stop()
@@ -125,6 +130,7 @@ end
 
 function Game:stop()
     local stopped, stopError = self.playback:stop()
+    self.categoryHost:stop()
     self.transport = nil
     return stopped, stopError
 end

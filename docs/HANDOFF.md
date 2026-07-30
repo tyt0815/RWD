@@ -6,7 +6,7 @@ LÖVE2D 11.5 Launcher에서 Sample Project와 Stage 에디터를 열 수 있다.
 
 `Editor Properties`는 Snap, Scale, Playback Rate, Auto Play, Metronome, Metronome Period, Track, Preview Aspect Width, Preview Aspect Height를, `Mixtape Properties`는 Music, Volume, Beat 0 Offset, Onset Threshold, BPM을 순서대로 제공한다. 숫자 직접 편집, boolean 전환, Project Music 선택 모달, cursor anchor wheel zoom, 상단 click·adaptive edge-scroll 재생 바 drag, F·Ctrl+S·R 단축키, 재생 오류 정리와 beat rollback이 연결되었다. 기본값은 Stage JSON에서 희소화된다.
 
-Game Manager의 End와 Set Input Enabled Event를 처리한다. Project Event Category·number Property 등록, 현재 Stage의 Project 전달과 활성 상태의 Space 누름·뗌 전달을 지원한다. Sample Project는 Core beat 기반 Tap 판정 예제를 제공한다. Rhythm Dotgeo에는 배경·액터 소환, Tap/Long 큐 응답과 턴을 제공하는 스피키송 Category가 있으며 Core beat 기반 Long Note 판정도 구현되었다. 일반 Pattern 실행은 아직 구현하지 않았다.
+Game Manager의 End와 Set Input Enabled Event를 처리한다. Project Event Category·number Property 등록, 현재 Stage의 Project 전달과 활성 상태의 Space 누름·뗌 전달을 지원한다. Core `PlayerAction`은 실제 ms 누름 시간으로 Tap·Long Start·Long Release를 분류하며 Rhythm Dotgeo는 `config/gameplay.json`의 전역 임계값을 사용한다. Sample Project는 Core beat 기반 Tap 판정 예제를 제공한다. Rhythm Dotgeo에는 배경·액터 소환, Tap/Long 큐 응답과 턴을 제공하는 스피키송 Category가 있으며 Core beat 기반 Long Note 판정도 구현되었다. 일반 Pattern 실행은 아직 구현하지 않았다.
 
 ## 이번 기능 범위와 커밋
 
@@ -29,6 +29,7 @@ Game Manager의 End와 Set Input Enabled Event를 처리한다. Project Event Ca
 `require("core")`가 다음 API를 공개한다.
 
 - `Core.TapJudgment.new`; `addNote`, `input`, `update`
+- `Core.PlayerAction.new`; `press`, `update`, `release`, `isPending`, `reset`
 - `Core.BeatTween.new`; `start`, `moveTo`, `getValue`, `isActive`
 - `Core.ProjectEvents.validate`, `getCategories`, `getEvent`, `getDefaultParams`, `validateParams`
 - `Core.ProjectCategories.discover`, `createHost`; Host `getRuntime`, `setAutoPlay`, `startStage`, `applyOccurrences`, `update`, `keypressed`, `draw`
@@ -430,3 +431,98 @@ Stage 계약은 schemaVersion 2, 최상위 `bpm`, 선택적 `mixtape`, 선택적
 - RED: 폰트 경로·크기·적용 계약 테스트가 `module 'launcher.AppFont' not found`로 1건 실패함을 확인했다.
 - GREEN: fake graphics 적용 계약과 실제 TTC의 `스피키송`, `흐에`, `네르지마세요` glyph 보유 검사를 포함해 `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 283 tests`.
 - 실제 앱의 TTC 로드를 포함한 숨김 LÖVE 기동은 `LOVE_FONT_SMOKE_RUNNING=True`였다. 실제 글자 크기와 가독성은 사람이 화면에서 최종 확인해야 한다.
+
+## 스피키송 Project Config와 SFX (2026-07-29)
+
+- Core 공개 API에 캐시하지 않는 `ProjectConfig` JSON loader를 추가했다. 스피키송 Runtime은 `projects/rhythm_dotgeo/config/speaki_song.json`을 매 Play마다 다시 읽어 앱 재시작이나 별도 Reload 없이 다음 Play에 액터 배치·반응값, SFX 경로와 loop seconds 변경을 반영한다.
+- 후속 수정으로 `SpeakiActor.lua`의 기존 12개 배치·반응 상수를 제거했다. `actorLayout`은 height/max width/side margin/min margin/outside padding을, `reactions`는 Long press·shift와 Tap duration·shift·shake를 소유한다. Runtime이 Play마다 같은 설정을 guide/player Actor에 다시 주입하고 Tap cue 지속시간도 갱신한다.
+- `speaki_hue.mp3`는 가이드·플레이어별 static Source를 사용한다. 누르면 처음부터 재생하고 유지 중 재생 위치가 설정의 `0.48초`에 도달하면 `0.18초`로 seek한다. 떼면 seek를 중단해 현재 위치부터 원본 파일 끝까지 재생한다. 가이드는 Long Note Length가 끝날 때 자동 release한다.
+- `speaki_tap1.mp3`부터 `speaki_tap9.mp3`까지 guide/player Source와 0-based 인덱스를 각각 소유한다. 재생 뒤 `(index + 1) % 9`로 순환하며 Spawn에서 둘 다, 좌피키 Turn에서 guide, 우피키 Turn에서 player 인덱스를 0으로 초기화한다.
+- SFX 종료 누락을 막기 위해 Category Host와 SpeakiSong Runtime에 선택적 `stop` lifecycle을 추가하고 TestPlayer stop과 Project 이탈에 연결했다. 잘못된 config의 Runtime 시작 오류는 StagePlayback이 문자열 오류로 반환한다.
+- RED: `Core.ProjectConfig` 부재 1건과 Sounds의 `configure` 부재 2건으로 `FAIL: 3 test(s)`를 확인했다.
+- GREEN: 호출별 JSON 재읽기, Actor 설정 재주입, Long seek/release, 역할별 9개 Tap 순환, Play 재로드와 Turn reset을 포함해 `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 287 tests`.
+- 최종 검증: Python 생성기 `Ran 5 tests`, `OK`, Project JSON 전체 `JSON_OK`와 설정 수정 후 `CONFIG_JSON_OK`, `git diff --check`는 CRLF 안내 외 오류 없음, Project의 Core 내부 require 검색 출력 없음, 숨김 LÖVE 기동은 SFX 구현 후 `LOVE_SOUND_SMOKE_RUNNING=True`, Actor 설정 이동 후 `LOVE_CONFIG_SMOKE_RUNNING=True`였다. 실제 배치·반응과 loop 이음새·음량은 사람이 확인 후 config 값을 조절해야 한다.
+
+## 흐에 Timeline Long 길이 반영 수정 (2026-07-29)
+
+- 원인은 흐에 geometry의 시작·응답 endpoint가 모두 고정 `1 beat`를 사용해 `longNoteLengthBeats`가 런타임에만 적용되고 Editor GUI 폭에는 반영되지 않던 것이다.
+- 연결형 geometry에 선택적 `startEndpointWidthProperty`·`endEndpointWidthProperty`를 추가하고 흐에는 양쪽 모두 `longNoteLengthBeats`를 등록했다. Response Delay 4, Long Length 2이면 전체 노드 폭은 6박이며 가이드·응답 블록과 각 충돌 영역이 모두 2박으로 계산된다.
+- Editor 렌더러도 시작·응답 endpoint 폭을 따로 사용하므로 Property 편집 직후 `getTimelineEvents` 재계산 결과가 GUI에 반영된다. Sample Cue & Response는 기존 양 끝 1박 동작을 유지한다.
+- RED: connector resolver 부재와 흐에 geometry property 부재로 `FAIL: 2 test(s)`를 확인했다.
+- GREEN: 동적 전체 폭·응답 폭·충돌 segment와 Rhythm 등록을 포함해 `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 288 tests`.
+- 최종 검증: Python 생성기 `Ran 5 tests`, `OK`, `git diff --check`는 CRLF 안내 외 오류 없음, 숨김 앱 기동은 `LOVE_TIMELINE_SMOKE_RUNNING=True`였다. 실제 Property 모달 편집 후 블록 폭은 자동 geometry 테스트로 검증했으며 사람이 Editor 화면에서 확인하지는 못했다.
+
+## 흐에 가이드 폭·짧은 MP3 loop 후속 수정 (2026-07-29)
+
+- 최초 수정에서 응답 블록만 Long 길이를 사용하고 가이드 블록은 1박으로 남은 문제를 보완했다. 흐에가 시작·응답 endpoint 모두 `longNoteLengthBeats`를 사용하며 렌더링과 충돌 segment도 같은 폭을 공유한다.
+- 현재 config의 `speaki_hue2.mp3`는 약 0.486초이고 loop end가 0.48초라 frame 사이에 Source가 먼저 종료될 수 있었다. Long 유지 중 Source가 이미 종료됐어도 loop start로 seek하고 다시 play한다. release 순간 Source가 막 종료된 경우에도 loop start에서 재생을 복원한 뒤 looping flag를 내려 원본 끝까지 진행한다.
+- RED: 가이드 폭 1박, 흐에 start property 부재, 종료 Source loop 복원 부재로 `FAIL: 3 test(s)`를 확인했다. release 직전 종료 후 tail 복원도 별도 RED 1건으로 확인했다.
+- GREEN: `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 288 tests`; 실제 `speaki_hue2.mp3`를 1.2초 유지한 별도 LÖVE smoke에서 `LONG_SOUND_LOOPS=3,PLAYING=true`를 확인했다.
+- 최종 검증: Python 생성기 `Ran 5 tests`, `OK`, `git diff --check`는 CRLF 안내 외 오류 없음, 숨김 앱 기동은 `LOVE_GUIDE_LONG_SMOKE_RUNNING=True`였다.
+
+## 스피키송 Long 3-Source·EMPTY Tap/Long 기본 반응 수정 (2026-07-29)
+
+- `.references/리듬세상ds_모아이송.mp4`의 `두—우우우…왑` Long과 `텁!` Tap 구분을 기준으로 Long 로직을 세 Source로 단순화했다. 누르면 `speaki_hue_start.mp3`를 한 번 재생하고, 누른 상태에서 start가 끝나면 `speaki_hue_loop.mp3`를 Source looping으로 반복하며, 떼면 start와 loop를 즉시 멈추고 `speaki_hue_end2.mp3`를 한 번 재생한다.
+- SoundData 자르기, hold/window seconds, pitch와 목표 길이 계산을 모두 제거했다. guide/player는 start·loop·end·Tap Source를 각각 소유하므로 가이드 재생 중 플레이어 SFX가 중첩된다.
+- 판정 문맥이 있는 Tap과 Long은 입력 즉시 기본 반응을 실행한다. 노트 문맥이 없는 `EMPTY_INPUT`은 누름 길이로 구분해 짧게 눌렀다 떼면 Tap, 0.25박 이상 유지하면 Long 기본 Sprite·SFX를 실행한다. Long 응답 구간 안의 늦은 빈 입력은 해당 Long으로 즉시 반응한다. 결과 상태는 별도로 남겨 이후 GOOD·BAD·MISS·EMPTY_INPUT 연출을 기본 반응 위에 추가할 수 있다.
+- `speaki_song.json`의 유효한 `_comments`와 설정 필드는 `longStartSound`, `longLoopSound`, `longEndSound`로 교체했다. `.references/` 파일은 수정하지 않았다.
+- RED: 3-Source 계약으로 테스트를 바꾼 뒤 기존 SoundData 구현에서 `FAIL: 3 test(s)`를 확인했다.
+- GREEN: `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 290 tests`; `python -m unittest discover -s tests_python -v` → `Ran 5 tests`, `OK`.
+- 실제 세 MP3를 사용한 별도 LÖVE smoke에서 start 종료 뒤 loop 진입, release 시 start·loop 정지와 end 재생, guide/player 중첩을 확인했다. loop Source duration은 `0.001587초`였다.
+- 최종 검증: Project JSON 3개가 PowerShell `ConvertFrom-Json`을 통과했고, `git diff --check`, 제거한 Long SoundData 필드 잔존과 Editor/Project의 Core 내부 require 검색은 오류 없이 통과했다. 숨김 앱 기동은 `LOVE_SMOKE_RUNNING=True`였다.
+
+## 스피키송 Tap SFX 개수 동적 순환 (2026-07-29)
+
+- `Sounds.lua`의 고정 `TAP_SOUND_COUNT = 9`를 제거하고 역할별로 실제 생성된 `tapSources` 길이를 읽어 modulo 순환한다. Config는 정확히 9개 대신 유효한 MP3 경로가 최소 1개인 배열을 허용한다.
+- `speaki_song.json`의 `_comments`도 배열 개수가 고정되지 않고 마지막 다음 첫 파일로 돌아간다고 수정했다.
+- RED: Tap fixture를 3개로 줄인 뒤 네 번째 guide Tap의 `expected: tap1.mp3`, `actual: nil` 실패를 확인했다.
+- GREEN: 3개 Config 허용과 guide/player 독립 순환 테스트를 포함해 `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 291 tests`; Python 생성기 테스트는 `Ran 5 tests`, `OK`.
+- 최종 검증: Project JSON 3개가 PowerShell `ConvertFrom-Json`을 통과했고, `git diff --check`, Tap 9개 고정값 잔존과 Editor/Project의 Core 내부 require 검색은 오류 없이 통과했다. 숨김 앱 기동은 `LOVE_SMOKE_RUNNING=True`였다.
+
+## Timeline 클립보드와 Undo/Redo (2026-07-29)
+
+- 선택 노드의 저장 필드 전체를 복사하는 `Ctrl+C`, 복사 후 원자 삭제하는 `Ctrl+X`, Timeline 본문의 현재 마우스 Snap beat·Track에 붙이는 `Ctrl+V`를 추가했다. 다중 선택은 최소 beat·Track을 마우스 위치에 맞추고 상대 간격을 유지하며 새 Event ID를 받는다.
+- Project Event params와 Set Input Enabled 값을 포함한 프로퍼티를 deep copy한다. 붙여넣기 묶음 중 하나라도 기존 geometry와 충돌하거나 Track·End·singleton 규칙을 위반하면 Stage를 일부 변경하지 않고 거부한다.
+- `Ctrl+Z`와 `Ctrl+Shift+Z`는 노드 생성·이동·삭제·프로퍼티 변경 및 Stage 설정 편집 snapshot을 Undo/Redo한다. 새 편집은 redo 분기를 제거하고 저장 시점의 dirty 상태와 BPM Transport도 복원한다. Dialog·Value 입력 또는 Play 중에는 기존 입력 우선순위를 유지해 단축키를 실행하지 않는다.
+- RED: 복사 후 `Ctrl+V`를 눌러도 Event 수가 `expected: 4`, `actual: 2`인 실패를 확인했다.
+- GREEN: 다중 노드 상대 배치, 새 ID, boolean·Project params 보존, Undo/Redo, Cut 복원과 새 편집의 redo 제거를 포함해 `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 292 tests`.
+- 최종 검증: `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 292 tests`; Python 생성기 테스트 `Ran 5 tests`, `OK`; Project JSON `JSON_OK`; `git diff --check`는 기존 HANDOFF CRLF 안내 외 오류 없음; Editor/Project의 Core 내부 require 검색 출력 없음; 숨김 LÖVE 기동 `LOVE_CLIPBOARD_SMOKE_RUNNING=True`. 실제 키보드·마우스 조작 화면은 사람이 수동 확인하지 못했다.
+
+## 실제 시간 기반 Tap·Long 플레이어 액션 분류 (2026-07-29)
+
+- Core 공개 API에 `PlayerAction`을 추가했다. 예정 노트 종류를 조회하지 않고 Project가 주입한 `longHoldThresholdMs` 전에 떼면 `TAP`, 임계점에 도달하면 `LONG_START`, 이후 뗄 때 `LONG_RELEASE`를 만든다. Tap과 Long 시작 판정에는 분류 전 최초 press beat를 보존한다.
+- Rhythm Dotgeo 전역 임계값은 Stage나 스피키송 연출 설정이 아니라 `projects/rhythm_dotgeo/config/gameplay.json`에 실제 ms로 저장한다. 현재 값은 `100ms`이며 각 Play 시작 시 다시 읽는다.
+- 스피키송은 Space press에서 노트 종류를 선점하지 않는다. 짧게 떼면 Tap 판정, 임계시간을 넘기면 Long 시작 판정으로 보내며 노트가 없는 위치에서도 같은 기본 Tap·Long Sprite/SFX를 실행한다. 분류 대기 중에는 최초 press beat의 후보가 먼저 MISS 되지 않도록 Tap·Long 판정 갱신을 보류한다.
+- Editor Playback Rate가 입력 의도 시간을 바꾸지 않도록 TestPlayer의 선택적 세 번째 update 인자로 배속 전 `realDeltaTime`을 전달한다. 기존 Project는 Lua의 추가 인자를 무시하므로 호환된다.
+- RED: Core 테스트 추가 직후 `Core.PlayerAction` 부재 2건을 확인했다. 구현 전 전체 suite에는 사용자 변경인 Metronome amplitude `1`과 기존 기대값 불일치로 이미 6건이 실패하고 있었다.
+- 기능 검증: Core의 ms 경계·단일 Long Start·release 테스트와, 같은 위치에서 짧게 눌러 Tap/길게 눌러 Long을 선택하는 스피키송 통합 테스트가 통과했다. 전체 suite의 남은 실패는 작업 전과 동일한 Metronome 6건뿐이다.
+- 추가 검증: Python 생성기 `Ran 5 tests`, `OK`; 모든 Project JSON `JSON_OK`; `git diff --check`는 기존 HANDOFF CRLF 안내만 출력; Editor/Project Core 내부 require 검색 출력 없음; 숨김 기동 `LOVE_SMOKE_RUNNING=True`. 실제 키보드 누름 시간과 SFX는 사람이 수동 확인하지 못했다.
+
+## 스피키송 Long QueueableSource 연속 재생 (2026-07-30)
+
+- 기존 `Sounds:update`는 매 프레임 `startSource:isPlaying()` 종료를 확인한 뒤 별도 loop Source를 시작해 start→loop 사이에 게임 프레임과 오디오 명령 지연이 들어갔다. 현재 MP3를 LÖVE로 디코드한 결과 start 끝과 loop 앞에는 무음이 없어 음원 공백이 주원인은 아니었다.
+- start PCM과 약 0.25초 길이로 반복한 loop PCM chunk를 역할별 4-buffer `QueueableSource`에 재생 전에 함께 넣는다. update는 소비된 loop buffer만 보충하며 start 종료를 폴링하지 않는다. release는 QueueableSource를 비우고 기존 static end Source를 즉시 재생한다. 30fps 고정은 적용하지 않았다.
+- RED: Queue 계약 테스트를 먼저 변경한 전체 suite에서 기존 Metronome 6건 외에 `longSources` 부재 2건이 추가 실패했다. 구현 뒤 두 Queue 실패는 사라졌고 남은 실패는 작업 전부터 있던 Metronome amplitude·강박 기대 불일치 6건뿐이다.
+- 실제 LÖVE 11.5와 현재 MP3 smoke에서 start `7211 frames`, loop chunk `11076 frames`, guide/player 큐 동시 시작, 0.8초 유지 중 buffer 보충, underrun `0`, release 뒤 두 Long Source 정지·free buffer `4`와 두 end Source 재생을 확인했다. 실제 스피커에서 이음새가 자연스러운지는 사용자 청취 확인이 필요하다.
+- 추가 검증: Python 생성기 `Ran 5 tests`, `OK`; Project JSON `JSON_OK`; Editor/Project Core 내부 require 검색 출력 없음; `git diff --check`는 기존 HANDOFF CRLF 안내만 출력했다.
+
+## Editor Values 바깥 클릭 확정 (2026-07-30)
+
+- 기존 인라인 Value 확정 처리가 Menu·Category·Property 분기 직전에 있어 Timeline 노드·빈 본문·헤더처럼 먼저 반환하는 클릭에서는 포커스가 남고 값도 적용되지 않았다. Value 클릭 처리를 일반 좌클릭 분기보다 앞으로 옮겨 다른 영역이면 먼저 검증·확정한 뒤 원래 클릭 동작을 계속 처리한다.
+- 같은 Value를 다시 클릭하면 편집을 유지한다. 유효하지 않은 값은 기존처럼 빨간 invalid 상태와 포커스를 유지해 클릭 대상 동작을 막으며, `Escape`는 값을 적용하지 않고 편집을 취소한다. Dialog의 명시적 Apply/Cancel 계약과 Core `TextInput`은 변경하지 않았다.
+- RED: BPM `90`을 입력하고 Timeline 본문을 클릭했을 때 `valueEdit`이 table로 남는 회귀 실패 1건을 확인했다. 구현 뒤 포커스 해제, BPM `90` 적용과 Timeline selection 시작이 함께 통과해 새 클릭 동작이 소비되지 않음을 확인했다.
+- 전체 LÖVE suite의 새 Editor 회귀는 통과했고 남은 실패는 작업 전부터 있던 Metronome amplitude·강박 기대 불일치 6건뿐이다. Python 생성기 `Ran 5 tests`, `OK`; Project JSON `JSON_OK`; Core 내부 require 검색 출력 없음; 숨김 기동 `LOVE_SMOKE_RUNNING=True`; `git diff --check`는 기존 HANDOFF CRLF 안내만 출력했다. 실제 마우스 클릭 화면은 사람이 수동 확인하지 못했다.
+
+## 스피키송 좌피키·우피키 1박 Turn (2026-07-30)
+
+- `guideTurn`·`playerTurn`의 Editor geometry 폭과 Runtime 이동 시간을 `0.5박`에서 `1박`으로 함께 변경했다. Stage 형식과 기존 Event 데이터는 바뀌지 않으며 기존 노드도 새 Definition 폭과 이동 시간을 사용한다.
+- RED: 두 Turn geometry의 `widthBeats = 1`과 시작 0.5박 뒤 이동 중간값을 기대해 기존 폭 `0.5`, 기존 Runtime에서는 이미 이동 완료값 `1`인 실패 2건을 확인했다.
+- 변경 뒤 두 Rhythm Dotgeo 회귀가 통과했고 전체 suite의 남은 실패는 기존 Metronome 6건뿐이다. Python 생성기 `Ran 5 tests`, `OK`; Project JSON `JSON_OK`; Core 내부 require 검색 출력 없음; 숨김 기동 `LOVE_SMOKE_RUNNING=True`; `git diff --check`는 기존 HANDOFF CRLF 안내만 출력했다. 실제 한 박 이동 속도는 사람이 화면에서 확인해야 한다.
+
+## 스피키송 Cue/Response 자동 Turn과 Long 종료 수정 (2026-07-30)
+
+- 직전 1박 Turn 변경을 대체해 `guideTurn`·`playerTurn` Definition, handler와 `Turn.lua`를 제거하고 `speaki_song.json`의 두 수동 Turn Event도 삭제했다. Editor의 스피키송 Event는 Spawn, 흐에, 네르지마세요 세 개만 남는다.
+- Runtime은 Stage의 흐에·네르지마세요 Cue beat와 `Response Delay (Beats)`로 계산한 Response beat를 시간순으로 정렬하고, 연속된 같은 역할을 한 Turn으로 묶는다. 역할이 바뀌면 목표 Cue/Response의 0.5박 전에 0.5박 이동을 시작해 목표 beat에 정확히 도착한다. 현재 Stage에서는 Guide `7.5→8`, Player `15.5→16`으로 자동 계산된다. 중간 beat 시작에서는 시작 위치 이전 Turn을 순서대로 적용해 상태를 복원한다.
+- 음성 지속 원인은 `handleEvent`가 `currentBeat`를 먼저 현재 Event beat로 바꾼 뒤 `update`가 이를 이전 beat로 사용해, Long 종료 beat와 같은 시점의 Event가 있으면 crossing을 놓치던 것이었다. Event handler용 현재 beat와 마지막 update beat를 분리해 같은 beat에 다른 Cue가 실행되어도 Guide Long을 종료하고 end SFX로 전환한다.
+- RED: Event 개수 `3`, Cue 0.5박 전 이동 중간값과 역할별 Tap index 자동 reset을 기대해 기존 수동 Turn 구조에서 Rhythm 회귀 3건이 실패했다. 추가로 Long 종료 beat에 다음 Cue를 배치해 종료 후 `longHeld.guide == false`를 고정했다. 구현 뒤 자동 이동, 음성 종료, 실제 Stage의 Turn schedule `7.5/15.5` 검증이 통과했다.
+- 전체 LÖVE suite의 새 Rhythm 회귀는 통과했고 남은 실패는 작업 전부터 있던 Metronome amplitude·강박 기대 불일치 6건뿐이다. Python 생성기 `Ran 5 tests`, `OK`; Project JSON `JSON_OK`; `guideTurn`·`playerTurn` Stage/Runtime 참조와 Core 내부 require 검색 출력 없음; 숨김 기동 `LOVE_SMOKE_RUNNING=True`; `git diff --check`는 기존 HANDOFF CRLF 안내만 출력했다. 실제 이동과 Long 음성 전환은 사람이 화면·스피커에서 확인해야 한다.

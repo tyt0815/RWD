@@ -15,7 +15,7 @@ function TapCueResponse.apply(runtime, event, occurrence)
     end
     local isCurrentCue = math.abs(event.startBeat - runtime.currentBeat) < 0.000001
     if not occurrence.catchUp or isCurrentCue then
-        runtime.sounds:play("doNotNerGuide")
+        runtime.sounds:playTap("guide")
     end
 end
 

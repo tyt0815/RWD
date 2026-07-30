@@ -250,6 +250,10 @@ function StageDocument.fromTable(data)
     return newDocument(data, false)
 end
 
+function StageDocument.fromSnapshot(data, dirty)
+    return newDocument(data, dirty == true)
+end
+
 function StageDocument:toTable()
     return deepCopy(self.data)
 end
@@ -372,7 +376,9 @@ function StageDocument:addEvent(eventType, startBeat, track, projectEventId, par
         startBeat = startBeat,
         track = track,
     }
-    if eventType == "setInputEnabled" then event.enabled = false end
+    if eventType == "setInputEnabled" then
+        event.enabled = params and params.enabled == true or false
+    end
     if eventType == "projectEvent" then
         event.eventId = projectEventId
         event.params = deepCopy(params or {})
@@ -385,6 +391,30 @@ function StageDocument:addEvent(eventType, startBeat, track, projectEventId, par
     table.insert(self.data.events, event)
     self.dirty = true
     return deepCopy(event), nil
+end
+
+function StageDocument:addEvents(events)
+    local candidateData = self:toTable()
+    local usedIds = {}
+    for _, event in ipairs(candidateData.events) do usedIds[event.id] = true end
+    local added = {}
+    local sequence = 1
+    for _, source in ipairs(events) do
+        local event = deepCopy(source)
+        repeat
+            event.id = string.format("event-%03d", sequence)
+            sequence = sequence + 1
+        until not usedIds[event.id]
+        usedIds[event.id] = true
+        table.insert(candidateData.events, event)
+        table.insert(added, deepCopy(event))
+    end
+    local validationError = StageDocument.validate(candidateData)
+    if validationError then return nil, validationError end
+    self.data = candidateData
+    normalizeEmptyEventParams(self.data)
+    if #added > 0 then self.dirty = true end
+    return added, nil
 end
 
 function StageDocument:moveEvents(positions)

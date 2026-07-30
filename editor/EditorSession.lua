@@ -73,19 +73,15 @@ local function decorateProjectEvent(event, definition)
     if event.type ~= "projectEvent" or not definition then return event end
     event.projectDefinition = definition
     local geometry = definition.geometry or {}
-    local duration = geometry.durationProperty
-        and event.params[geometry.durationProperty] or nil
-    if type(duration) == "number" then
-        local endpointWidth = geometry.endpointWidthBeats or 0.25
-        event.widthBeats = duration + endpointWidth
+    local connector = TimelineEventGeometry.resolveConnector(event.params, geometry)
+    if connector then
+        event.widthBeats = connector.widthBeats
         if geometry.connector then
-            event.collisionSegments = {
-                { offsetBeats = 0, widthBeats = endpointWidth },
-                { offsetBeats = duration, widthBeats = endpointWidth },
-            }
+            event.collisionSegments = connector.collisionSegments
             event.timelineStyle = "connector"
-            event.responseBeatOffset = duration
-            event.endpointWidthBeats = endpointWidth
+            event.responseBeatOffset = connector.responseBeatOffset
+            event.startEndpointWidthBeats = connector.startWidthBeats
+            event.endEndpointWidthBeats = connector.endWidthBeats
             event.endpointStartColor = geometry.startColor
             event.endpointEndColor = geometry.endColor
         end
@@ -113,7 +109,55 @@ function EditorSession.new(options)
         anchorBeat = 0,
         timelineStartBeat = 0,
         inputEnabled = true,
+        timelineHistory = {},
+        timelineHistoryIndex = 0,
     }, EditorSession)
+end
+
+function EditorSession:resetTimelineHistory()
+    self.timelineHistory = {}
+    self.timelineHistoryIndex = 0
+    if self.document then self:recordTimelineHistory() end
+end
+
+function EditorSession:recordTimelineHistory()
+    for index = #self.timelineHistory, self.timelineHistoryIndex + 1, -1 do
+        table.remove(self.timelineHistory, index)
+    end
+    table.insert(self.timelineHistory, {
+        data = self.document:toTable(),
+        dirty = self.document:isDirty(),
+    })
+    self.timelineHistoryIndex = #self.timelineHistory
+end
+
+function EditorSession:restoreTimelineHistory(index)
+    local snapshot = self.timelineHistory[index]
+    if not snapshot then return nil, "No Timeline edit history is available." end
+    local document, errorMessage = StageDocument.fromSnapshot(
+        snapshot.data,
+        snapshot.dirty
+    )
+    if not document then return nil, errorMessage end
+    local bpmChanged, bpmError = self.transport:setBpm(document:getBpm())
+    if not bpmChanged then return nil, bpmError end
+    self.document = document
+    self.timelineHistoryIndex = index
+    return true, nil
+end
+
+function EditorSession:undoTimelineEdit()
+    if self:isPlaying() then return nil, "Pause before undoing Timeline edits." end
+    if self.timelineHistoryIndex <= 1 then return nil, "Nothing to undo." end
+    return self:restoreTimelineHistory(self.timelineHistoryIndex - 1)
+end
+
+function EditorSession:redoTimelineEdit()
+    if self:isPlaying() then return nil, "Pause before redoing Timeline edits." end
+    if self.timelineHistoryIndex >= #self.timelineHistory then
+        return nil, "Nothing to redo."
+    end
+    return self:restoreTimelineHistory(self.timelineHistoryIndex + 1)
 end
 
 function EditorSession:hasStage()
@@ -192,6 +236,7 @@ function EditorSession:zoomTimeline(cursorOffsetX, wheelY)
     local newStart = cursorBeat - cursorOffsetX / (32 * newScale) + 1
     local changed, errorMessage = self.document:setEditorSetting("scale", newScale)
     if not changed then return nil, errorMessage end
+    if oldScale ~= newScale then self:recordTimelineHistory() end
     self.timelineStartBeat = math.max(0, newStart)
     return true, nil
 end
@@ -218,6 +263,7 @@ function EditorSession:replaceStage(project, document)
     self.anchorBeat = 0
     self.timelineStartBeat = 0
     self.inputEnabled = true
+    self:resetTimelineHistory()
     return true, nil
 end
 
@@ -256,6 +302,10 @@ function EditorSession:save()
     if not saved then return nil, errorMessage, errorCode end
 
     self.document:markClean()
+    if self.timelineHistory[self.timelineHistoryIndex] then
+        self.timelineHistory[self.timelineHistoryIndex].data = self.document:toTable()
+        self.timelineHistory[self.timelineHistoryIndex].dirty = false
+    end
     return true, nil
 end
 
@@ -273,12 +323,14 @@ function EditorSession:saveAs(stageId, name, overwrite)
 
     copy:markClean()
     self.document = copy
+    self:resetTimelineHistory()
     return true, nil
 end
 
 function EditorSession:setBpm(bpm)
     if not self.document then return nil, "No Stage is open." end
 
+    local previousBpm = self.document:getBpm()
     local candidate = self.document:toTable()
     candidate.bpm = bpm
     local validationError = StageDocument.validate(candidate)
@@ -286,7 +338,9 @@ function EditorSession:setBpm(bpm)
 
     local transportChanged, transportError = self.transport:setBpm(bpm)
     if not transportChanged then return nil, transportError end
-    return self.document:setBpm(bpm)
+    local changed, errorMessage = self.document:setBpm(bpm)
+    if changed and previousBpm ~= bpm then self:recordTimelineHistory() end
+    return changed, errorMessage
 end
 
 function EditorSession:getTimelineEvents()
@@ -361,13 +415,102 @@ function EditorSession:addTimelineEvent(eventType, beat, track, params)
             "Cannot place Timeline Event because its area would overlap another node.",
             "TIMELINE_EVENT_OVERLAP"
     end
-    return self.document:addEvent(
+    local added, errorMessage = self.document:addEvent(
         eventType,
         snappedBeat,
         track,
         projectEventId,
         params
     )
+    if added then self:recordTimelineHistory() end
+    return added, errorMessage
+end
+
+function EditorSession:getTimelineEventCopies(eventIds)
+    if not self.document then return {} end
+    local copies = {}
+    for _, event in ipairs(self.document:getEvents()) do
+        if eventIds[event.id] then table.insert(copies, event) end
+    end
+    return copies
+end
+
+function EditorSession:pasteTimelineEvents(sourceEvents, beat, track)
+    if not self.document then return nil, "No Stage is open." end
+    if self:isPlaying() then return nil, "Pause before pasting Timeline Events." end
+    if #sourceEvents == 0 then return nil, "No Timeline Events have been copied." end
+
+    local minimumBeat = math.huge
+    local minimumTrack = math.huge
+    local maximumTrack = -math.huge
+    for _, event in ipairs(sourceEvents) do
+        minimumBeat = math.min(minimumBeat, event.startBeat)
+        minimumTrack = math.min(minimumTrack, event.track or 1)
+        maximumTrack = math.max(maximumTrack, event.track or 1)
+    end
+    local snap = self.document:getEditorSettings().snap
+    local targetBeat = TimelineSnap.snapEventBeat(math.max(0, beat), snap)
+    local trackDelta = track - minimumTrack
+    if maximumTrack + trackDelta > self.document:getEditorSettings().trackCount then
+        return nil, "Cannot paste Timeline Events outside the available Tracks."
+    end
+
+    local candidates = {}
+    local movingIds = {}
+    for index, source in ipairs(sourceEvents) do
+        local candidate = {}
+        for key, value in pairs(source) do candidate[key] = value end
+        candidate.startBeat = targetBeat + source.startBeat - minimumBeat
+        candidate.track = (source.track or 1) + trackDelta
+        candidate.id = "__pasted_timeline_event_" .. index
+        movingIds[candidate.id] = true
+        if candidate.type == "projectEvent" then
+            local definition = getProjectEventDefinition(self.project, candidate.eventId)
+            if not definition then
+                return nil, "Unknown Project Event: " .. tostring(candidate.eventId)
+            end
+            local paramsError = Core.ProjectEvents.validateParams(
+                definition,
+                candidate.params
+            )
+            if paramsError then return nil, paramsError end
+            if definition.singleton then
+                for _, existing in ipairs(self.document:getEvents()) do
+                    if existing.type == "projectEvent"
+                        and existing.eventId == candidate.eventId then
+                        return nil, definition.label .. " allows only one Event."
+                    end
+                end
+            end
+        end
+        table.insert(candidates, candidate)
+    end
+
+    local proposedEvents = self:getTimelineEvents()
+    for _, candidate in ipairs(candidates) do
+        local previewCandidate = {}
+        for key, value in pairs(candidate) do previewCandidate[key] = value end
+        if previewCandidate.type == "projectEvent" then
+            decorateProjectEvent(
+                previewCandidate,
+                getProjectEventDefinition(self.project, previewCandidate.eventId)
+            )
+        end
+        table.insert(proposedEvents, previewCandidate)
+    end
+    local collisions = TimelineEventGeometry.findCollisionIds(
+        proposedEvents,
+        movingIds
+    )
+    if next(collisions) ~= nil then
+        return nil, "Cannot paste Timeline Events because their areas would overlap other nodes."
+    end
+
+    for _, candidate in ipairs(candidates) do candidate.id = nil end
+    local added, errorMessage = self.document:addEvents(candidates)
+    if not added then return nil, errorMessage end
+    self:recordTimelineHistory()
+    return added, nil
 end
 
 function EditorSession:moveTimelineEvents(positions)
@@ -392,7 +535,9 @@ function EditorSession:moveTimelineEvents(positions)
     if next(collisions) ~= nil then
         return nil, "Timeline Events cannot overlap.", collisions
     end
-    return self.document:moveEvents(positions)
+    local moved, errorMessage = self.document:moveEvents(positions)
+    if moved then self:recordTimelineHistory() end
+    return moved, errorMessage
 end
 
 function EditorSession:moveTimelineEvent(eventId, beat, track)
@@ -409,7 +554,9 @@ end
 function EditorSession:deleteTimelineEvents(eventIds)
     if not self.document then return nil, "No Stage is open." end
     if self:isPlaying() then return nil, "Pause before deleting Timeline Events." end
-    return self.document:deleteEvents(eventIds)
+    local deleted, errorMessage = self.document:deleteEvents(eventIds)
+    if deleted and deleted > 0 then self:recordTimelineHistory() end
+    return deleted, errorMessage
 end
 
 function EditorSession:setTimelineEventProperty(eventId, propertyId, value)
@@ -425,7 +572,21 @@ function EditorSession:setTimelineEventProperty(eventId, propertyId, value)
             break
         end
     end
-    return self.document:setEventProperty(eventId, propertyId, value)
+    local before
+    for _, event in ipairs(self.document:getEvents()) do
+        if event.id == eventId then
+            before = event.type == "projectEvent"
+                and event.params[propertyId] or event[propertyId]
+            break
+        end
+    end
+    local changed, errorMessage = self.document:setEventProperty(
+        eventId,
+        propertyId,
+        value
+    )
+    if changed and before ~= value then self:recordTimelineHistory() end
+    return changed, errorMessage
 end
 
 function EditorSession:getProperty(groupId, propertyId)
@@ -445,11 +606,23 @@ function EditorSession:setProperty(groupId, propertyId, value)
     if not self.document then return nil, "No Stage is open." end
 
     if groupId == "editorProperties" then
-        return self.document:setEditorSetting(propertyId, value)
+        local previous = self.document:getEditorSettings()[propertyId]
+        local changed, errorMessage = self.document:setEditorSetting(
+            propertyId,
+            value
+        )
+        if changed and previous ~= value then self:recordTimelineHistory() end
+        return changed, errorMessage
     end
     if groupId == "mixtapeProperties" then
         if propertyId == "bpm" then return self:setBpm(value) end
-        return self.document:setMixtapeValue(propertyId, value)
+        local previous = self.document:getMixtape()[propertyId]
+        local changed, errorMessage = self.document:setMixtapeValue(
+            propertyId,
+            value
+        )
+        if changed and previous ~= value then self:recordTimelineHistory() end
+        return changed, errorMessage
     end
     return nil, "Unknown property group: " .. tostring(groupId)
 end
@@ -571,7 +744,8 @@ function EditorSession:update(deltaTime, visibleBeatCount)
     local playbackRate = self.document:getEditorSettings().playbackRate
     local updated, errorMessage = self.testPlayer:update(
         deltaTime * playbackRate,
-        self.transport:getBeat()
+        self.transport:getBeat(),
+        deltaTime
     )
     if not updated then
         self:pause()

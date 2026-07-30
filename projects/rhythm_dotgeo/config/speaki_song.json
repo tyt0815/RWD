@@ -1,0 +1,54 @@
+{
+  "_comments": {
+    "longStartSound": "롱노트를 누른 순간 한 번 재생할 start MP3의 Project 상대 경로입니다.",
+    "longLoopSound": "start가 끝난 뒤 누르고 있는 동안 반복 재생할 loop MP3의 Project 상대 경로입니다.",
+    "longEndSound": "롱노트를 뗀 순간 start와 loop를 멈추고 한 번 재생할 end MP3의 Project 상대 경로입니다.",
+    "actorLayout": {
+      "heightRatio": "화면 높이에 대한 액터 높이 비율입니다.",
+      "maxWidthRatio": "화면 너비에 대한 액터 최대 너비 비율입니다.",
+      "sideMarginRatio": "화면 좌우 끝에서 액터 중심 방향으로 둘 여백 비율입니다.",
+      "minMargin": "창이 작을 때도 유지할 좌우 최소 여백(px)입니다.",
+      "outsidePadding": "자동 Turn으로 화면 밖에 숨길 때 화면 경계에서 더 이동할 거리(px)입니다."
+    },
+    "reactions": {
+      "longPressBeats": "롱노트 누름 Sprite가 완전히 눌린 상태가 되기까지 걸리는 박자입니다.",
+      "longShiftXRatio": "롱노트 누름 중 화면 너비 대비 가로 이동 비율입니다.",
+      "longShiftYRatio": "롱노트 누름 중 화면 높이 대비 아래 이동 비율입니다.",
+      "tapDurationBeats": "탭 Sprite 반응이 유지되는 박자입니다.",
+      "tapShiftXRatio": "탭 반응 중 화면 너비 대비 가로 이동 비율입니다.",
+      "tapShiftYRatio": "탭 반응 중 화면 높이 대비 아래 이동 비율입니다.",
+      "tapShakeRatio": "탭 반응 중 화면 너비 대비 진동 크기 비율입니다."
+    },
+    "tapSounds": "탭마다 순서대로 재생할 Project 상대 MP3 경로 배열입니다. 개수는 고정하지 않으며 마지막 파일 다음에는 첫 파일로 돌아갑니다."
+  },
+  "longStartSound": "assets/audio/sfx/speaki_hue_start.mp3",
+  "longLoopSound": "assets/audio/sfx/speaki_hue_loop.mp3",
+  "longEndSound": "assets/audio/sfx/speaki_hue_end.mp3",
+  "actorLayout": {
+    "heightRatio": 0.52,
+    "maxWidthRatio": 0.3,
+    "sideMarginRatio": 0.09,
+    "minMargin": 24,
+    "outsidePadding": 12
+  },
+  "reactions": {
+    "longPressBeats": 0.2,
+    "longShiftXRatio": 0.035,
+    "longShiftYRatio": 0.045,
+    "tapDurationBeats": 0.35,
+    "tapShiftXRatio": 0.07,
+    "tapShiftYRatio": 0.055,
+    "tapShakeRatio": 0.012
+  },
+  "tapSounds": [
+    "assets/audio/sfx/speaki_tap1.mp3",
+    "assets/audio/sfx/speaki_tap2.mp3",
+    "assets/audio/sfx/speaki_tap3.mp3",
+    "assets/audio/sfx/speaki_tap4.mp3",
+    "assets/audio/sfx/speaki_tap5.mp3",
+    "assets/audio/sfx/speaki_tap6.mp3",
+    "assets/audio/sfx/speaki_tap7.mp3",
+    "assets/audio/sfx/speaki_tap8.mp3",
+    "assets/audio/sfx/speaki_tap9.mp3"
+  ]
+}

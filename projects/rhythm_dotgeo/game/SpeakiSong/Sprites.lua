@@ -8,7 +8,7 @@ local IMAGE_PATHS = {
     ner = "projects/rhythm_dotgeo/assets/image/speaki_ner.png",
 }
 
--- 좌피키와 우피키가 같은 이미지를 쓰므로 Category 수명 동안 한 번만 로드한다.
+-- 가이드와 플레이어가 같은 이미지를 쓰므로 Category 수명 동안 한 번만 로드한다.
 function Sprites.new(graphics)
     graphics = graphics or love.graphics
     local images = {}

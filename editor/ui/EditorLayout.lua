@@ -603,8 +603,10 @@ local function drawTimeline(timeline, viewModel)
             end
             love.graphics.setColor(color[1], color[2], color[3], color[4])
             if event.timelineStyle == "connector" then
-                local endpointWidth = pixelsPerBeat
-                    * (event.endpointWidthBeats or 1)
+                local startEndpointWidth = pixelsPerBeat
+                    * (event.startEndpointWidthBeats or event.endpointWidthBeats or 1)
+                local endEndpointWidth = pixelsPerBeat
+                    * (event.endEndpointWidthBeats or event.endpointWidthBeats or 1)
                 local responseX = rect.x
                     + (event.responseBeatOffset or 0) * pixelsPerBeat
                 love.graphics.setColor(color[1], color[2], color[3], color[4] * 0.18)
@@ -620,9 +622,13 @@ local function drawTimeline(timeline, viewModel)
                 love.graphics.setColor(
                     startColor[1], startColor[2], startColor[3], startColor[4]
                 )
-                love.graphics.rectangle("fill", rect.x, rect.y, endpointWidth, rect.height)
+                love.graphics.rectangle(
+                    "fill", rect.x, rect.y, startEndpointWidth, rect.height
+                )
                 love.graphics.setColor(endColor[1], endColor[2], endColor[3], endColor[4])
-                love.graphics.rectangle("fill", responseX, rect.y, endpointWidth, rect.height)
+                love.graphics.rectangle(
+                    "fill", responseX, rect.y, endEndpointWidth, rect.height
+                )
             else
                 love.graphics.rectangle("fill", rect.x, rect.y, rect.width, rect.height)
             end

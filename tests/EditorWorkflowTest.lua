@@ -76,6 +76,7 @@ local function newFixture(config)
         },
         onQuit = function() state.quitCount = state.quitCount + 1 end,
         isControlDown = config.isControlDown,
+        isShiftDown = config.isShiftDown,
     })
     return app, state
 end
@@ -742,6 +743,105 @@ return {
             test.assertEqual(moved[2].track, 3)
             test.assertEqual(moved[3].startBeat, 12)
             test.assertEqual(moved[3].track, 3)
+        end,
+    },
+    {
+        name = "Ctrl C X V는 마우스 Snap 위치에 노드와 Properties를 복제하고 Undo Redo한다",
+        run = function(test)
+            local EditorLayout = require("editor.ui.EditorLayout")
+            local controlDown = false
+            local shiftDown = false
+            local project = require("projects.sample.project")
+            local app = newFixture({
+                project = project,
+                isControlDown = function() return controlDown end,
+                isShiftDown = function() return shiftDown end,
+            })
+            createStageThroughDialog(app, "timeline-clipboard-history")
+            local input = assert(app:getSession():addTimelineEvent(
+                "setInputEnabled",
+                4,
+                2
+            ))
+            assert(app:getSession():setTimelineEventProperty(
+                input.id,
+                "enabled",
+                true
+            ))
+            local cue = assert(app:getSession():addTimelineEvent(
+                "project:cueResponse",
+                8,
+                3,
+                { responseDelayBeats = 6 }
+            ))
+            app.selectedTimelineEventIds = {
+                [input.id] = true,
+                [cue.id] = true,
+            }
+
+            controlDown = true
+            app:keypressed("c")
+            local timeline = app.layout.timeline
+            local originX = EditorLayout.getTimelineBeatOriginX(timeline, 1)
+            app:mousemoved(
+                originX + 21.8 * 32,
+                EditorLayout.getTimelineTrackCenterY(timeline, 5, 10)
+            )
+            app:keypressed("v")
+            controlDown = false
+
+            local pasted = app:getSession():getTimelineEvents()
+            test.assertEqual(#pasted, 4)
+            test.assertEqual(pasted[3].startBeat, 21)
+            test.assertEqual(pasted[3].track, 5)
+            test.assertEqual(pasted[3].enabled, true)
+            test.assertEqual(pasted[4].startBeat, 25)
+            test.assertEqual(pasted[4].track, 6)
+            test.assertEqual(pasted[4].params.responseDelayBeats, 6)
+            test.assertTrue(pasted[3].id ~= input.id)
+            test.assertTrue(pasted[4].id ~= cue.id)
+            test.assertEqual(app.selectedTimelineEventIds[pasted[3].id], true)
+            test.assertEqual(app.selectedTimelineEventIds[pasted[4].id], true)
+
+            controlDown = true
+            app:keypressed("z")
+            test.assertEqual(#app:getSession():getTimelineEvents(), 2)
+            shiftDown = true
+            app:keypressed("z")
+            shiftDown = false
+            test.assertEqual(#app:getSession():getTimelineEvents(), 4)
+            app.selectedTimelineEventIds = {
+                [pasted[3].id] = true,
+                [pasted[4].id] = true,
+            }
+
+            app:keypressed("x")
+            controlDown = false
+            test.assertEqual(#app:getSession():getTimelineEvents(), 2)
+            controlDown = true
+            app:keypressed("z")
+            controlDown = false
+            test.assertEqual(#app:getSession():getTimelineEvents(), 4)
+
+            app.selectedTimelineEventIds = { [input.id] = true }
+            app:keypressed("delete")
+            test.assertEqual(#app:getSession():getTimelineEvents(), 3)
+            controlDown = true
+            shiftDown = true
+            app:keypressed("z")
+            shiftDown = false
+            controlDown = false
+            test.assertEqual(#app:getSession():getTimelineEvents(), 3)
+
+            assert(app:getSession():setProperty("mixtapeProperties", "bpm", 150))
+            controlDown = true
+            app:keypressed("z")
+            test.assertEqual(app:getSession():getBpm(), 120)
+            shiftDown = true
+            app:keypressed("z")
+            shiftDown = false
+            controlDown = false
+            test.assertEqual(app:getSession():getBpm(), 150)
         end,
     },
     {
@@ -1625,6 +1725,29 @@ return {
 
             test.assertEqual(app:getViewModel().valueEdit, nil)
             test.assertEqual(app:getSession():getBpm(), 90)
+        end,
+    },
+    {
+        name = "Timeline 클릭은 active Value를 확정한 뒤 Timeline 동작도 계속 처리한다",
+        run = function(test)
+            local EditorLayout = require("editor.ui.EditorLayout")
+            local app = newFixture()
+            createStageThroughDialog(app, "blur-inline-bpm-timeline")
+
+            local eventRect = EditorLayout.getEventRowRect(app.layout, 2)
+            app:mousepressed(eventRect.x + 8, eventRect.y + 8, 1)
+            local bpmRect = EditorLayout.getPropertyValueRect(app.layout, 5)
+            app:mousepressed(bpmRect.x + 12, bpmRect.y + 12, 1)
+            clearValueEdit(app)
+            app:textinput("90")
+
+            local timeline = app.layout.timeline
+            local originX = EditorLayout.getTimelineBeatOriginX(timeline, 1)
+            app:mousepressed(originX + 2 * 32, timeline.y + 40, 1)
+
+            test.assertEqual(app:getViewModel().valueEdit, nil)
+            test.assertEqual(app:getSession():getBpm(), 90)
+            test.assertEqual(app.timelineDrag.kind, "selection")
         end,
     },
     {

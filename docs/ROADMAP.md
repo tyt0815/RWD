@@ -19,6 +19,7 @@
 - [x] Offset과 Playback Rate를 조정하는 공통 `PlaybackTransport`
 - [x] beat 판정창 기반 Tap Note GOOD/BAD/MISS/EMPTY_INPUT 판정
 - [x] beat 기반 Long Note 누름·뗌 GOOD/BAD/MISS 판정
+- [x] 실제 ms 누름 시간 기반 Tap·Long Start·Long Release 플레이어 액션 분류
 - [x] `GOOD`, `BAD`, `MISS`, `EMPTY_INPUT` 판정 테스트
 
 ## 2. Pattern과 Stage 런타임
@@ -33,7 +34,7 @@
 
 - [x] Project와 Stage 선택
 - [x] EditorSession의 Stage 생성, 열기와 저장 상태
-- [x] Core.UI Button·TextInput·ComboBox·ScrollArea와 Editor 스타일 조합
+- [x] Core.UI Button·TextInput·ComboBox·ScrollArea와 Editor 스타일 조합, Values 바깥 클릭 확정·Escape 취소
 - [x] D2Coding 기본 폰트로 Launcher·Editor·Project 한글 렌더링 통일
 - [x] 콘텐츠 15행 높이의 고정 상단 패널과 Categories·Events 독립/Properties·Values 연동 조건부 스크롤
 - [x] `assets/audio/music/` Project Music 재귀 검색과 SFX를 제외한 선택 모달
@@ -43,8 +44,10 @@
 - [x] Project Events와 Categories 등록 목록
 - [x] Set Input Enabled 노드별 Properties 편집 모달
 - [x] Project Event number Properties 기본값과 노드별 편집, Cue & Response 중립색 연결 영역
+- [x] Long Note Property를 연결형 가이드·응답 블록 표시·충돌 폭에 반영
 - [x] Timeline Event 충돌 방지 우클릭 배치·error toast와 셀 기반 공통 Snap·Track 이동
 - [x] Timeline Event 클릭·marquee 다중 선택, 충돌 preview 그룹 이동과 Delete 삭제
+- [x] 전체 프로퍼티·상대 위치를 보존하는 Timeline Ctrl+C/X/V와 Ctrl+Z·Ctrl+Shift+Z 편집 이력
 - [x] Timeline Event 박스 내부 1px 윤곽선 이름과 hover 전체 이름 표시
 - [x] JSON 저장과 불러오기
 
@@ -63,7 +66,9 @@
 - [x] 입력 활성 상태를 반영한 Space와 현재 beat 전달
 - [x] Sample Sprite 상태 피드백과 Core BeatTween 기반 0.5박 Turn 이동
 - [x] Rhythm Dotgeo 독립 실행 Stage 목록과 클릭 시 Music·beat 시작
-- [x] Rhythm Dotgeo 스피키송 Category의 배경·액터 소환, Tap/Long 큐 응답과 턴
+- [x] Rhythm Dotgeo 스피키송 Category의 배경·액터 소환, Tap/Long 큐 응답과 Cue/Response 0.5박 전 자동 Turn
+- [x] 스피키송 배치·반응·SFX Project JSON Play 자동 재로드와 QueueableSource 기반 Long start→loop 연속 재생·end SFX·설정 개수 기반 역할별 Tap SFX 순환
+- [x] 스피키송의 노트 종류 독립 Tap/Long 선택과 Project 전역 ms 임계값
 
 ## 5. 배포와 엔진 버전 관리
 

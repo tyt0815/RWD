@@ -3,22 +3,6 @@ local Core = require("core")
 local SpeakiActor = {}
 SpeakiActor.__index = SpeakiActor
 
--- 화면 배치 조절값: ACTOR_HEIGHT_RATIO는 크기, SIDE_MARGIN_RATIO는 좌우 여백이다.
-local ACTOR_HEIGHT_RATIO = 0.52
-local MAX_ACTOR_WIDTH_RATIO = 0.3
-local SIDE_MARGIN_RATIO = 0.09
-local MIN_MARGIN = 24
-local OUTSIDE_PADDING = 12
-
--- 반응 조절값: Long은 이미지 기준 좌하단 압박, Tap은 우하단 왕복·진동 거리다.
-local LONG_PRESS_BEATS = 0.2
-local LONG_SHIFT_X_RATIO = 0.035
-local LONG_SHIFT_Y_RATIO = 0.045
-local TAP_DURATION_BEATS = 0.35
-local TAP_SHIFT_X_RATIO = 0.07
-local TAP_SHIFT_Y_RATIO = 0.055
-local TAP_SHAKE_RATIO = 0.012
-
 function SpeakiActor.new(options)
     options = options or {}
     return setmetatable({
@@ -26,12 +10,17 @@ function SpeakiActor.new(options)
         side = options.side,
         flipHorizontal = options.flipHorizontal == true,
         sprites = options.sprites,
+        settings = options.settings,
         movement = Core.BeatTween.new(0),
         spawned = false,
         effect = nil,
         effectStartBeat = 0,
         effectEndBeat = 0,
     }, SpeakiActor)
+end
+
+function SpeakiActor:configure(settings)
+    self.settings = settings
 end
 
 function SpeakiActor:reset()
@@ -63,7 +52,7 @@ end
 function SpeakiActor:tap(startBeat)
     self.effect = "tap"
     self.effectStartBeat = startBeat
-    self.effectEndBeat = startBeat + TAP_DURATION_BEATS
+    self.effectEndBeat = startBeat + self.settings.tapDurationBeats
 end
 
 function SpeakiActor:update(beat)
@@ -71,28 +60,30 @@ function SpeakiActor:update(beat)
 end
 
 local function actorCenterX(actor, width, actorWidth)
-    local margin = math.max(MIN_MARGIN, width * SIDE_MARGIN_RATIO)
+    local settings = actor.settings
+    local margin = math.max(settings.minMargin, width * settings.sideMarginRatio)
     local visibleX
     local outsideX
     if actor.side == "left" then
         visibleX = margin + actorWidth / 2
-        outsideX = -actorWidth / 2 - OUTSIDE_PADDING
+        outsideX = -actorWidth / 2 - settings.outsidePadding
     else
         visibleX = width - margin - actorWidth / 2
-        outsideX = width + actorWidth / 2 + OUTSIDE_PADDING
+        outsideX = width + actorWidth / 2 + settings.outsidePadding
     end
     local progress = actor.movement:getValue(actor.currentBeat)
     return visibleX + (outsideX - visibleX) * progress
 end
 
 local function effectTransform(actor, width, height, beat)
+    local settings = actor.settings
     if actor.effect == "long" then
         local progress = math.min(1, math.max(0,
-            (beat - actor.effectStartBeat) / LONG_PRESS_BEATS
+            (beat - actor.effectStartBeat) / settings.longPressBeats
         ))
         local imageDirection = actor.flipHorizontal and 1 or -1
-        return imageDirection * width * LONG_SHIFT_X_RATIO * progress,
-            height * LONG_SHIFT_Y_RATIO * progress,
+        return imageDirection * width * settings.longShiftXRatio * progress,
+            height * settings.longShiftYRatio * progress,
             progress,
             "long"
     end
@@ -100,10 +91,11 @@ local function effectTransform(actor, width, height, beat)
         local duration = actor.effectEndBeat - actor.effectStartBeat
         local progress = math.min(1, math.max(0, (beat - actor.effectStartBeat) / duration))
         local pulse = math.sin(math.pi * progress)
-        local shake = math.sin(math.pi * 4 * progress) * width * TAP_SHAKE_RATIO
+        local shake = math.sin(math.pi * 4 * progress)
+            * width * settings.tapShakeRatio
         local imageDirection = actor.flipHorizontal and -1 or 1
-        return imageDirection * (width * TAP_SHIFT_X_RATIO * pulse + shake),
-            height * TAP_SHIFT_Y_RATIO * pulse,
+        return imageDirection * (width * settings.tapShiftXRatio * pulse + shake),
+            height * settings.tapShiftYRatio * pulse,
             progress,
             "tap"
     end
@@ -129,9 +121,10 @@ function SpeakiActor:draw(width, height, beat)
     if not self.spawned then return end
     self.currentBeat = beat
     local smile = self.sprites:get("smile")
+    local settings = self.settings
     local actorHeight = math.max(64, math.min(
-        height * ACTOR_HEIGHT_RATIO,
-        width * MAX_ACTOR_WIDTH_RATIO * smile:getHeight() / smile:getWidth()
+        height * settings.actorHeightRatio,
+        width * settings.maxActorWidthRatio * smile:getHeight() / smile:getWidth()
     ))
     local scale = actorHeight / smile:getHeight()
     local actorWidth = smile:getWidth() * scale

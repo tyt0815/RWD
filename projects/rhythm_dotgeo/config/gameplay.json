@@ -1,0 +1,6 @@
+{
+  "_comments": {
+    "longHoldThresholdMs": "Rhythm Dotgeo 전체 Stage에서 Tap과 Long을 구분하는 실제 누름 시간(ms)입니다."
+  },
+  "longHoldThresholdMs": 70
+}
