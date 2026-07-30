@@ -124,7 +124,7 @@ local function createGlobalIdCollisionProject()
                         label = "Project Editor Properties",
                         properties = {
                             { id = "autoPlay", label = "Project Auto Play",
-                                kind = "number", default = 4 },
+                                kind = "choice", default = "none" },
                         },
                     },
                 },
@@ -1147,6 +1147,63 @@ return {
 
             local properties = app:getViewModel().properties
             test.assertEqual(properties[1].comboBox, nil)
+        end,
+    },
+    {
+        name = "Project choice autoPlay 클릭은 전역 ComboBox를 열지 않는다",
+        run = function(test)
+            local EditorLayout = require("editor.ui.EditorLayout")
+            local app = newFixture({ project = createGlobalIdCollisionProject() })
+            createStageThroughDialog(app, "project-auto-play-open")
+            app.selectedCategoryId = "collision"
+            app.selectedEventId = "editorProperties"
+            local autoPlayRect = EditorLayout.getPropertyValueRect(app.layout, 1)
+
+            app:mousepressed(autoPlayRect.x + 8, autoPlayRect.y + 8, 1)
+
+            test.assertEqual(app.autoPlayComboBox:isOpen(), false)
+            test.assertEqual(
+                app:getSession():getProperty("editorProperties", "autoPlay"),
+                "none"
+            )
+        end,
+    },
+    {
+        name = "Project choice autoPlay는 열린 전역 ComboBox mouse 선택을 무시한다",
+        run = function(test)
+            local EditorLayout = require("editor.ui.EditorLayout")
+            local app = newFixture({ project = createGlobalIdCollisionProject() })
+            createStageThroughDialog(app, "project-auto-play-mouse")
+            app.selectedCategoryId = "collision"
+            app.selectedEventId = "editorProperties"
+            app.autoPlayComboBox:open()
+            local autoPlayRect = EditorLayout.getPropertyValueRect(app.layout, 1)
+            local goodRect = EditorLayout.getComboBoxOptionRect(autoPlayRect, 2)
+
+            app:mousepressed(goodRect.x + 8, goodRect.y + 8, 1)
+
+            test.assertEqual(
+                app:getSession():getProperty("editorProperties", "autoPlay"),
+                "none"
+            )
+        end,
+    },
+    {
+        name = "Project choice autoPlay는 열린 전역 ComboBox keyboard 선택을 무시한다",
+        run = function(test)
+            local app = newFixture({ project = createGlobalIdCollisionProject() })
+            createStageThroughDialog(app, "project-auto-play-keyboard")
+            app.selectedCategoryId = "collision"
+            app.selectedEventId = "editorProperties"
+            app.autoPlayComboBox:open()
+
+            app:keypressed("down")
+            app:keypressed("return")
+
+            test.assertEqual(
+                app:getSession():getProperty("editorProperties", "autoPlay"),
+                "none"
+            )
         end,
     },
     {

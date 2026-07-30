@@ -1115,7 +1115,8 @@ function EditorApp:mousepressed(x, y, button, _, presses)
         propertyOffset
     )
     self:updateBeat0AutoButton()
-    if self.autoPlayComboBox:isOpen() and button == 1 then
+    if self.selectedCategoryId == "global"
+        and self.autoPlayComboBox:isOpen() and button == 1 then
         local autoPlayRow
         for rowIndex, property in ipairs(selectedEvent and selectedEvent.properties or {}) do
             if property.id == "autoPlay" then autoPlayRow = rowIndex break end
@@ -1231,7 +1232,8 @@ function EditorApp:mousepressed(x, y, button, _, presses)
             end
         elseif property.kind == "music" then
             self:openMusicDialog()
-        elseif property.kind == "choice" and property.id == "autoPlay" then
+        elseif self.selectedCategoryId == "global"
+            and property.kind == "choice" and property.id == "autoPlay" then
             self.autoPlayComboBox:toggle()
         end
         return true
@@ -1290,7 +1292,8 @@ end
 function EditorApp:keypressed(key, _, isRepeat)
     if self.dialog then
         self.dialog:keypressed(key)
-    elseif self.autoPlayComboBox:isOpen() and not self.session:isPlaying() then
+    elseif self.selectedCategoryId == "global"
+        and self.autoPlayComboBox:isOpen() and not self.session:isPlaying() then
         local result = self.autoPlayComboBox:keypressed(key)
         if result == "selected" then
             local changed, errorMessage = self.session:setProperty(
