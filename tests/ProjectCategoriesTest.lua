@@ -87,6 +87,7 @@ return {
                     event = {
                         id = "event-1",
                         type = "projectEvent",
+                        categoryId = "gameplay",
                         eventId = "spawn",
                     },
                     catchUp = false,
@@ -99,6 +100,61 @@ return {
             test.assertEqual(received.catchUp, false)
             test.assertEqual(received.beat, 3)
             test.assertEqual(host:getRuntime("gameplay") ~= nil, true)
+        end,
+    },
+    {
+        name = "ProjectCategories Host는 동명 Event를 Category ID로 구분해 전달한다",
+        run = function(test)
+            local Core = require("core")
+            local received = { first = 0, second = 0 }
+            local project = {
+                eventCategories = {
+                    {
+                        id = "second",
+                        runtimeModule = "projects.test.game.Second.Runtime",
+                        events = {
+                            { id = "spawn", label = "Second Spawn", properties = {} },
+                        },
+                    },
+                    {
+                        id = "first",
+                        runtimeModule = "projects.test.game.First.Runtime",
+                        events = {
+                            { id = "spawn", label = "First Spawn", properties = {} },
+                        },
+                    },
+                },
+            }
+            local host = assert(Core.ProjectCategories.createHost(project, {
+                loadModule = function(moduleName)
+                    local runtimeId = moduleName:find("Second", 1, true)
+                        and "second" or "first"
+                    return {
+                        new = function()
+                            return {
+                                handleEvent = function()
+                                    received[runtimeId] = received[runtimeId] + 1
+                                end,
+                            }
+                        end,
+                    }
+                end,
+            }))
+
+            host:applyOccurrences({
+                {
+                    event = {
+                        id = "event-1",
+                        type = "projectEvent",
+                        categoryId = "second",
+                        eventId = "spawn",
+                    },
+                    catchUp = false,
+                },
+            }, 3)
+
+            test.assertEqual(received.first, 0)
+            test.assertEqual(received.second, 1)
         end,
     },
 }

@@ -150,4 +150,24 @@ return {
             test.assertEqual(zeroNormalized.editorSettings.onsetThreshold, 0)
         end,
     },
+    {
+        name = "StageSchema normalize는 JSON null sentinel을 보존한다",
+        run = function(test)
+            local json = require("vendor.dkjson")
+            local Schema = require("core").StageSchema
+            local stage = validStage()
+            stage.events = {
+                {
+                    id = "event-001",
+                    type = "pattern",
+                    patternId = "nullable",
+                    startBeat = 0,
+                    params = { optional = json.null },
+                },
+            }
+
+            local normalized = assert(Schema.normalize(stage))
+            test.assertEqual(normalized.events[1].params.optional, json.null)
+        end,
+    },
 }

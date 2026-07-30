@@ -1,12 +1,23 @@
 local function validStage()
     return {
-        schemaVersion = 2,
+        schemaVersion = 3,
         projectId = "sample",
         stageId = "tutorial",
         name = "Tutorial",
         bpm = 120,
         events = {},
     }
+end
+
+local function assertInvalidStage(test, data, expected, exact)
+    local valid, errorMessage, code = require("core").StageSchema.validate(data)
+    test.assertEqual(valid, nil)
+    if exact then
+        test.assertEqual(errorMessage, expected)
+    else
+        test.assertContains(errorMessage, expected)
+    end
+    test.assertEqual(code, "INVALID_STAGE")
 end
 
 return {
@@ -17,10 +28,38 @@ return {
             local document = assert(StageDocument.create("sample", "new-stage", "New Stage", 120))
             local data = document:toTable()
 
-            test.assertEqual(data.schemaVersion, 2)
+            test.assertEqual(data.schemaVersion, 3)
             test.assertEqual(data.bpm, 120)
             test.assertEqual(#data.events, 0)
             test.assertEqual(document:isDirty(), true)
+        end,
+    },
+    {
+        name = "StageSchema는 Category ID 없는 Project Event를 거부한다",
+        run = function(test)
+            local Core = require("core")
+            local data = {
+                schemaVersion = 3,
+                projectId = "sample",
+                stageId = "tutorial",
+                name = "Tutorial",
+                bpm = 120,
+                events = {
+                    {
+                        id = "event-1",
+                        type = "projectEvent",
+                        startBeat = 4,
+                        track = 2,
+                        eventId = "cueResponse",
+                        params = {},
+                    },
+                },
+            }
+
+            local valid, errorMessage, code = Core.StageSchema.validate(data)
+            test.assertEqual(valid, nil)
+            test.assertContains(errorMessage, "$.events[1].categoryId")
+            test.assertEqual(code, "INVALID_STAGE")
         end,
     },
     {
@@ -79,32 +118,28 @@ return {
     {
         name = "지원하지 않는 schemaVersion은 JSON 경로와 함께 거부한다",
         run = function(test)
-            local StageDocument = require("editor.stage.StageDocument")
             local data = validStage()
             data.schemaVersion = 1
-            test.assertEqual(StageDocument.validate(data), "$.schemaVersion must be 2.")
+            assertInvalidStage(test, data, "$.schemaVersion must be 3.", true)
         end,
     },
     {
         name = "잘못된 Long Note는 Event JSON 경로와 함께 거부한다",
         run = function(test)
-            local StageDocument = require("editor.stage.StageDocument")
             local data = validStage()
             data.events = {
                 { id = "event-1", type = "longNote", startBeat = 4, durationBeats = 0 },
             }
-            local errorMessage = StageDocument.validate(data)
-            test.assertContains(errorMessage, "$.events[1].durationBeats")
+            assertInvalidStage(test, data, "$.events[1].durationBeats")
         end,
     },
     {
         name = "decoded events 객체는 배열 오류로 거부한다",
         run = function(test)
             local json = require("vendor.dkjson")
-            local StageDocument = require("editor.stage.StageDocument")
             local data = assert(json.decode([[
                 {
-                    "schemaVersion": 2,
+                    "schemaVersion": 3,
                     "projectId": "sample",
                     "stageId": "tutorial",
                     "name": "Tutorial",
@@ -112,17 +147,16 @@ return {
                     "events": {}
                 }
             ]]))
-            test.assertEqual(StageDocument.validate(data), "$.events must be an array.")
+            assertInvalidStage(test, data, "$.events must be an array.", true)
         end,
     },
     {
         name = "decoded pattern params 배열은 객체 오류로 거부한다",
         run = function(test)
             local json = require("vendor.dkjson")
-            local StageDocument = require("editor.stage.StageDocument")
             local data = assert(json.decode([[
                 {
-                    "schemaVersion": 2,
+                    "schemaVersion": 3,
                     "projectId": "sample",
                     "stageId": "tutorial",
                     "name": "Tutorial",
@@ -136,9 +170,11 @@ return {
                     }]
                 }
             ]]))
-            test.assertEqual(
-                StageDocument.validate(data),
-                "$.events[1].params must be an object."
+            assertInvalidStage(
+                test,
+                data,
+                "$.events[1].params must be an object.",
+                true
             )
         end,
     },
@@ -146,20 +182,20 @@ return {
         name = "decoded top-level 배열은 Stage 객체 오류로 거부한다",
         run = function(test)
             local json = require("vendor.dkjson")
-            local StageDocument = require("editor.stage.StageDocument")
             local data = assert(json.decode("[]"))
-            test.assertEqual(StageDocument.validate(data), "$ must be an object.")
+            assertInvalidStage(test, data, "$ must be an object.", true)
         end,
     },
     {
         name = "decoded tempo 배열 항목은 객체 오류로 거부한다",
         run = function(test)
-            local StageDocument = require("editor.stage.StageDocument")
             local data = validStage()
             data.tempoMap = {}
-            test.assertEqual(
-                StageDocument.validate(data),
-                "$.tempoMap is not supported in schemaVersion 2."
+            assertInvalidStage(
+                test,
+                data,
+                "$.tempoMap is not supported in schemaVersion 3.",
+                true
             )
         end,
     },
@@ -167,20 +203,18 @@ return {
         name = "decoded Event 배열은 객체 오류로 거부한다",
         run = function(test)
             local json = require("vendor.dkjson")
-            local StageDocument = require("editor.stage.StageDocument")
             local data = validStage()
             data.events[1] = assert(json.decode("[]"))
-            test.assertEqual(StageDocument.validate(data), "$.events[1] must be an object.")
+            assertInvalidStage(test, data, "$.events[1] must be an object.", true)
         end,
     },
     {
         name = "빈 배열과 객체는 decoded 메타정보와 코드 문맥에서 승인한다",
         run = function(test)
             local json = require("vendor.dkjson")
-            local StageDocument = require("editor.stage.StageDocument")
             local decoded = assert(json.decode([[
                 {
-                    "schemaVersion": 2,
+                    "schemaVersion": 3,
                     "projectId": "sample",
                     "stageId": "tutorial",
                     "name": "Tutorial",
@@ -194,7 +228,7 @@ return {
                     }]
                 }
             ]]))
-            test.assertEqual(StageDocument.validate(decoded), nil)
+            test.assertEqual(require("core").StageSchema.validate(decoded), true)
 
             local constructed = validStage()
             constructed.events = {
@@ -206,7 +240,7 @@ return {
                     params = {},
                 },
             }
-            test.assertEqual(StageDocument.validate(constructed), nil)
+            test.assertEqual(require("core").StageSchema.validate(constructed), true)
         end,
     },
     {
@@ -226,7 +260,7 @@ return {
         run = function(test)
             local StageDocument = require("editor.stage.StageDocument")
             local minimum = {
-                schemaVersion = 2,
+                schemaVersion = 3,
                 projectId = "sample",
                 stageId = "stage-one",
                 name = "Stage One",
@@ -290,7 +324,7 @@ return {
                 { id = "end-1", type = "end", startBeat = 4, track = 1 },
                 { id = "end-2", type = "end", startBeat = 8, track = 2 },
             }
-            test.assertContains(StageDocument.validate(data), "only one End")
+            assertInvalidStage(test, data, "only one End")
 
             local document = assert(StageDocument.fromTable(validStage()))
             assert(document:addEvent("end", 4, 1))
@@ -329,7 +363,7 @@ return {
             data.events = {
                 { id = "end", type = "end", startBeat = 4, track = 11 },
             }
-            test.assertContains(StageDocument.validate(data), ".track")
+            assertInvalidStage(test, data, ".track")
 
             data.events = {
                 {
@@ -340,22 +374,23 @@ return {
                     enabled = "false",
                 },
             }
-            test.assertContains(StageDocument.validate(data), ".enabled")
+            assertInvalidStage(test, data, ".enabled")
         end,
     },
     {
         name = "선택 설정은 객체만 허용한다",
         run = function(test)
             local json = require("vendor.dkjson")
-            local StageDocument = require("editor.stage.StageDocument")
             local mixtape = validStage()
             mixtape.mixtape = assert(json.decode("[]"))
-            test.assertEqual(StageDocument.validate(mixtape), "$.mixtape must be an object.")
+            assertInvalidStage(test, mixtape, "$.mixtape must be an object.", true)
             local editorSettings = validStage()
             editorSettings.editorSettings = "invalid"
-            test.assertEqual(
-                StageDocument.validate(editorSettings),
-                "$.editorSettings must be an object."
+            assertInvalidStage(
+                test,
+                editorSettings,
+                "$.editorSettings must be an object.",
+                true
             )
         end,
     },

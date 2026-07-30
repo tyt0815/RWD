@@ -6,9 +6,11 @@ return {
             local runtime = Core.StageRuntime.new()
             local occurrences = assert(runtime:start({
                 events = {
-                    { id = "spawn", type = "projectEvent", eventId = "spawn", startBeat = 0 },
+                    { id = "spawn", type = "projectEvent", categoryId = "gameplay",
+                        eventId = "spawn", startBeat = 0 },
                     { id = "disable", type = "setInputEnabled", enabled = false, startBeat = 2 },
-                    { id = "future", type = "projectEvent", eventId = "future", startBeat = 4 },
+                    { id = "future", type = "projectEvent", categoryId = "gameplay",
+                        eventId = "future", startBeat = 4 },
                 },
             }, 3))
 
@@ -26,8 +28,10 @@ return {
             local runtime = Core.StageRuntime.new()
             assert(runtime:start({
                 events = {
-                    { id = "second", type = "projectEvent", startBeat = 2 },
-                    { id = "first", type = "projectEvent", startBeat = 1 },
+                    { id = "second", type = "projectEvent", categoryId = "gameplay",
+                        eventId = "second", startBeat = 2 },
+                    { id = "first", type = "projectEvent", categoryId = "gameplay",
+                        eventId = "first", startBeat = 1 },
                 },
             }, 0))
 
@@ -48,7 +52,8 @@ return {
                 events = {
                     { id = "disable", type = "setInputEnabled", enabled = false, startBeat = 2 },
                     { id = "end", type = "end", startBeat = 3 },
-                    { id = "after", type = "projectEvent", startBeat = 4 },
+                    { id = "after", type = "projectEvent", categoryId = "gameplay",
+                        eventId = "after", startBeat = 4 },
                 },
             }, 0))
 

@@ -7,15 +7,24 @@ return {
             local categories = Catalog.getCategories(project)
             test.assertEqual(categories[3].id, "sampleGameplay")
             local events = Catalog.getEvents("sampleGameplay", project)
-            test.assertEqual(events[1].timelineType, "project:spawnActors")
-            test.assertEqual(events[2].timelineType, "project:guideTurn")
-            test.assertEqual(events[3].timelineType, "project:playerTurn")
+            test.assertEqual(events[1].timelineType,
+                "project:sampleGameplay:spawnActors")
+            test.assertEqual(events[2].timelineType,
+                "project:sampleGameplay:guideTurn")
+            test.assertEqual(events[3].timelineType,
+                "project:sampleGameplay:playerTurn")
             test.assertEqual(events[4].properties[1].default, 4)
             test.assertEqual(events[4].geometry.endpointWidthBeats, 1)
             test.assertEqual(events[4].color[1], 0.92)
             test.assertEqual(events[4].color[2], 0.94)
             test.assertEqual(events[4].color[3], 0.97)
             test.assertEqual(events[4].color[4], 1)
+            local timelineEvent = Catalog.getTimelineEvent({
+                type = "projectEvent",
+                categoryId = "sampleGameplay",
+                eventId = "spawnActors",
+            }, project)
+            test.assertEqual(timelineEvent.label, "Spawn Actors")
         end,
     },
     {
@@ -27,13 +36,18 @@ return {
                 "projectEvent",
                 4,
                 2,
+                "sampleGameplay",
                 "cueResponse",
                 { responseDelayBeats = 4 }
             ))
+            test.assertEqual(event.categoryId, "sampleGameplay")
             test.assertEqual(event.eventId, "cueResponse")
             assert(document:setEventProperty(event.id, "responseDelayBeats", 2))
             test.assertEqual(document:getEvents()[1].params.responseDelayBeats, 2)
-            test.assertEqual(StageDocument.validate(document:toTable()), nil)
+            test.assertEqual(
+                require("core").StageSchema.validate(document:toTable()),
+                true
+            )
         end,
     },
     {
@@ -113,15 +127,18 @@ return {
             game:startStage({
                 events = {
                     {
-                        id = "spawn", type = "projectEvent", eventId = "spawnActors",
+                        id = "spawn", type = "projectEvent",
+                        categoryId = "sampleGameplay", eventId = "spawnActors",
                         startBeat = 0, track = 1, params = {},
                     },
                     {
-                        id = "guide", type = "projectEvent", eventId = "guideTurn",
+                        id = "guide", type = "projectEvent",
+                        categoryId = "sampleGameplay", eventId = "guideTurn",
                         startBeat = 2, track = 1, params = {},
                     },
                     {
-                        id = "player", type = "projectEvent", eventId = "playerTurn",
+                        id = "player", type = "projectEvent",
+                        categoryId = "sampleGameplay", eventId = "playerTurn",
                         startBeat = 4, track = 1, params = {},
                     },
                 },
@@ -143,7 +160,8 @@ return {
             local stage = {
                 events = {
                     {
-                        id = "response", type = "projectEvent", eventId = "cueResponse",
+                        id = "response", type = "projectEvent",
+                        categoryId = "sampleGameplay", eventId = "cueResponse",
                         startBeat = 0, track = 1,
                         params = { responseDelayBeats = 4 },
                     },
@@ -213,11 +231,13 @@ return {
             game:startStage({
                 events = {
                     {
-                        id = "spawn", type = "projectEvent", eventId = "spawnActors",
+                        id = "spawn", type = "projectEvent",
+                        categoryId = "sampleGameplay", eventId = "spawnActors",
                         startBeat = 0, track = 1, params = {},
                     },
                     {
-                        id = "response", type = "projectEvent", eventId = "cueResponse",
+                        id = "response", type = "projectEvent",
+                        categoryId = "sampleGameplay", eventId = "cueResponse",
                         startBeat = 0, track = 1,
                         params = { responseDelayBeats = 4 },
                     },

@@ -58,6 +58,7 @@ end
 
 local function deepCopy(value, seen)
     if type(value) ~= "table" then return value end
+    if jsonTableKind(value) == "custom" then return value end
 
     seen = seen or {}
     if seen[value] then return seen[value] end

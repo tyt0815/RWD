@@ -10,7 +10,7 @@ local function withProjectFixture(projectId, gameModuleFactory, run)
         return {
             id = projectId,
             title = "Test Project",
-            coreApiVersion = 1,
+            coreApiVersion = 2,
             entryModule = gameModuleName,
         }
     end

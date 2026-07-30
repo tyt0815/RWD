@@ -9,10 +9,13 @@ function ProjectEvents.getCategories(project)
     return project and project.eventCategories or {}
 end
 
-function ProjectEvents.getEvent(project, eventId)
+function ProjectEvents.getEvent(project, categoryId, eventId)
     for _, category in ipairs(ProjectEvents.getCategories(project)) do
-        for _, event in ipairs(category.events or {}) do
-            if event.id == eventId then return event end
+        if category.id == categoryId then
+            for _, event in ipairs(category.events or {}) do
+                if event.id == eventId then return event end
+            end
+            return nil
         end
     end
     return nil

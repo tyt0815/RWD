@@ -41,17 +41,22 @@ local function fitPreviewRect(rect, aspectWidth, aspectHeight)
     }
 end
 
-local function getProjectEventDefinition(project, eventId)
-    return Core.ProjectEvents.getEvent(project, eventId)
+local function getProjectEventDefinition(project, categoryId, eventId)
+    return Core.ProjectEvents.getEvent(project, categoryId, eventId)
 end
 
 local function validateProjectEventData(project, document)
     local singletonCounts = {}
     for _, event in ipairs(document:getEvents()) do
         if event.type == "projectEvent" then
-            local definition = getProjectEventDefinition(project, event.eventId)
+            local definition = getProjectEventDefinition(
+                project,
+                event.categoryId,
+                event.eventId
+            )
             if not definition then
-                return "Unknown Project Event: " .. tostring(event.eventId)
+                return "Unknown Project Event: "
+                    .. tostring(event.categoryId) .. "/" .. tostring(event.eventId)
             end
             local paramsError = Core.ProjectEvents.validateParams(
                 definition,
@@ -59,9 +64,11 @@ local function validateProjectEventData(project, document)
             )
             if paramsError then return paramsError end
             if definition.singleton then
-                singletonCounts[event.eventId] = (singletonCounts[event.eventId] or 0) + 1
-                if singletonCounts[event.eventId] > 1 then
-                    return definition.label .. " allows only one Event."
+                local singletonKey = event.categoryId .. "\0" .. event.eventId
+                singletonCounts[singletonKey] = (singletonCounts[singletonKey] or 0) + 1
+                if singletonCounts[singletonKey] > 1 then
+                    return definition.label .. " (" .. event.categoryId .. "/"
+                        .. event.eventId .. ") allows only one Event."
                 end
             end
         end
@@ -333,8 +340,8 @@ function EditorSession:setBpm(bpm)
     local previousBpm = self.document:getBpm()
     local candidate = self.document:toTable()
     candidate.bpm = bpm
-    local validationError = StageDocument.validate(candidate)
-    if validationError then return nil, validationError end
+    local valid, validationError = Core.StageSchema.validate(candidate)
+    if not valid then return nil, validationError end
 
     local transportChanged, transportError = self.transport:setBpm(bpm)
     if not transportChanged then return nil, transportError end
@@ -350,7 +357,11 @@ function EditorSession:getTimelineEvents()
         if event.type == "projectEvent" then
             decorateProjectEvent(
                 event,
-                getProjectEventDefinition(self.project, event.eventId)
+                getProjectEventDefinition(
+                    self.project,
+                    event.categoryId,
+                    event.eventId
+                )
             )
         end
     end
@@ -360,19 +371,35 @@ end
 function EditorSession:addTimelineEvent(eventType, beat, track, params)
     if not self.document then return nil, "No Stage is open." end
     if self:isPlaying() then return nil, "Pause before placing Timeline Events." end
-    local projectEventId = type(eventType) == "string"
-        and eventType:match("^project:(.+)$") or nil
+    local projectCategoryId
+    local projectEventId
+    if type(eventType) == "string" then
+        projectCategoryId, projectEventId = eventType:match(
+            "^project:([^:]+):([^:]+)$"
+        )
+    end
     local projectDefinition
     if projectEventId then
-        projectDefinition = getProjectEventDefinition(self.project, projectEventId)
-        if not projectDefinition then return nil, "Unknown Project Event: " .. projectEventId end
+        projectDefinition = getProjectEventDefinition(
+            self.project,
+            projectCategoryId,
+            projectEventId
+        )
+        if not projectDefinition then
+            return nil, "Unknown Project Event: "
+                .. projectCategoryId .. "/" .. projectEventId
+        end
         params = params or Core.ProjectEvents.getDefaultParams(projectDefinition)
         local paramsError = Core.ProjectEvents.validateParams(projectDefinition, params)
         if paramsError then return nil, paramsError end
         if projectDefinition.singleton then
             for _, event in ipairs(self.document:getEvents()) do
-                if event.type == "projectEvent" and event.eventId == projectEventId then
-                    return nil, projectDefinition.label .. " allows only one Event.", "PROJECT_EVENT_EXISTS"
+                if event.type == "projectEvent"
+                    and event.categoryId == projectCategoryId
+                    and event.eventId == projectEventId then
+                    return nil, projectDefinition.label .. " ("
+                        .. projectCategoryId .. "/" .. projectEventId
+                        .. ") allows only one Event.", "PROJECT_EVENT_EXISTS"
                 end
             end
         end
@@ -401,6 +428,7 @@ function EditorSession:addTimelineEvent(eventType, beat, track, params)
         track = track,
     }
     if projectEventId then
+        candidate.categoryId = projectCategoryId
         candidate.eventId = projectEventId
         candidate.params = params
         decorateProjectEvent(candidate, projectDefinition)
@@ -419,6 +447,7 @@ function EditorSession:addTimelineEvent(eventType, beat, track, params)
         eventType,
         snappedBeat,
         track,
+        projectCategoryId,
         projectEventId,
         params
     )
@@ -465,9 +494,15 @@ function EditorSession:pasteTimelineEvents(sourceEvents, beat, track)
         candidate.id = "__pasted_timeline_event_" .. index
         movingIds[candidate.id] = true
         if candidate.type == "projectEvent" then
-            local definition = getProjectEventDefinition(self.project, candidate.eventId)
+            local definition = getProjectEventDefinition(
+                self.project,
+                candidate.categoryId,
+                candidate.eventId
+            )
             if not definition then
-                return nil, "Unknown Project Event: " .. tostring(candidate.eventId)
+                return nil, "Unknown Project Event: "
+                    .. tostring(candidate.categoryId) .. "/"
+                    .. tostring(candidate.eventId)
             end
             local paramsError = Core.ProjectEvents.validateParams(
                 definition,
@@ -477,8 +512,11 @@ function EditorSession:pasteTimelineEvents(sourceEvents, beat, track)
             if definition.singleton then
                 for _, existing in ipairs(self.document:getEvents()) do
                     if existing.type == "projectEvent"
+                        and existing.categoryId == candidate.categoryId
                         and existing.eventId == candidate.eventId then
-                        return nil, definition.label .. " allows only one Event."
+                        return nil, definition.label .. " ("
+                            .. candidate.categoryId .. "/" .. candidate.eventId
+                            .. ") allows only one Event."
                     end
                 end
             end
@@ -493,7 +531,11 @@ function EditorSession:pasteTimelineEvents(sourceEvents, beat, track)
         if previewCandidate.type == "projectEvent" then
             decorateProjectEvent(
                 previewCandidate,
-                getProjectEventDefinition(self.project, previewCandidate.eventId)
+                getProjectEventDefinition(
+                    self.project,
+                    previewCandidate.categoryId,
+                    previewCandidate.eventId
+                )
             )
         end
         table.insert(proposedEvents, previewCandidate)
@@ -564,7 +606,11 @@ function EditorSession:setTimelineEventProperty(eventId, propertyId, value)
     if self:isPlaying() then return nil, "Pause before editing Timeline Events." end
     for _, event in ipairs(self.document:getEvents()) do
         if event.id == eventId and event.type == "projectEvent" then
-            local definition = getProjectEventDefinition(self.project, event.eventId)
+            local definition = getProjectEventDefinition(
+                self.project,
+                event.categoryId,
+                event.eventId
+            )
             local params = event.params
             params[propertyId] = value
             local paramsError = Core.ProjectEvents.validateParams(definition, params)

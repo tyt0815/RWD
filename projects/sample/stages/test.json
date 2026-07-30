@@ -1,5 +1,5 @@
 {
-  "schemaVersion":2,
+  "schemaVersion":3,
   "projectId":"sample",
   "stageId":"test",
   "name":"TestProject",
@@ -22,6 +22,7 @@
       "id":"event-002",
       "startBeat":0,
       "type":"projectEvent",
+      "categoryId":"sampleGameplay",
       "eventId":"spawnActors",
       "params":{
       },
@@ -30,6 +31,7 @@
       "id":"event-003",
       "startBeat":8,
       "type":"projectEvent",
+      "categoryId":"sampleGameplay",
       "eventId":"cueResponse",
       "params":{
         "responseDelayBeats":8
@@ -39,6 +41,7 @@
       "id":"event-004",
       "startBeat":9,
       "type":"projectEvent",
+      "categoryId":"sampleGameplay",
       "eventId":"cueResponse",
       "params":{
         "responseDelayBeats":8
@@ -48,6 +51,7 @@
       "id":"event-005",
       "startBeat":10,
       "type":"projectEvent",
+      "categoryId":"sampleGameplay",
       "eventId":"cueResponse",
       "params":{
         "responseDelayBeats":8
@@ -57,6 +61,7 @@
       "id":"event-006",
       "startBeat":11,
       "type":"projectEvent",
+      "categoryId":"sampleGameplay",
       "eventId":"cueResponse",
       "params":{
         "responseDelayBeats":8
@@ -66,6 +71,7 @@
       "id":"event-007",
       "startBeat":12,
       "type":"projectEvent",
+      "categoryId":"sampleGameplay",
       "eventId":"cueResponse",
       "params":{
         "responseDelayBeats":8
@@ -75,6 +81,7 @@
       "id":"event-008",
       "startBeat":13,
       "type":"projectEvent",
+      "categoryId":"sampleGameplay",
       "eventId":"cueResponse",
       "params":{
         "responseDelayBeats":8
@@ -84,6 +91,7 @@
       "id":"event-009",
       "startBeat":15,
       "type":"projectEvent",
+      "categoryId":"sampleGameplay",
       "eventId":"cueResponse",
       "params":{
         "responseDelayBeats":8
@@ -93,6 +101,7 @@
       "id":"event-010",
       "startBeat":14,
       "type":"projectEvent",
+      "categoryId":"sampleGameplay",
       "eventId":"cueResponse",
       "params":{
         "responseDelayBeats":8
@@ -102,6 +111,7 @@
       "id":"event-011",
       "startBeat":8,
       "type":"projectEvent",
+      "categoryId":"sampleGameplay",
       "eventId":"guideTurn",
       "params":{
       },
@@ -110,6 +120,7 @@
       "id":"event-012",
       "startBeat":16,
       "type":"projectEvent",
+      "categoryId":"sampleGameplay",
       "eventId":"playerTurn",
       "params":{
       },

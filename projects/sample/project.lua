@@ -11,7 +11,7 @@ if not eventCategories then error(categoryError) end
 return {
     id = "sample",
     title = "Sample Project",
-    coreApiVersion = 1,
+    coreApiVersion = 2,
     entryModule = "projects.sample.game.SampleGame",
     eventCategories = eventCategories,
 }

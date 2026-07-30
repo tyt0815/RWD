@@ -74,14 +74,16 @@ local function copyProperties(properties)
     return result
 end
 
-local function copyEvent(event, isProjectEvent)
+local function copyEvent(event, isProjectEvent, categoryId)
     local color
     if event.color then color = { event.color[1], event.color[2], event.color[3], event.color[4] } end
     local properties = copyProperties(event.properties)
     return {
         id = event.id,
         label = event.label,
-        timelineType = isProjectEvent and ("project:" .. event.id) or event.timelineType,
+        timelineType = isProjectEvent
+            and ("project:" .. categoryId .. ":" .. event.id) or event.timelineType,
+        projectCategoryId = isProjectEvent and categoryId or nil,
         projectEventId = isProjectEvent and event.id or nil,
         color = color,
         properties = properties,
@@ -112,18 +114,22 @@ function PropertyCatalog.getEvents(categoryId, project)
     eachCategory(project, function(category, isProject)
         if category.id == categoryId then
             for _, event in ipairs(category.events or {}) do
-                table.insert(result, copyEvent(event, isProject))
+                table.insert(result, copyEvent(event, isProject, category.id))
             end
         end
     end)
     return result
 end
 
-function PropertyCatalog.getEvent(eventId, project)
+function PropertyCatalog.getEvent(categoryId, eventId, project)
     local found
     eachCategory(project, function(category, isProject)
-        for _, event in ipairs(category.events or {}) do
-            if event.id == eventId then found = copyEvent(event, isProject) end
+        if category.id == categoryId then
+            for _, event in ipairs(category.events or {}) do
+                if event.id == eventId then
+                    found = copyEvent(event, isProject, category.id)
+                end
+            end
         end
     end)
     return found
@@ -131,15 +137,23 @@ end
 
 function PropertyCatalog.getTimelineEvent(event, project)
     local eventType = type(event) == "table" and event.type or event
+    local projectCategoryId = type(event) == "table" and event.categoryId or nil
     local projectEventId = type(event) == "table" and event.eventId or nil
     if eventType == "projectEvent" then
-        local definition = Core.ProjectEvents.getEvent(project, projectEventId)
-        return definition and copyEvent(definition, true) or nil
+        local definition = Core.ProjectEvents.getEvent(
+            project,
+            projectCategoryId,
+            projectEventId
+        )
+        return definition
+            and copyEvent(definition, true, projectCategoryId) or nil
     end
     local found
     eachCategory(nil, function(category)
         for _, definition in ipairs(category.events or {}) do
-            if definition.timelineType == eventType then found = copyEvent(definition, false) end
+            if definition.timelineType == eventType then
+                found = copyEvent(definition, false, category.id)
+            end
         end
     end)
     return found

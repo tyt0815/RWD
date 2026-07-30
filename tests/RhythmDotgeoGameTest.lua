@@ -1,7 +1,7 @@
 local function createStageStore()
     local stages = {
         speaki_song = {
-            schemaVersion = 2,
+            schemaVersion = 3,
             projectId = "rhythm_dotgeo",
             stageId = "speaki_song",
             name = "Speaki Song",
@@ -57,15 +57,19 @@ return {
                 name = "Effects",
                 bpm = 120,
                 events = {
-                    { id = "spawn", type = "projectEvent", eventId = "speakiSong",
+                    { id = "spawn", type = "projectEvent",
+                        categoryId = "speakiSong", eventId = "speakiSong",
                         startBeat = 0, track = 1, params = {} },
-                    { id = "long", type = "projectEvent", eventId = "heue",
+                    { id = "long", type = "projectEvent",
+                        categoryId = "speakiSong", eventId = "heue",
                         startBeat = 1, track = 1,
                         params = { responseDelayBeats = 2, longNoteLengthBeats = 1 } },
-                    { id = "next", type = "projectEvent", eventId = "doNotNer",
+                    { id = "next", type = "projectEvent",
+                        categoryId = "speakiSong", eventId = "doNotNer",
                         startBeat = 2, track = 2,
                         params = { responseDelayBeats = 10 } },
-                    { id = "tap", type = "projectEvent", eventId = "doNotNer",
+                    { id = "tap", type = "projectEvent",
+                        categoryId = "speakiSong", eventId = "doNotNer",
                         startBeat = 5, track = 1,
                         params = { responseDelayBeats = 2 } },
                 },
@@ -275,9 +279,11 @@ return {
                 name = "Reload",
                 bpm = 120,
                 events = {
-                    { id = "spawn", type = "projectEvent", eventId = "speakiSong",
+                    { id = "spawn", type = "projectEvent",
+                        categoryId = "speakiSong", eventId = "speakiSong",
                         startBeat = 0, track = 1, params = {} },
-                    { id = "cue", type = "projectEvent", eventId = "doNotNer",
+                    { id = "cue", type = "projectEvent",
+                        categoryId = "speakiSong", eventId = "doNotNer",
                         startBeat = 0, track = 2,
                         params = { responseDelayBeats = 1 } },
                 },
@@ -312,7 +318,8 @@ return {
                 name = "Draw",
                 bpm = 120,
                 events = {
-                    { id = "spawn", type = "projectEvent", eventId = "speakiSong",
+                    { id = "spawn", type = "projectEvent",
+                        categoryId = "speakiSong", eventId = "speakiSong",
                         startBeat = 0, track = 1, params = {} },
                 },
             }, 0))
@@ -466,7 +473,8 @@ return {
                 events = {
                     { id = "disable", type = "setInputEnabled", enabled = false, startBeat = 1 },
                     { id = "end", type = "end", startBeat = 2 },
-                    { id = "after", type = "projectEvent", eventId = "unknown", startBeat = 3 },
+                    { id = "after", type = "projectEvent",
+                        categoryId = "speakiSong", eventId = "unknown", startBeat = 3 },
                 },
             }
             local stageStore = {

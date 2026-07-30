@@ -103,8 +103,9 @@ function ProjectCategories.createHost(project, options)
 
             host.runtimes[category.id] = runtimeOrError
             table.insert(host.runtimeOrder, runtimeOrError)
+            host.eventRuntimes[category.id] = host.eventRuntimes[category.id] or {}
             for _, event in ipairs(category.events or {}) do
-                host.eventRuntimes[event.id] = runtimeOrError
+                host.eventRuntimes[category.id][event.id] = runtimeOrError
             end
         end
     end
@@ -130,15 +131,17 @@ function Host:startStage(stage, startBeat)
     callEach(self, "startStage", stage, startBeat)
 end
 
--- Definition의 Event ID로 Runtime을 찾으므로 Category를 추가해도 Game의 dispatch 코드는
--- 변경되지 않는다. 등록되지 않은 Event는 조용히 무시하지 않고 즉시 오류로 드러낸다.
+-- Definition의 Category/Event ID 조합으로 Runtime을 찾는다. 등록되지 않은 Event는
+-- 조용히 무시하지 않고 즉시 오류로 드러낸다.
 function Host:applyOccurrences(occurrences, beat)
     for _, occurrence in ipairs(occurrences) do
         local event = occurrence.event
         if event.type == "projectEvent" then
-            local runtime = self.eventRuntimes[event.eventId]
+            local categoryRuntimes = self.eventRuntimes[event.categoryId]
+            local runtime = categoryRuntimes and categoryRuntimes[event.eventId]
             if not runtime then
-                error("Unknown Project Event Runtime: " .. tostring(event.eventId))
+                error("Unknown Project Event Runtime: "
+                    .. tostring(event.categoryId) .. "/" .. tostring(event.eventId))
             end
             if type(runtime.handleEvent) ~= "function" then
                 error("Project Category Runtime must provide handleEvent(event, occurrence, beat).")

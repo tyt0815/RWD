@@ -247,10 +247,13 @@ return {
 
             events[1].label = "Changed"
             events[1].properties[1].label = "Changed"
-            local editorEvent = PropertyCatalog.getEvent("editorProperties")
+            local editorEvent = PropertyCatalog.getEvent(
+                "global",
+                "editorProperties"
+            )
             test.assertEqual(editorEvent.label, "Editor Properties")
             test.assertEqual(editorEvent.properties[1].label, "Snap")
-            test.assertEqual(PropertyCatalog.getEvent("missing"), nil)
+            test.assertEqual(PropertyCatalog.getEvent("global", "missing"), nil)
         end,
     },
     {

@@ -769,7 +769,7 @@ return {
                 true
             ))
             local cue = assert(app:getSession():addTimelineEvent(
-                "project:cueResponse",
+                "project:sampleGameplay:cueResponse",
                 8,
                 3,
                 { responseDelayBeats = 6 }
@@ -1072,7 +1072,7 @@ return {
             createStageThroughDialog(app, "project-event-current-default")
             app.selectedCategoryId = "sampleGameplay"
             app.selectedEventId = "cueResponse"
-            app.eventDefaults["project:cueResponse"] = {
+            app.eventDefaults["project:sampleGameplay:cueResponse"] = {
                 responseDelayBeats = 8,
             }
 

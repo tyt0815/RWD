@@ -1,9 +1,9 @@
 return {
     {
-        name = "코어 API 버전은 1이다",
+        name = "코어 API 버전은 2이다",
         run = function(test)
             local Core = require("core")
-            test.assertEqual(Core.CORE_API_VERSION, 1)
+            test.assertEqual(Core.CORE_API_VERSION, 2)
         end,
     },
     {

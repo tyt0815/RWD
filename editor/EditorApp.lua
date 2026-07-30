@@ -122,7 +122,11 @@ function EditorApp:updatePanelScrollAreas()
         and #PropertyCatalog.getCategories(project) or 0
     local eventCount = self.session:hasStage()
         and #PropertyCatalog.getEvents(self.selectedCategoryId, project) or 0
-    local selectedEvent = PropertyCatalog.getEvent(self.selectedEventId, project)
+    local selectedEvent = PropertyCatalog.getEvent(
+        self.selectedCategoryId,
+        self.selectedEventId,
+        project
+    )
     local propertyCount = self.session:hasStage() and selectedEvent
         and #selectedEvent.properties or 0
 
@@ -146,6 +150,7 @@ function EditorApp:getEventDefaults(definition)
         defaults = Core.ProjectEvents.getDefaultParams(
             Core.ProjectEvents.getEvent(
                 self.session:getProject(),
+                definition.projectCategoryId,
                 definition.projectEventId
             )
         )
@@ -169,7 +174,11 @@ function EditorApp:getViewModel()
         trackCount = self.session:getProperty("editorProperties", "trackCount")
     end
     local project = self.session:getProject()
-    local selectedEvent = PropertyCatalog.getEvent(self.selectedEventId, project)
+    local selectedEvent = PropertyCatalog.getEvent(
+        self.selectedCategoryId,
+        self.selectedEventId,
+        project
+    )
     self:updateBeat0AutoButton()
     if selectedEvent then
         for _, property in ipairs(selectedEvent.properties) do
@@ -333,9 +342,12 @@ function EditorApp:commitValueEdit()
     local changed, errorMessage
     local value = tonumber(self.valueEdit.text)
     if self.valueEdit.groupId:match("^project:") then
-        local eventId = self.valueEdit.groupId:match("^project:(.+)$")
+        local categoryId, eventId = self.valueEdit.groupId:match(
+            "^project:([^:]+):([^:]+)$"
+        )
         local definition = Core.ProjectEvents.getEvent(
             self.session:getProject(),
+            categoryId,
             eventId
         )
         local params = self.eventDefaults[self.valueEdit.groupId]
@@ -369,6 +381,7 @@ function EditorApp:handleValueEditClick(x, y, button)
     end
 
     local selectedEvent = PropertyCatalog.getEvent(
+        self.selectedCategoryId,
         self.selectedEventId,
         self.session:getProject()
     )
@@ -988,6 +1001,7 @@ function EditorApp:mousepressed(x, y, button, _, presses)
     if button == 2 and self.session:hasStage()
         and not self.session:isPlaying() and insideTimeline then
         local selectedEvent = PropertyCatalog.getEvent(
+            self.selectedCategoryId,
             self.selectedEventId,
             self.session:getProject()
         )
@@ -1084,6 +1098,7 @@ function EditorApp:mousepressed(x, y, button, _, presses)
         return true
     end
     local selectedEvent = PropertyCatalog.getEvent(
+        self.selectedCategoryId,
         self.selectedEventId,
         self.session:getProject()
     )

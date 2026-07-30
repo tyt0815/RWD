@@ -1,5 +1,5 @@
 local VALID_STAGE = {
-    schemaVersion = 2,
+    schemaVersion = 3,
     projectId = "sample",
     stageId = "tutorial",
     name = "Tutorial",
@@ -8,7 +8,7 @@ local VALID_STAGE = {
 }
 
 local OTHER_STAGE = {
-    schemaVersion = 2,
+    schemaVersion = 3,
     projectId = "other",
     stageId = "replacement",
     name = "Replacement",
@@ -20,7 +20,8 @@ local function newFixture(options)
     options = options or {}
     local customTransportFactory = options.transportFactory
     local stored = options.stored
-    local project = { id = "sample", title = "Sample", entryModule = "sample.game" }
+    local project = options.project
+        or { id = "sample", title = "Sample", entryModule = "sample.game" }
     local otherProject = { id = "other", title = "Other", entryModule = "other.game" }
     local catalog = {
         listProjects = function()
@@ -203,6 +204,97 @@ local function newSession(options)
 end
 
 return {
+    {
+        name = "EditorSession은 동명 Project Event를 Category ID로 구분한다",
+        run = function(test)
+            local project = {
+                id = "sample",
+                title = "Sample",
+                entryModule = "sample.game",
+                eventCategories = {
+                    {
+                        id = "first",
+                        label = "First",
+                        events = {
+                            {
+                                id = "spawn",
+                                label = "First Spawn",
+                                singleton = true,
+                                properties = {
+                                    {
+                                        id = "firstValue",
+                                        kind = "number",
+                                        default = 1,
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    {
+                        id = "second",
+                        label = "Second",
+                        events = {
+                            {
+                                id = "spawn",
+                                label = "Second Spawn",
+                                singleton = true,
+                                properties = {
+                                    {
+                                        id = "secondValue",
+                                        kind = "number",
+                                        default = 2,
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            }
+            local stage = {
+                schemaVersion = 3,
+                projectId = "sample",
+                stageId = "category-events",
+                name = "Category Events",
+                bpm = 120,
+                events = {
+                    {
+                        id = "event-001",
+                        type = "projectEvent",
+                        categoryId = "second",
+                        eventId = "spawn",
+                        startBeat = 0,
+                        track = 1,
+                        params = { secondValue = 2 },
+                    },
+                },
+            }
+            local session = newSession({ project = project, stored = stage })
+            assert(session:openStage("sample", "category-events"))
+            test.assertEqual(
+                session:getTimelineEvents()[1].projectDefinition.label,
+                "Second Spawn"
+            )
+
+            local added = assert(session:addTimelineEvent(
+                "project:first:spawn",
+                2,
+                1,
+                { firstValue = 1 }
+            ))
+            test.assertEqual(added.categoryId, "first")
+            test.assertEqual(added.eventId, "spawn")
+
+            local duplicate, errorMessage, errorCode = session:addTimelineEvent(
+                "project:first:spawn",
+                4,
+                1,
+                { firstValue = 1 }
+            )
+            test.assertEqual(duplicate, nil)
+            test.assertContains(errorMessage, "only one Event")
+            test.assertEqual(errorCode, "PROJECT_EVENT_EXISTS")
+        end,
+    },
     {
         name = "에디터 세션은 Stage 없이 시작한다",
         run = function(test)
@@ -545,7 +637,7 @@ return {
 
             local maximumSession = newSession({
                 stored = {
-                    schemaVersion = 2,
+                    schemaVersion = 3,
                     projectId = "sample",
                     stageId = "maximum-scale",
                     name = "Maximum Scale",
@@ -560,7 +652,7 @@ return {
 
             local minimumSession = newSession({
                 stored = {
-                    schemaVersion = 2,
+                    schemaVersion = 3,
                     projectId = "sample",
                     stageId = "minimum-scale",
                     name = "Minimum Scale",
@@ -621,7 +713,7 @@ return {
         name = "EditorSession은 Project 음악 경로와 resolved Mixtape를 Transport에 전달한다",
         run = function(test)
             local stage = {
-                schemaVersion = 2,
+                schemaVersion = 3,
                 projectId = "sample",
                 stageId = "music",
                 name = "Music",
@@ -887,7 +979,7 @@ return {
         name = "End Event에 도달하면 정확한 beat에서 에디터 재생을 끝낸다",
         run = function(test)
             local stage = {
-                schemaVersion = 2,
+                schemaVersion = 3,
                 projectId = "sample",
                 stageId = "ending",
                 name = "Ending",
@@ -911,7 +1003,7 @@ return {
         name = "Set Input Enabled Event는 기본 true 입력 상태를 노드 값으로 변경한다",
         run = function(test)
             local stage = {
-                schemaVersion = 2,
+                schemaVersion = 3,
                 projectId = "sample",
                 stageId = "input-state",
                 name = "Input State",
@@ -965,7 +1057,7 @@ return {
             test.assertEqual(testPlayer.playing, false)
 
             local stageWithEnd = {
-                schemaVersion = 2,
+                schemaVersion = 3,
                 projectId = "sample",
                 stageId = "music-before-end",
                 name = "Music Before End",

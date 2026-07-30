@@ -3,7 +3,7 @@ return {
         name = "sample 프로젝트 매니페스트를 로드한다",
         run = function(test)
             local ProjectLoader = require("launcher.ProjectLoader")
-            local project, errorMessage = ProjectLoader.loadProject("sample", 1)
+            local project, errorMessage = ProjectLoader.loadProject("sample", 2)
 
             test.assertEqual(errorMessage, nil)
             test.assertEqual(project.id, "sample")
@@ -15,7 +15,7 @@ return {
         name = "없는 프로젝트는 오류를 반환한다",
         run = function(test)
             local ProjectLoader = require("launcher.ProjectLoader")
-            local project, errorMessage = ProjectLoader.loadProject("missing", 1)
+            local project, errorMessage = ProjectLoader.loadProject("missing", 2)
 
             test.assertEqual(project, nil)
             test.assertContains(errorMessage, "Failed to load project")
@@ -73,7 +73,7 @@ return {
             end
             package.loaded[moduleName] = nil
 
-            local project, errorMessage, errorCode = ProjectLoader.loadProject("incompatible", 1)
+            local project, errorMessage, errorCode = ProjectLoader.loadProject("incompatible", 2)
 
             package.preload[moduleName] = nil
             package.loaded[moduleName] = nil

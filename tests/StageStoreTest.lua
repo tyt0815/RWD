@@ -1,6 +1,6 @@
 local function validStage(stageId)
     return {
-        schemaVersion = 2,
+        schemaVersion = 3,
         projectId = "sample",
         stageId = stageId or "tutorial",
         name = "Tutorial",
@@ -221,7 +221,7 @@ return {
             local path = "projects/sample/stages/tutorial.json"
             fileSystem.files[path] = [[
                 {
-                    "schemaVersion": 2,
+                    "schemaVersion": 3,
                     "projectId": "sample",
                     "stageId": "tutorial",
                     "name": "Tutorial",
@@ -253,7 +253,7 @@ return {
             local fileSystem = newFakeFileSystem()
             fileSystem.files["projects/sample/stages/tutorial.json"] = [[
                 {
-                    "schemaVersion": 2,
+                    "schemaVersion": 3,
                     "projectId": "sample",
                     "stageId": "tutorial",
                     "name": "Tutorial",
@@ -273,7 +273,7 @@ return {
             local fileSystem = newFakeFileSystem()
             fileSystem.files["projects/sample/stages/tutorial.json"] = [[
                 {
-                    "schemaVersion": 2,
+                    "schemaVersion": 3,
                     "projectId": "sample",
                     "stageId": "tutorial",
                     "name": "Tutorial",

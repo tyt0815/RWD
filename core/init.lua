@@ -1,6 +1,6 @@
 local Core = {}
 
-Core.CORE_API_VERSION = 1
+Core.CORE_API_VERSION = 2
 
 Core.JudgmentResult = {
     GOOD = "GOOD",

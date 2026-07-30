@@ -12,7 +12,7 @@ local JSON_KEY_ORDER = {
     "music", "volume", "beat0Offset",
     "snap", "scale", "playbackRate", "metronome", "metronomePeriod",
     "onsetThreshold", "previewAspectWidth", "previewAspectHeight",
-    "id", "startBeat", "type", "eventId", "patternId", "params", "durationBeats",
+    "id", "startBeat", "type", "categoryId", "eventId", "patternId", "params", "durationBeats",
     "responseDelayBeats",
 }
 
