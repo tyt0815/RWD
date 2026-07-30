@@ -20,6 +20,7 @@ local TEST_MODULES = {
     "tests.PlaybackTransportTest",
     "tests.MetronomePlaybackTest",
     "tests.EditorSettingsTest",
+    "tests.StageSchemaTest",
     "tests.TimelineSnapTest",
     "tests.TimelineEventGeometryTest",
     "tests.StageDocumentTest",
