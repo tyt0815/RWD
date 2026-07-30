@@ -7,6 +7,9 @@ local function newFakeNativeOperations()
 
     function operations:list(path)
         table.insert(self.calls, { "list", path })
+        if self.rejectAbsoluteList and path:match("^%a:[/\\]") then
+            return nil, "list path must be source-relative"
+        end
         return self.directoryItems[path] or {}, nil
     end
 
@@ -61,16 +64,25 @@ local function withLoveFilesystem(fileSystem, callback)
     if not succeeded then error(errorMessage, 0) end
 end
 
+local function withIoOpen(openFile, callback)
+    local originalOpen = io.open
+    io.open = openFile
+    local succeeded, errorMessage = xpcall(callback, debug.traceback)
+    io.open = originalOpen
+    if not succeeded then error(errorMessage, 0) end
+end
+
 return {
     {
-        name = "Launcher NativeFileSystem joins unpackaged paths to the normalized source root",
+        name = "Launcher NativeFileSystem keeps unpackaged list source-relative and joins file paths",
         run = function(test)
             local NativeFileSystem = require("launcher.NativeFileSystem")
             local operations = newFakeNativeOperations()
             local directory = "projects/sample/stages"
             local root = "C:/project"
             local target = root .. "/" .. directory .. "/tutorial.json"
-            operations.directoryItems[root .. "/" .. directory] = { "tutorial.json" }
+            operations.rejectAbsoluteList = true
+            operations.directoryItems[directory] = { "tutorial.json" }
             operations.files[target] = "original"
             local fileSystem = NativeFileSystem.new(root .. "///", operations)
 
@@ -85,7 +97,7 @@ return {
             assert(fileSystem:remove(directory .. "/moved.json"))
 
             local expected = {
-                { "list", root .. "/" .. directory },
+                { "list", directory },
                 { "read", target },
                 { "isFile", target },
                 { "exists", target },
@@ -108,6 +120,32 @@ return {
                 test.assertEqual(operations.calls[index][2], call[2])
                 test.assertEqual(operations.calls[index][3], call[3])
             end
+        end,
+    },
+    {
+        name = "Launcher NativeFileSystem preserves native access errors from exists",
+        run = function(test)
+            local NativeFileSystem = require("launcher.NativeFileSystem")
+            withIoOpen(function()
+                return nil, "permission denied", 13
+            end, function()
+                local exists, errorMessage = NativeFileSystem.new("C:/project"):exists("locked.json")
+                test.assertEqual(exists, nil)
+                test.assertContains(errorMessage, "permission denied")
+            end)
+        end,
+    },
+    {
+        name = "Launcher NativeFileSystem treats native missing files as absent",
+        run = function(test)
+            local NativeFileSystem = require("launcher.NativeFileSystem")
+            withIoOpen(function()
+                return nil, "no such file", 2
+            end, function()
+                local exists, errorMessage = NativeFileSystem.new("C:/project"):exists("missing.json")
+                test.assertEqual(exists, false)
+                test.assertEqual(errorMessage, nil)
+            end)
         end,
     },
     {

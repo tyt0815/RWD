@@ -13,6 +13,10 @@ local JSON_KEY_ORDER = {
     "params", "durationBeats", "responseDelayBeats",
 }
 
+local REQUIRED_FILE_SYSTEM_METHODS = {
+    "list", "read", "isFile", "exists", "write", "remove", "rename", "copy",
+}
+
 local function invalidId(fieldName)
     return nil, "$." .. fieldName .. " must be a safe identifier.", "INVALID_STAGE"
 end
@@ -35,6 +39,12 @@ end
 function StageRepository.new(options)
     options = options or {}
     assert(type(options.fileSystem) == "table", "fileSystem is required")
+    for _, methodName in ipairs(REQUIRED_FILE_SYSTEM_METHODS) do
+        assert(
+            type(options.fileSystem[methodName]) == "function",
+            "fileSystem." .. methodName .. " is required"
+        )
+    end
     assert(type(options.paths) == "table", "paths is required")
     assert(type(options.paths.stageDirectory) == "function", "paths.stageDirectory is required")
     assert(type(options.paths.stageFile) == "function", "paths.stageFile is required")
@@ -62,7 +72,7 @@ function StageRepository:listStages(projectId)
         local stageId = fileName:match("^([a-z0-9][a-z0-9_-]*)%.json$")
         if stageId
             and StageSchema.isSafeId(stageId)
-            and self.fileSystem:isFile(directory .. "/" .. fileName) then
+            and self.fileSystem:isFile(self.paths.stageFile(projectId, stageId)) then
             table.insert(stageIds, stageId)
         end
     end
@@ -156,7 +166,13 @@ function StageRepository:save(stage, overwrite)
 
     local replaced, replaceError = self.fileSystem:rename(temporaryPath, path)
     if replaced then
-        if exists then self.fileSystem:remove(backupPath) end
+        if exists then
+            local removed, removeError = self.fileSystem:remove(backupPath)
+            if not removed then
+                return nil, "Stage file was replaced, but failed to remove retained backup '"
+                    .. backupPath .. "': " .. tostring(removeError), "WRITE_FAILED"
+            end
+        end
         return true, nil, nil
     end
 
@@ -168,7 +184,13 @@ function StageRepository:save(stage, overwrite)
 
     local copied, copyError = self.fileSystem:copy(backupPath, path)
     if copied then
-        self.fileSystem:remove(backupPath)
+        local removed, removeError = self.fileSystem:remove(backupPath)
+        if not removed then
+            return nil, "Failed to replace Stage file: " .. tostring(replaceError)
+                .. "; original restored by copy after rollback rename failed: "
+                .. tostring(restoreError) .. "; failed to remove retained backup '"
+                .. backupPath .. "': " .. tostring(removeError), "WRITE_FAILED"
+        end
         return nil, "Failed to replace Stage file: " .. tostring(replaceError)
             .. "; original restored by copy after rollback rename failed: "
             .. tostring(restoreError), "WRITE_FAILED"

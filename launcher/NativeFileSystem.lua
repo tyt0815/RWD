@@ -12,10 +12,13 @@ local function join(rootPath, relativePath)
 end
 
 local function nativeFileExists(path)
-    local file = io.open(path, "rb")
-    if not file then return false end
+    local file, openError, errorCode = io.open(path, "rb")
+    if not file then
+        if errorCode == 2 or errorCode == 20 then return false, nil end
+        return nil, tostring(openError)
+    end
     file:close()
-    return true
+    return true, nil
 end
 
 local function readFile(path)
@@ -95,7 +98,7 @@ end
 
 function NativeFileSystem:list(relativePath)
     if not isPackaged(self.sourceRoot) then
-        return self.operations:list(join(self.sourceRoot, relativePath))
+        return self.operations:list(relativePath)
     end
     local succeeded, itemsOrError = pcall(love.filesystem.getDirectoryItems, relativePath)
     if not succeeded then return nil, tostring(itemsOrError) end

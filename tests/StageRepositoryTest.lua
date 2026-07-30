@@ -24,6 +24,7 @@ local function newFakeFileSystem()
         directories = {},
         directoryItems = {},
         operationLog = {},
+        removeErrors = {},
         renameErrors = {},
     }
 
@@ -57,7 +58,8 @@ local function newFakeFileSystem()
 
     function fileSystem:remove(path)
         table.insert(self.operationLog, "remove(" .. path .. ")")
-        if self.removeError then return nil, self.removeError end
+        local removeError = self.removeErrors[path] or self.removeError
+        if removeError then return nil, removeError end
         self.files[path] = nil
         return true, nil
     end
@@ -153,6 +155,31 @@ return {
                     message = "json.encode is required",
                 },
             }
+            local requiredFileSystemMethods = {
+                { name = "list", message = "fileSystem.list is required" },
+                { name = "read", message = "fileSystem.read is required" },
+                { name = "isFile", message = "fileSystem.isFile is required" },
+                { name = "exists", message = "fileSystem.exists is required" },
+                { name = "write", message = "fileSystem.write is required" },
+                { name = "remove", message = "fileSystem.remove is required" },
+                { name = "rename", message = "fileSystem.rename is required" },
+                { name = "copy", message = "fileSystem.copy is required" },
+            }
+            for _, requiredMethod in ipairs(requiredFileSystemMethods) do
+                local incompleteFileSystem = {}
+                for key, value in pairs(fileSystem) do
+                    incompleteFileSystem[key] = value
+                end
+                incompleteFileSystem[requiredMethod.name] = nil
+                table.insert(cases, {
+                    options = {
+                        fileSystem = incompleteFileSystem,
+                        paths = PATHS,
+                        json = json,
+                    },
+                    message = requiredMethod.message,
+                })
+            end
             for _, case in ipairs(cases) do
                 local succeeded, errorMessage = pcall(function()
                     require("core").StageRepository.new(case.options)
@@ -161,6 +188,31 @@ return {
                 test.assertContains(errorMessage, case.message)
             end
             test.assertTrue(require("core").StageRepository.new(validOptions) ~= nil)
+        end,
+    },
+    {
+        name = "StageRepository list uses the injected stageFile path",
+        run = function(test)
+            local paths = {
+                stageDirectory = function(projectId)
+                    return "virtual-directory:" .. projectId
+                end,
+                stageFile = function(projectId, stageId)
+                    return "virtual-file:" .. projectId .. ":" .. stageId
+                end,
+            }
+            local fileSystem = newFakeFileSystem()
+            fileSystem.directoryItems["virtual-directory:sample"] = { "alpha.json" }
+            fileSystem.files["virtual-file:sample:alpha"] = "{}"
+            local repository = require("core").StageRepository.new({
+                fileSystem = fileSystem,
+                paths = paths,
+                json = require("vendor.dkjson"),
+            })
+
+            local stageIds = assert(repository:listStages("sample"))
+            test.assertEqual(#stageIds, 1)
+            test.assertEqual(stageIds[1], "alpha")
         end,
     },
     {
@@ -397,6 +449,43 @@ return {
             test.assertEqual(fileSystem.files[backupPath], nil)
             test.assertEqual(fileSystem.operationLog[6], "copy(" .. backupPath .. "," .. path .. ")")
             test.assertEqual(fileSystem.operationLog[7], "remove(" .. backupPath .. ")")
+        end,
+    },
+    {
+        name = "StageRepository reports and retains a backup when replacement cleanup fails",
+        run = function(test)
+            local fileSystem = newFakeFileSystem()
+            local path = PATHS.stageFile("sample", "tutorial")
+            local backupPath = path .. ".bak"
+            fileSystem.files[path] = "original"
+            fileSystem.removeErrors[backupPath] = "cleanup blocked"
+
+            local saved, message, code = newRepository(fileSystem):save(validStage(), true)
+            assertError(test, "WRITE_FAILED", backupPath, saved, message, code)
+            test.assertContains(message, "cleanup blocked")
+            test.assertContains(message, "replaced")
+            test.assertTrue(fileSystem.files[path] ~= "original")
+            test.assertEqual(fileSystem.files[backupPath], "original")
+        end,
+    },
+    {
+        name = "StageRepository reports a retained backup after copy rollback cleanup fails",
+        run = function(test)
+            local fileSystem = newFakeFileSystem()
+            local path = PATHS.stageFile("sample", "tutorial")
+            local backupPath = path .. ".bak"
+            fileSystem.files[path] = "original"
+            fileSystem.renameErrors[path .. ".tmp->" .. path] = "replace blocked"
+            fileSystem.renameErrors[backupPath .. "->" .. path] = "rollback blocked"
+            fileSystem.removeErrors[backupPath] = "cleanup blocked"
+
+            local saved, message, code = newRepository(fileSystem):save(validStage(), true)
+            assertError(test, "WRITE_FAILED", backupPath, saved, message, code)
+            test.assertContains(message, "replace blocked")
+            test.assertContains(message, "rollback blocked")
+            test.assertContains(message, "cleanup blocked")
+            test.assertEqual(fileSystem.files[path], "original")
+            test.assertEqual(fileSystem.files[backupPath], "original")
         end,
     },
     {
