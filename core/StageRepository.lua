@@ -70,10 +70,12 @@ function StageRepository:listStages(projectId)
     local stageIds = {}
     for _, fileName in ipairs(items) do
         local stageId = fileName:match("^([a-z0-9][a-z0-9_-]*)%.json$")
-        if stageId
-            and StageSchema.isSafeId(stageId)
-            and self.fileSystem:isFile(self.paths.stageFile(projectId, stageId)) then
-            table.insert(stageIds, stageId)
+        if stageId and StageSchema.isSafeId(stageId) then
+            local isFile, isFileError = self.fileSystem:isFile(
+                self.paths.stageFile(projectId, stageId)
+            )
+            if isFile == nil then return readFailure("check Stage file", isFileError) end
+            if isFile then table.insert(stageIds, stageId) end
         end
     end
     table.sort(stageIds)

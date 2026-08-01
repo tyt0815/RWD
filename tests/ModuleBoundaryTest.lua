@@ -102,17 +102,21 @@ return {
                     'require("editor.EditorApp")',
                 }, "\n"),
             })
-            local report = table.concat(violations, "\n")
+            table.sort(violations)
+            local expected = {
+                "core/Clock.lua requires forbidden module editor.EditorApp",
+                "core/Clock.lua requires forbidden module launcher.Launcher",
+                "core/Clock.lua requires forbidden module projects.sample.project",
+                "editor/Stage.lua requires forbidden module core.StageSchema",
+                "launcher/Launcher.lua requires forbidden module editor.stage.StageDocument",
+                "projects/demo/game/Game.lua requires forbidden module core.StageRuntime",
+                "projects/demo/game/Game.lua requires forbidden module launcher.Launcher",
+            }
 
-            test.assertEqual(#violations, 7)
-            test.assertContains(report, "core/Clock.lua")
-            test.assertContains(report, "editor.EditorApp")
-            test.assertContains(report, "launcher.Launcher")
-            test.assertContains(report, "projects.sample.project")
-            test.assertContains(report, "editor/Stage.lua")
-            test.assertContains(report, "core.StageSchema")
-            test.assertContains(report, "core.StageRuntime")
-            test.assertContains(report, "editor.stage.StageDocument")
+            test.assertEqual(#violations, #expected)
+            for index, violation in ipairs(expected) do
+                test.assertEqual(violations[index], violation)
+            end
         end,
     },
     {

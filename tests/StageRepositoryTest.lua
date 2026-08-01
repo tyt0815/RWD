@@ -41,6 +41,7 @@ local function newFakeFileSystem()
     end
 
     function fileSystem:isFile(path)
+        if self.isFileError then return nil, self.isFileError end
         return self.files[path] ~= nil and not self.directories[path]
     end
 
@@ -213,6 +214,22 @@ return {
             local stageIds = assert(repository:listStages("sample"))
             test.assertEqual(#stageIds, 1)
             test.assertEqual(stageIds[1], "alpha")
+        end,
+    },
+    {
+        name = "StageRepository list reports an isFile primitive failure",
+        run = function(test)
+            local fileSystem = newFakeFileSystem()
+            local directory = PATHS.stageDirectory("sample")
+            fileSystem.directoryItems[directory] = { "alpha.json" }
+            fileSystem.isFileError = "stat denied"
+
+            assertError(
+                test,
+                "READ_FAILED",
+                "stat denied",
+                newRepository(fileSystem):listStages("sample")
+            )
         end,
     },
     {

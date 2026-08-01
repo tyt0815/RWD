@@ -360,6 +360,25 @@ return {
         end,
     },
     {
+        name = "addEvents는 잘못된 JSON null 입력을 변이 없이 원자적으로 거부한다",
+        run = function(test)
+            local json = require("vendor.dkjson")
+            local StageDocument = require("editor.stage.StageDocument")
+            local document = assert(StageDocument.fromTable(validStage()))
+            json.null.id = nil
+
+            local added, errorMessage = document:addEvents({ json.null })
+            local sentinelId = json.null.id
+            json.null.id = nil
+
+            test.assertEqual(added, nil)
+            test.assertContains(errorMessage, "$.events[1] must be an object")
+            test.assertEqual(sentinelId, nil)
+            test.assertEqual(#document:getEvents(), 0)
+            test.assertEqual(document:isDirty(), false)
+        end,
+    },
+    {
         name = "선택한 Timeline Event 여러 개를 한 번에 삭제한다",
         run = function(test)
             local StageDocument = require("editor.stage.StageDocument")

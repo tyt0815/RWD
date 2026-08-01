@@ -185,7 +185,11 @@ function StageDocument:addEvents(events)
     local addedIds = {}
     local sequence = 1
     for _, source in ipairs(events) do
-        local event = deepCopy(source)
+        local event = {}
+        for key, value in pairs(source) do
+            event[deepCopy(key)] = deepCopy(value)
+        end
+        setmetatable(event, getmetatable(source))
         repeat
             event.id = string.format("event-%03d", sequence)
             sequence = sequence + 1
@@ -197,12 +201,12 @@ function StageDocument:addEvents(events)
 
     local normalized, errorMessage = normalize(candidateData)
     if not normalized then return nil, errorMessage end
-    self.data = normalized
     local added = {}
     for _, eventId in ipairs(addedIds) do
-        local storedEvent = assert(findEvent(self.data, eventId))
+        local storedEvent = assert(findEvent(normalized, eventId))
         table.insert(added, deepCopy(storedEvent))
     end
+    self.data = normalized
     if #added > 0 then self.dirty = true end
     return added, nil
 end
