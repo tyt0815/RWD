@@ -25,6 +25,7 @@ local TEST_MODULES = {
     "tests.TimelineEventGeometryTest",
     "tests.StageRepositoryTest",
     "tests.NativeFileSystemTest",
+    "tests.ModuleBoundaryTest",
     "tests.StageDocumentTest",
     "tests.ProjectLoaderTest",
     "tests.ProjectCatalogTest",

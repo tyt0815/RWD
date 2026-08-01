@@ -40,6 +40,8 @@ Actor 수가 아니라 변경 이유로 파일을 나눈다. 동작과 리소스
 
 새 `NewGameSample` Category를 만들려면 `game/NewGameSample/Definition.lua`와 `Runtime.lua`를 만든다. Core가 폴더를 자동 발견하므로 기존 `project.lua`, `Game.lua`와 다른 Category 파일은 수정하지 않는다.
 
+`Definition.lua`의 최상위 `id`가 Category ID이고 `events` 각 항목의 `id`가 Event ID다. Category ID는 Project 전체에서 고유해야 하며 Event ID는 해당 Category 안에서만 고유하면 된다. 따라서 다른 Category에서 `cueResponse` 같은 Event ID를 다시 사용할 수 있고, 실행 시에는 항상 `categoryId + eventId` 조합으로 구분한다.
+
 ```lua
 -- game/NewGameSample/Definition.lua
 -- Editor가 읽으므로 Runtime, Actor와 asset을 require하지 않는다.
@@ -83,6 +85,7 @@ return {
 {
   "id": "event-003",
   "type": "projectEvent",
+  "categoryId": "newGameSample",
   "eventId": "cueResponse",
   "startBeat": 4,
   "track": 2,
@@ -92,7 +95,9 @@ return {
 }
 ```
 
-`eventId`는 Project 등록 ID와 같아야 한다. Project별 값은 `params` 안에 둔다.
+이 예시는 schemaVersion 3 Stage의 Event 한 항목이다. `categoryId`는 Definition 최상위 ID, `eventId`는 그 Category의 Event ID와 같아야 한다. Project별 값은 JSON 객체 `params` 안에 두며 프로퍼티가 없어도 `{}`를 사용한다.
+
+Editor는 Event 행을 선택할 때 내부 `timelineType`을 `project:<categoryId>:<eventId>`로 만든다. 위 예시의 값은 `project:newGameSample:cueResponse`다. 저장할 때 이 문자열 자체를 쓰지 않고 `type: "projectEvent"`, `categoryId`, `eventId` 필드로 분리한다.
 
 ## 4. Stage 실행과 Event 파일 분리
 
@@ -246,7 +251,7 @@ Stage별 노드 값은 계속 Event `params`를 사용한다. Project JSON은 St
 
 ## 9. 새 노드 체크리스트
 
-1. `game/<CategoryName>/Definition.lua`에 고유 Category/Event ID와 프로퍼티를 등록한다.
+1. `game/<CategoryName>/Definition.lua`에 Project 범위에서 고유한 Category ID와 Category 범위에서 고유한 Event ID, 프로퍼티를 등록한다.
 2. 같은 폴더에 `Runtime.lua`와 Project 전용 Event handler를 작성한다.
 3. Runtime의 handler map에 `eventId`와 같은 폴더의 모듈을 연결한다. 기존 `project.lua`와 `Game.lua`는 수정하지 않는다.
 4. `update`에서 판정과 MISS처럼 Event 이후 계속 진행되는 Project 상태를 처리한다.

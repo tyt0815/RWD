@@ -22,7 +22,9 @@ projects/my-game/
    └─ image/README.md
 ```
 
-`project.lua`는 생성 시점의 `core/init.lua`에서 Core API 버전을 읽고 Project ID, 표시 이름과 `projects.<projectId>.game.Game` 진입 모듈을 선언한다. `Game.lua`는 Launcher와 Editor preview에서 실행 가능한 `new`, `startStage`, `update`, `draw` 계약, Core `StageRuntime`과 `ProjectCategories` Host 조합만 제공하며 Sample의 노드나 게임 규칙은 복사하지 않는다. 생성자의 선택적 두 번째 인자 `options.stageStore`에는 검증된 Stage 목록과 데이터를 읽는 Store가 주입된다. Project 기능은 `game/<CategoryName>/`에 Category 단위로 두고 Sprite, SFX, 이동처럼 Project별로 달라지는 동작을 함께 관리한다. 이 폴더에 `Definition.lua`와 `Runtime.lua`를 추가하면 Core가 자동 발견하므로 기존 `project.lua`와 `Game.lua`를 수정하지 않는다. 게임별 UI, 사운드, 연출과 리소스는 해당 Project 밖으로 새지 않게 한다.
+`project.lua`는 생성 시점의 `core/init.lua`에서 Core API 버전을 읽고 Project ID, 표시 이름과 `projects.<projectId>.game.Game` 진입 모듈을 선언한다. `Game.lua`는 Launcher와 Editor preview에서 실행 가능한 `new`, `startStage`, `update`, `draw` 계약, Core `StageRuntime`과 `ProjectCategories` Host 조합만 제공하며 Sample의 노드나 게임 규칙은 복사하지 않는다. 생성자의 두 번째 인자 `options.stageRepository`에는 Launcher가 조립한 `Core.StageRepository`가 주입된다. Project 기능은 `game/<CategoryName>/`에 Category 단위로 두고 Sprite, SFX, 이동처럼 Project별로 달라지는 동작을 함께 관리한다. 이 폴더에 `Definition.lua`와 `Runtime.lua`를 추가하면 Core가 자동 발견하므로 기존 `project.lua`와 `Game.lua`를 수정하지 않는다. 게임별 UI, 사운드, 연출과 리소스는 해당 Project 밖으로 새지 않게 한다.
+
+Launcher는 `NativeFileSystem`, Project Stage 경로 함수와 `dkjson`으로 StageRepository 인스턴스 하나를 만든다. 이 인스턴스를 EditorSession, Editor preview 게임과 독립 실행 Project에 공유한다. Project는 Repository의 `listStages/load` 결과만 소비하며 Stage JSON decode·형식 검증·파일 경로 계산을 직접 구현하지 않는다. Editor의 저장도 같은 Repository의 `save`를 사용한다.
 
 ## 2. Project 오디오 배치
 
@@ -46,7 +48,7 @@ Project audio 배치 → New/Open → Mixtape Properties에서 Music 선택
 → wheel zoom·Snap 재생 바 이동·중간 버튼 pan으로 Timeline 탐색 → Save/Save As → Test Play → Pause
 ```
 
-New는 Project, Stage ID, Name과 BPM으로 `events: []`인 schemaVersion 2 Stage를 만든다. New와 Save As의 텍스트 필드는 Values와 같은 공통 입력 모듈을 사용해 UTF-8 중간 삽입·삭제, 좌우 커서 이동과 커서 깜빡임을 지원한다. New/Open의 Project·Stage, Music과 Auto Play 선택은 공통 ComboBox를 사용하며, 클릭해 선택값 한 줄을 검색 입력으로 전환하고 아래 목록을 검색어로 필터링한 뒤 마우스 또는 위·아래 방향키와 Enter로 선택한다. Open, Save와 Save As는 선택한 Project의 `stages` 폴더 안에서만 동작한다. 수정된 Stage의 Menu에는 `Save*`가 보이고 New, Open, Quit은 Save/Discard/Cancel 확인을 거친다.
+New는 Project, Stage ID, Name과 BPM으로 `events: []`인 schemaVersion 3 Stage를 만든다. New와 Save As의 텍스트 필드는 Values와 같은 공통 입력 모듈을 사용해 UTF-8 중간 삽입·삭제, 좌우 커서 이동과 커서 깜빡임을 지원한다. New/Open의 Project·Stage, Music과 Auto Play 선택은 공통 ComboBox를 사용하며, 클릭해 선택값 한 줄을 검색 입력으로 전환하고 아래 목록을 검색어로 필터링한 뒤 마우스 또는 위·아래 방향키와 Enter로 선택한다. Open, Save와 Save As는 선택한 Project의 `stages` 폴더 안에서만 동작한다. 수정된 Stage의 Menu에는 `Save*`가 보이고 New, Open, Quit은 Save/Discard/Cancel 확인을 거친다.
 
 `Mixtape Properties`는 다음 순서다.
 
@@ -94,7 +96,7 @@ decode, Source, preview 시작·update·draw가 실패하면 오류 모달을 �
 
 ## 6. 독립 실행 Stage 선택
 
-Launcher의 `2`로 Rhythm Dotgeo를 열면 `projects/rhythm_dotgeo/stages/*.json`의 검증된 Stage 이름 목록을 표시한다. 목록 항목은 `Core.UI.Button`의 클릭 판정을 사용하며 클릭 시 최신 Stage JSON을 다시 읽어 `startStage(stage, 0)`로 시작한다. Stage의 BPM, Music, Volume과 Beat 0 Offset은 Core `PlaybackTransport`에 적용되어 독립 실행 rate `1.0`으로 재생된다. Stage 목록·JSON 로딩은 Launcher가 주입한 기존 StageStore를 사용하므로 Project는 Editor 내부 모듈이나 JSON 라이브러리를 직접 불러오지 않는다. 현재 이 선택 화면은 Rhythm Dotgeo 전용이며 Sample은 기존 직접 실행 흐름을 유지한다. 스피키송 노드는 `game/SpeakiSong/Definition.lua`와 `Runtime.lua` 자동 발견 경계 안에서 실행되므로 새 Stage에서는 Editor의 `스피키송` Category에서 배치한다. 좌피키·우피키 Turn 노드는 따로 배치하지 않으며 Runtime이 연속된 Cue/Response 역할을 묶어 첫 Cue 또는 Response 0.5박 전에 이동을 시작하고 해당 beat에 도착시킨다. 모든 Rhythm Dotgeo Stage의 Tap/Long 구분 시간은 `projects/rhythm_dotgeo/config/gameplay.json`의 실제 밀리초 단위 `longHoldThresholdMs`로 둔다. 액터 배치는 `actorLayout`, Long/Tap 반응값은 `reactions`, Long의 누름·유지·뗌 SFX는 최상위 `longStartSound`·`longLoopSound`·`longEndSound`로, Tap SFX는 하나 이상의 경로를 가진 `tapSounds` 배열로 `projects/rhythm_dotgeo/config/speaki_song.json`에 둔다. 배열 길이는 고정하지 않으며 마지막 SFX 다음에는 첫 SFX로 순환한다. 파일은 각 Play의 `startStage`에서 다시 읽으므로 앱을 재시작하거나 Reload 명령을 실행하지 않아도 다음 Play에 반영된다.
+Launcher의 `2`로 Rhythm Dotgeo를 열면 `projects/rhythm_dotgeo/stages/*.json`의 검증된 Stage 이름 목록을 표시한다. 목록 항목은 `Core.UI.Button`의 클릭 판정을 사용하며 클릭 시 최신 Stage JSON을 다시 읽어 `startStage(stage, 0)`로 시작한다. Stage의 BPM, Music, Volume과 Beat 0 Offset은 Core `PlaybackTransport`에 적용되어 독립 실행 rate `1.0`으로 재생된다. Stage 목록·JSON 로딩은 Launcher가 주입한 같은 `StageRepository`를 사용하므로 Project는 Editor 내부 모듈, JSON 라이브러리나 Stage 경로를 직접 다루지 않는다. 현재 이 선택 화면은 Rhythm Dotgeo 전용이며 Sample은 기존 직접 실행 흐름을 유지한다. 스피키송 노드는 `game/SpeakiSong/Definition.lua`와 `Runtime.lua` 자동 발견 경계 안에서 실행되므로 새 Stage에서는 Editor의 `스피키송` Category에서 배치한다. 좌피키·우피키 Turn 노드는 따로 배치하지 않으며 Runtime이 연속된 Cue/Response 역할을 묶어 첫 Cue 또는 Response 0.5박 전에 이동을 시작하고 해당 beat에 도착시킨다. 모든 Rhythm Dotgeo Stage의 Tap/Long 구분 시간은 `projects/rhythm_dotgeo/config/gameplay.json`의 실제 밀리초 단위 `longHoldThresholdMs`로 둔다. 액터 배치는 `actorLayout`, Long/Tap 반응값은 `reactions`, Long의 누름·유지·뗌 SFX는 최상위 `longStartSound`·`longLoopSound`·`longEndSound`로, Tap SFX는 하나 이상의 경로를 가진 `tapSounds` 배열로 `projects/rhythm_dotgeo/config/speaki_song.json`에 둔다. 배열 길이는 고정하지 않으며 마지막 SFX 다음에는 첫 SFX로 순환한다. 파일은 각 Play의 `startStage`에서 다시 읽으므로 앱을 재시작하거나 Reload 명령을 실행하지 않아도 다음 Play에 반영된다.
 
 ## 7. 게임 연출
 

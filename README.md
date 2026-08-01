@@ -4,7 +4,7 @@ RWD는 LÖVE2D 11.5로 여러 개의 리듬게임을 제작하기 위한 공통 
 
 ## 현재 상태
 
-공통 Launcher에서 Stage 에디터, Sample Project와 Rhythm Dotgeo Project를 열 수 있다. Rhythm Dotgeo는 열릴 때 Stage 목록을 표시하고 항목을 클릭하면 Stage 음악·beat와 공통 관리 노드 실행을 시작한다. 에디터는 Stage JSON 버전 2를 만들고 열고 저장하며, Project 음악과 고정 BPM Transport를 Project Canvas에 맞춰 미리 재생한다. Editor 전용 Playback Rate, Metronome, Timeline Scale, Snap, Onset Threshold와 preview 화면 비율을 Stage에 희소 저장한다.
+공통 Launcher에서 Stage 에디터, Sample Project와 Rhythm Dotgeo Project를 열 수 있다. Rhythm Dotgeo는 열릴 때 Stage 목록을 표시하고 항목을 클릭하면 Stage 음악·beat와 공통 관리 노드 실행을 시작한다. 에디터는 Stage JSON 버전 3을 만들고 열고 저장하며, Project 음악과 고정 BPM Transport를 Project Canvas에 맞춰 미리 재생한다. Project Event는 Category와 Event ID 조합으로 저장한다. Editor 전용 Playback Rate, Metronome, Timeline Scale, Snap, Onset Threshold와 preview 화면 비율을 Stage에 희소 저장한다.
 
 Core StageRuntime이 End와 Set Input Enabled, Project Event의 beat 순서 실행과 시작 위치 상태 복원을 공통 처리한다. `Core.ProjectConfig`는 Stage와 독립적인 Project JSON 설정을 Play마다 다시 읽을 수 있게 한다. ProjectCategories는 `game/<CategoryName>/Definition.lua`와 `Runtime.lua`를 자동 발견해 기존 manifest와 Game 수정 없이 Editor 등록과 런타임 실행을 연결한다. Game Manager의 End와 Set Input Enabled Event를 편집할 수 있다. Sample Project는 Tap 판정 예제를 제공한다. Rhythm Dotgeo의 `스피키송` Category는 배경·가이드·좌우 반전 플레이어 소환, Cue/Response 역할 전환에 맞춘 자동 Turn, Tap 큐 응답과 길이를 설정하는 Long Note 큐 응답을 제공한다. `config/gameplay.json`의 전역 Tap/Long 구분 시간(ms)과 `config/speaki_song.json`의 액터 배치·반응값, Long start·loop·end와 Tap SFX 경로는 Stage와 독립적이며 다음 Play부터 자동 반영된다. Core는 누름·뗌을 함께 처리하는 beat 기반 Long Note 판정을 제공하며 일반 Pattern 전개는 아직 구현하지 않았다.
 

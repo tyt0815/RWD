@@ -1,5 +1,12 @@
 # 개발 로드맵
 
+## Core Stage 소유권 구조 개편
+
+- [x] Phase 1: `Core.StageSchema`, `Core.StageRepository`, `Core.ProjectManifest`로 형식·I/O·manifest 검증을 통합하고 Launcher의 Repository 하나를 Editor와 Project에 주입한다. schemaVersion 3과 `categoryId + eventId` Project Event 식별을 적용하고 정적 모듈 경계 테스트를 둔다.
+- [ ] Phase 2: Editor와 Project의 `StageRuntime` 조립을 단일 실행 권위로 통합한다.
+- [ ] Phase 3: Launcher의 동적 Project 메뉴를 구현하고 `EditorApp`의 화면 입력 책임과 `EditorSession`의 편집 상태 책임을 더 분리한다.
+- [ ] Later: 선택 Project별 실제 독립 packaging을 구현한다.
+
 ## 0. Project 초기화
 
 - [x] Core, Editor, Project 모듈 경계 설계
@@ -8,7 +15,7 @@
 - [x] Sample Project
 - [x] SampleGameplay를 자동 발견되는 `game/SampleGameplay/` Category 경계로 이동하고 Actor 책임 재구성
 - [x] 안전한 빈 Project 생성 스크립트와 템플릿 회귀 테스트
-- [x] Stage JSON 버전 2와 희소 재생 설정
+- [x] Stage JSON 버전 3, Category/Event 복합 식별자와 희소 재생 설정
 - [x] 자동 테스트와 인수인계 문서
 
 ## 1. 시간·음악과 판정 Core
@@ -26,7 +33,7 @@
 
 - [x] Project Event Category·number Property 등록 계약
 - [x] Stage JSON 검증과 로딩, sourceRoot 입출력 경계와 JSON 종류·null 보존
-- [x] 최상위 BPM, Mixtape와 Editor 설정의 schemaVersion 2 전환
+- [x] 최상위 BPM, Mixtape와 Editor 설정의 schemaVersion 3 전환
 - [ ] Pattern 참조와 파라미터 전개
 - [ ] 존재하지 않는 Pattern 오류 처리
 

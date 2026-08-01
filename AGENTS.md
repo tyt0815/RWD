@@ -24,8 +24,11 @@
 - 프로젝트별 코드와 리소스는 `projects/<projectId>/` 안에 둔다.
 - 게임플레이 노드는 공통 판정·등록 계약처럼 재사용 가능한 규칙만 Core 공개 API에 두고, 노드 정의·화면·색·사운드·연출은 해당 Project에 둔다.
 - Stage Event의 beat 순서 실행, 중간 시작 상태 복원, End와 입력 활성 상태는 `Core.StageRuntime`을 사용한다. Project에서 Event crossing과 Game Manager 실행을 다시 구현하지 않는다.
+- Stage 형식과 정규화는 `Core.StageSchema`, Stage 경로·JSON decode/encode·원자 저장은 `Core.StageRepository`, Project 매니페스트 검증은 `Core.ProjectManifest`만 소유한다. 공개 signature는 `docs/ARCHITECTURE.md`를 따른다.
+- Launcher는 `Core.StageRepository` 인스턴스 하나를 조립해 Editor와 Project에 `stageRepository`로 주입한다. Editor와 Project가 별도 Repository나 Stage I/O 절차를 만들지 않는다.
+- `projectEvent`는 Project 범위에서 고유한 `categoryId`와 해당 Category 범위에서 고유한 `eventId` 조합으로 식별하고 실행한다.
 - Project 기능은 `projects/<projectId>/game/<CategoryName>/`에 Category 단위로 모으고, Event·Actor·Sprite·SFX·이동 등 해당 기능에만 필요한 구현은 Category 폴더 밖으로 흩뜨리지 않는다. `Definition.lua`와 `Runtime.lua`를 추가하면 `Core.ProjectCategories`가 자동 발견하므로 새 Category나 노드를 만들기 위해 기존 `project.lua`, 게임 진입 모듈 또는 다른 Category를 수정하지 않는다. 게임 진입 모듈은 Core 런타임과 Category Host 조립만 소유한다.
-- Project는 Stage JSON을 직접 decode·검증하거나 Event 실행 시점을 계산하지 않는다. Stage 형식·검증·실행 규칙은 Core 공개 API가 소유하고 Launcher·Editor는 Project 경로와 파일 접근을 조립한다.
+- Project는 Stage JSON을 직접 decode·검증하거나 경로를 계산하지 않는다. Stage 실행 규칙은 Core 공개 API를 사용하고 Launcher가 Project 경로와 파일 접근을 조립한다.
 - Project 기능을 구현하기 전에 Core 공개 API를 검색하고, 기존 Core 인스턴스 조합으로 해결할지 공통 기능을 Core에 추가할지 판단한다. Lua에서는 상속보다 조합을 우선하며 선택 근거가 불명확하면 구현 전에 질문한다.
 - 공통 기능을 Core에 추가하면 공개 API와 Core 테스트를 함께 변경하고, 새 Project 제작자가 알아야 하는 경우 Sample 참고 주석과 `docs/PROJECT_NODES_TUTORIAL.md`도 갱신한다.
 

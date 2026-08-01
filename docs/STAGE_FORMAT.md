@@ -1,10 +1,10 @@
 # Stage JSON 형식
 
-## schemaVersion 2 최소 예시
+## schemaVersion 3 최소 예시
 
 ```json
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "projectId": "sample",
   "stageId": "tutorial",
   "name": "Tutorial",
@@ -19,7 +19,7 @@ Mixtape와 Editor 설정이 모두 기본값이면 `mixtape`와 `editorSettings`
 
 ```json
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "projectId": "sample",
   "stageId": "tutorial-remix",
   "name": "Tutorial Remix",
@@ -72,6 +72,17 @@ Mixtape와 Editor 설정이 모두 기본값이면 `mixtape`와 `editorSettings`
       "startBeat": 32,
       "track": 2,
       "enabled": false
+    },
+    {
+      "id": "event-006",
+      "type": "projectEvent",
+      "categoryId": "sampleGameplay",
+      "eventId": "cueResponse",
+      "startBeat": 40,
+      "track": 2,
+      "params": {
+        "responseDelayBeats": 4
+      }
     }
   ]
 }
@@ -79,7 +90,7 @@ Mixtape와 Editor 설정이 모두 기본값이면 `mixtape`와 `editorSettings`
 
 ## 상위 필드
 
-- `schemaVersion`: 정수 `2`만 지원한다.
+- `schemaVersion`: 정수 `3`만 지원한다.
 - `projectId`: Stage를 해석할 Project의 안전한 ID다.
 - `stageId`: Project 안에서 고유한 안전한 ID다.
 - `name`: 비어 있지 않은 표시 이름이다.
@@ -123,7 +134,7 @@ Mixtape와 Editor 설정이 모두 기본값이면 `mixtape`와 `editorSettings`
 
 `onsetThreshold`는 Beat 0 Offset Auto 분석에서 10ms RMS가 이 값보다 큰 연속 구간을 소리로 판정한다. 기본값 `0.01`은 작은 압축 노이즈를 제외하는 일반 권장값이며, `0`을 명시하면 완전한 무음만 제외한다.
 
-기본값과 같은 선택 필드는 저장할 때 제거한다. 그 결과 비어 있는 `mixtape` 또는 `editorSettings`도 제거된다. 예를 들어 wheel zoom으로 Scale만 `1.25`가 되면 `editorSettings`에는 `scale` 하나만 남는다. 이 기본값은 schemaVersion 2 계약이므로 의미를 바꾸려면 새 schemaVersion과 변환 정책이 필요하다.
+기본값과 같은 선택 필드는 저장할 때 제거한다. 그 결과 비어 있는 `mixtape` 또는 `editorSettings`도 제거된다. 예를 들어 wheel zoom으로 Scale만 `1.25`가 되면 `editorSettings`에는 `scale` 하나만 남는다. `editorSettings`는 설정 전체가 아니라 기본값과 다른 필드만 가진 희소 객체다. 이 기본값은 schemaVersion 3 계약이므로 의미를 바꾸려면 새 schemaVersion과 변환 정책이 필요하다.
 
 `mixtape`와 `editorSettings` 안의 정의되지 않은 필드는 거부한다.
 
@@ -134,13 +145,13 @@ Mixtape와 Editor 설정이 모두 기본값이면 `mixtape`와 `editorSettings`
 - `pattern`: 비어 있지 않은 `patternId`와 선택적 JSON 객체 `params`를 사용한다. `params`를 생략하면 빈 객체로 취급하며 내부 JSON null은 저장 왕복에서 보존한다. `params` 자체의 null이나 배열은 허용하지 않는다.
 - `tapNote`: 공통 필드만 사용한다.
 - `longNote`: 0보다 큰 유한 `durationBeats`를 추가한다.
-- `projectEvent`: 필수 `track`, 비어 있지 않은 `eventId`와 객체 `params`를 사용한다. `eventId`와 params의 구체적 계약은 현재 Project의 `eventCategories` 등록을 따른다. 연결형 노드는 가운데 표시 영역을 겹칠 수 있지만 등록된 시작·끝 충돌 영역은 다른 노드와 겹칠 수 없다. Project geometry가 `startEndpointWidthProperty` 또는 `endEndpointWidthProperty`를 등록하면 해당 params 값이 가이드 또는 응답 블록의 표시·충돌 beat 폭이 된다.
+- `projectEvent`: 필수 `track`, 비어 있지 않은 `categoryId`·`eventId`와 JSON 객체 `params`를 사용한다. Category ID는 Project 범위에서 고유하고 Event ID는 해당 Category 범위에서 고유하므로 다른 Category는 같은 Event ID를 사용할 수 있다. 두 ID와 params의 구체적 계약은 현재 Project의 `eventCategories` 등록을 따른다. `params`를 생략하거나 JSON null·배열로 저장하면 오류이며, 프로퍼티가 없는 Event도 `{}` 객체를 사용한다. 연결형 노드는 가운데 표시 영역을 겹칠 수 있지만 등록된 시작·끝 충돌 영역은 다른 노드와 겹칠 수 없다. Project geometry가 `startEndpointWidthProperty` 또는 `endEndpointWidthProperty`를 등록하면 해당 params 값이 가이드 또는 응답 블록의 표시·충돌 beat 폭이 된다.
 - `end`: 필수 `track`을 사용하며 Stage 전체에 최대 하나만 존재할 수 있다. 에디터 재생이 이 beat에 도달하면 재생을 끝낸다. End가 없고 Music이 설정된 Stage는 Music duration에 도달할 때 자동 종료한다.
 - `setInputEnabled`: 필수 `track`과 boolean `enabled`를 사용한다. 플레이어 입력 상태는 기본 `true`이며 재생 중 이 값으로 설정된다. 새 노드의 `enabled` 기본값은 `false`다.
 
 Timeline 영역 판정에서 `end`와 `setInputEnabled`는 beat 길이와 무관한 관리 노드로 `0.25 beat` 폭을 사용한다. 노드의 왼쪽이 `startBeat` 선에 놓인다. 게임플레이 노드는 명시된 `widthBeats` 또는 `durationBeats`를 사용하도록 확장하며 길이가 없으면 기본 `1 beat`다. 같은 Track에서 `[startBeat, startBeat + width)` 반개구간이 겹치면 충돌하므로 한 노드의 끝과 다른 노드의 시작이 같은 경우는 허용한다.
 
-Project Event 등록 계약은 `Core.ProjectEvents`가 Project manifest에서 검증한다. StageDocument는 Project와 독립적으로 projectEvent의 공통 구조를 검증하고, Editor가 배치·프로퍼티 편집 시 현재 Project 정의와 params 범위를 검증한다. `patternId` 등록 검증은 아직 구현하지 않았다.
+Project Event 등록 구조는 `Core.ProjectManifest`가 검증한다. `Core.ProjectEvents`는 검증된 manifest에서 `categoryId + eventId`로 정의를 조회하고 params 기본값·범위를 처리한다. `Core.StageSchema`는 Project와 독립적으로 projectEvent의 공통 구조를 검증하고, Editor가 배치·프로퍼티 편집 시 현재 Project 정의와 params 범위를 검증한다. `patternId` 등록 검증은 아직 구현하지 않았다.
 
 ## 파일 경계와 검증
 
@@ -154,8 +165,8 @@ Stage 파일 이름은 `<stageId>.json`이며 경로는 `projects/<projectId>/st
 - Event ID 중복, type별 필수 필드와 수치 범위
 - JSON의 `projectId`와 선택 Project, `stageId`와 파일 이름의 일치
 
-지원하지 않는 schemaVersion과 잘못된 필드는 가능한 JSON 경로를 포함한 오류로 거부한다. 로드 실패는 현재 편집 중인 Stage와 재생 상태를 바꾸지 않는다.
+지원하지 않는 schemaVersion과 잘못된 필드는 가능한 JSON 경로를 포함한 오류로 거부한다. `Core.StageSchema.validate/normalize`는 이 경우 `nil, message, "INVALID_STAGE"`를 반환한다. `Core.StageRepository`는 JSON 문법 오류에 `DECODE_FAILED`, 파일 읽기 실패에 `READ_FAILED`, 저장 실패에 `WRITE_FAILED`, 없는 Stage에 `NOT_FOUND`, 덮어쓰기 없는 중복 저장에 `STAGE_EXISTS`를 반환한다. 로드 실패는 현재 편집 중인 Stage와 재생 상태를 바꾸지 않는다.
 
 ## 버전 호환 정책
 
-현재 로더는 버전 1 Stage를 자동 변환하지 않고 거부한다. 기존 파일은 schemaVersion 2의 최상위 `bpm`, 선택적 희소 설정과 `events` 구조로 명시적으로 변환해야 한다. `autoPlay`, `trackCount`, `previewAspectWidth`, `previewAspectHeight`, `track`, `end`, `setInputEnabled`, `projectEvent`는 기존 필드 의미를 바꾸지 않고 미구현 상태였던 Timeline Event 계약을 확장하므로 schemaVersion 2에 추가했다. 이후 기존 필드 의미를 호환되지 않게 바꾸는 경우에는 schemaVersion을 증가시키고 별도 변환 정책과 함께 도입한다.
+현재 로더는 schemaVersion 3만 허용하며 버전 2 Stage를 자동 변환하지 않는다. 기존 v2 파일은 `schemaVersion`을 3으로 올리고 모든 `projectEvent`에 소유 Category의 `categoryId`를 추가한 뒤 명시적으로 저장해야 한다. 이후 기존 필드 의미를 호환되지 않게 바꾸는 경우에는 schemaVersion을 증가시키고 별도 변환 정책과 함께 도입한다.
