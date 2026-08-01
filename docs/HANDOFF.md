@@ -23,7 +23,7 @@ Project Event는 `categoryId + eventId` 조합으로 저장·조회·dispatch한
 - 브리프의 exact stale 검색은 12개 false positive를 출력한다. 합성 위반 fixture 2줄, v2 거부 동작을 검증하는 negative fixture 3줄, params 검증 API를 더 짧은 이전 API 이름으로 접두사 매치한 7줄이다. 현재 human docs와 production source를 대상으로 의미를 보존한 정밀 검색은 stale 소유권·schema 표현 0건이다.
 - `git diff --check` → 출력 없음.
 - GUI smoke 첫 시도는 PowerShell 함수인 `love`를 `Start-Process` 실행 파일로 찾지 못해 실패했다. 실제 경로 `C:\Program Files\LOVE\lovec.exe .`를 숨김 실행한 재시도는 3초 뒤 `HasExited=False`, `Responding=True`였고 확인 후 시작한 프로세스만 종료했다.
-- 이 도구 환경은 네이티브 창에 키·마우스 입력을 보내고 화면 결과를 객관적으로 판정할 수 없어 Editor 열기, Sample Stage Open, Event 배치·drag·Property·Undo/Redo·clipboard, Save As overwrite Dialog, Play/Pause preview, Rhythm Dotgeo Stage 선택을 사람이 직접 확인하지 못했다. 대응 자동 테스트는 Property/Event 순서, Stage Open, 배치·drag, clipboard·Undo/Redo, Save As 충돌 overwrite, Play/Pause, Launcher Repository 동일성, `2` 키 진입과 Rhythm Stage 목록·클릭 실행을 포함하며 이번 suite에서 신규 실패가 없다.
+- 사용자가 표시된 LÖVE 앱을 직접 조작해 Editor 열기, Sample `test` Stage Open, Event 배치·drag·Property 변경·Undo/Redo, Save As overwrite Dialog, Play/Pause preview, Launcher 복귀와 Rhythm Dotgeo Stage 실행이 모두 정상임을 확인했다. 대응 자동 테스트도 Property/Event 순서, Stage Open, 배치·drag, clipboard·Undo/Redo, Save As 충돌 overwrite, Play/Pause, Launcher Repository 동일성, `2` 키 진입과 Rhythm Stage 목록·클릭 실행을 포함하며 이번 suite에서 신규 실패가 없다.
 
 ## 다음 작업
 
