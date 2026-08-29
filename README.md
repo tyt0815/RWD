@@ -1,99 +1,246 @@
 # RWD
 
-RWD는 LÖVE2D 11.5로 여러 개의 리듬게임을 제작하기 위한 공통 코어, Stage 에디터와 게임 프로젝트 모음이다. 게임 화면에는 노트를 직접 표시하지 않으며, 플레이어는 사운드와 시각적 신호에 맞춰 입력한다.
+**하나의 Rhythm Game Core와 Timeline Stage Editor로 여러 독립 리듬게임 Project를 제작하기 위한 LÖVE2D 기반 제작 시스템**
 
-## 현재 상태
+`LÖVE2D 11.5` · `Lua` · `JSON` · `Stage Editor` · `Data-Driven` · `AI-assisted Development`
 
-공통 Launcher에서 Stage 에디터, Sample Project와 Rhythm Dotgeo Project를 열 수 있다. Rhythm Dotgeo는 열릴 때 Stage 목록을 표시하고 항목을 클릭하면 Stage 음악·beat와 공통 관리 노드 실행을 시작한다. 에디터는 Stage JSON 버전 3을 만들고 열고 저장하며, Project 음악과 고정 BPM Transport를 Project Canvas에 맞춰 미리 재생한다. Project Event는 Category와 Event ID 조합으로 저장한다. Editor 전용 Playback Rate, Metronome, Timeline Scale, Snap, Onset Threshold와 preview 화면 비율을 Stage에 희소 저장한다.
+![RWD Stage Editor에서 Rhythm Dotgeo Project를 미리 실행하는 화면](docs/Images/editor.png)
 
-Core StageRuntime이 End와 Set Input Enabled, Project Event의 beat 순서 실행과 시작 위치 상태 복원을 공통 처리한다. `Core.ProjectConfig`는 Stage와 독립적인 Project JSON 설정을 Play마다 다시 읽을 수 있게 한다. ProjectCategories는 `game/<CategoryName>/Definition.lua`와 `Runtime.lua`를 자동 발견해 기존 manifest와 Game 수정 없이 Editor 등록과 런타임 실행을 연결한다. Game Manager의 End와 Set Input Enabled Event를 편집할 수 있다. Sample Project는 Tap 판정 예제를 제공한다. Rhythm Dotgeo의 `스피키송` Category는 배경·가이드·좌우 반전 플레이어 소환, Cue/Response 역할 전환에 맞춘 자동 Turn, Tap 큐 응답과 길이를 설정하는 Long Note 큐 응답을 제공한다. `config/gameplay.json`의 전역 Tap/Long 구분 시간(ms)과 `config/speaki_song.json`의 액터 배치·반응값, Long start·loop·end와 Tap SFX 경로는 Stage와 독립적이며 다음 Play부터 자동 반영된다. Core는 누름·뗌을 함께 처리하는 beat 기반 Long Note 판정을 제공하며 일반 Pattern 전개는 아직 구현하지 않았다.
+## Goal
 
-## 실행 환경
+여러 리듬게임을 만들 때 판정, 음악 재생과 Stage 실행 규칙을 게임마다 다시 구현하지 않기 위해 시작했습니다. 공통 규칙은 Core에 두고, 캐릭터·사운드·화면 연출은 각 Game Project가 독립적으로 소유합니다.
+
+Project 코드로 Event와 동작을 정의하고, Stage Editor에서 시간축과 Property를 편집한 뒤 실제 Project 화면으로 즉시 시험하는 제작 흐름을 목표로 합니다.
+
+## Architecture
+
+```mermaid
+flowchart TD
+    Launcher[Launcher<br/>모듈과 Repository 조립]
+    Editor[Stage Editor<br/>제작과 Preview]
+    Project[Game Project<br/>게임별 콘텐츠와 연출]
+    Core[Core Public API<br/>시간·판정·Stage·공통 UI 동작]
+
+    Launcher --> Editor
+    Launcher --> Project
+    Launcher --> Core
+    Editor --> Core
+    Project --> Core
+    Editor -. Manifest·Event 정의와 Asset 조회 .-> Project
+```
+
+### Core
+
+판정, 음악 시간축, Stage 형식·저장·실행과 스타일 독립적인 UI 동작을 공개 API로 제공합니다. Core는 Editor와 구체적인 Game Project를 알지 못합니다.
+
+### Stage Editor
+
+Project가 등록한 Event를 Timeline에 배치하고 Stage 설정을 편집합니다. 같은 화면에서 음악, Metronome과 Project Canvas를 함께 재생해 결과를 확인합니다.
+
+### Game Project
+
+Event 정의와 Actor, Sprite, SFX, UI, 애니메이션을 소유합니다. Core를 사용하지만 Editor에는 의존하지 않으므로 게임별 코드와 리소스를 Project 안에 유지할 수 있습니다.
+
+### Launcher
+
+`StageRepository` 하나를 구성해 Editor, Editor Preview와 독립 실행 Project에 주입합니다. 게임 규칙이나 Editor 기능은 구현하지 않습니다.
+
+이 경계는 **공통 실행 규칙과 게임별 표현을 분리하면서 Editor Preview와 실제 게임의 동작 차이를 줄이기 위해** 선택했습니다. 금지된 모듈 의존 방향은 자동 테스트로 검사합니다.
+
+## 제작 Workflow
+
+```mermaid
+flowchart LR
+    Definition[Project Code<br/>Event와 동작 정의]
+    Editor[Stage Editor<br/>Event 배치·Property 편집]
+    JSON[Stage JSON<br/>categoryId·eventId<br/>startBeat·track·params]
+    Runtime[Core StageRuntime<br/>beat 순서 실행·상태 복원]
+    Category[Project Category Runtime]
+    Output[Actor·SFX·Animation·UI]
+
+    Definition --> Editor
+    Editor --> JSON
+    JSON --> Runtime
+    Runtime --> Category
+    Category --> Output
+```
+
+**게임 동작은 Project 코드가 소유합니다.** Stage JSON에는 게임 로직 전체가 아니라 Editor에서 정한 Event의 시간·Track·Property를 저장합니다.
+
+현재 Project Event는 다음처럼 Category와 Event의 조합으로 저장됩니다.
+
+```json
+{
+  "type": "projectEvent",
+  "categoryId": "speakiSong",
+  "eventId": "heue",
+  "startBeat": 8,
+  "track": 2,
+  "params": {
+    "responseDelayBeats": 8,
+    "longNoteLengthBeats": 1
+  }
+}
+```
+
+서로 다른 Category는 같은 Event ID를 사용할 수 있습니다. 일반 Pattern 참조와 Tap/Long 일정 전개는 아직 구현되지 않았으며, 현재 제작 흐름의 중심은 Project Event입니다.
+
+## My Role / AI-assisted Development
+
+이 프로젝트는 AI Agent를 코드 자동완성에만 사용한 것이 아니라, 요구사항과 제작 Workflow를 정의하고 Agent와 설계·구현·수정을 반복하는 방식으로 개발했습니다.
+
+### My Role
+
+- 화면에 노트를 표시하지 않는 Cue/Response 게임 방향과 Tap/Long 입력 모델 정의
+- Core / Editor / Project 책임 분리의 제품 방향 결정
+- Stage JSON은 배치·설정, Project 코드는 게임 동작을 소유하도록 책임 경계 결정
+- Timeline, Snap, Playback, Preview와 Property 편집 UX 요구사항 설계
+- Project Category 단위 확장과 Project별 독립 리소스 방향 결정
+- 실제 실행·청취를 통한 Metronome, Pause/Play, Tap/Long 분류와 SFX 구조 수정
+- 구현 결과 확인과 후속 구조 개선 우선순위 결정
+
+### AI Agent Contribution
+
+- Codex와 Pi Agent를 이용한 코드 구현과 반복 수정
+- 세부 클래스·파일 구조 및 일부 모듈 경계 대안 제안
+- 음악 동기화, 입력 처리, 저장과 UI 상태 등 저수준 구현
+- 자동 테스트 작성·실행, 코드 리뷰와 회귀 문제 보완
+- 설계·작업 계획과 기술 문서 초안 작성
+
+구현은 Codex와 Pi Agent를 적극 활용했으며, 현재 주요 실행 경로를 직접 분석하고 주석화하며 코드 이해 범위를 넓히고 있습니다.
+
+## Stage Editor
+
+### Timeline Editing
+
+- Event 배치·Snap·다중 선택과 그룹 이동
+- Property와 상대 위치를 보존하는 Copy / Cut / Paste, Undo / Redo
+- Cursor 기준 Zoom·Pan과 실제 beat 폭 기반 충돌 Preview
+
+### Playback & Preview
+
+- 편집 기준선과 실제 재생 위치선 분리
+- Music Offset·Metronome·Playback Rate를 이용한 구간 테스트
+- 선택한 기준 beat부터 실제 Game Project 화면 실시간 Preview
+
+### Stage Management
+
+- Project·Stage·Music 선택과 New / Open / Save / Save As
+- schemaVersion 3 Stage 검증과 셀 기반 Property 편집
+- 오류 Modal과 충돌 Toast
+
+코드를 다시 수정하지 않고 Stage의 시간축과 Event 배치를 반복 조정하고, 같은 화면에서 실제 Project 연출을 확인할 수 있도록 구성했습니다.
+
+## Game Project Examples
+
+### Sample
+
+Core Tap 판정, Category 등록과 Cue/Response Event 제작 방식을 보여주는 참고 Project입니다. 새 Project 제작자가 Core와 Project의 책임 경계를 확인할 수 있도록 구성했습니다.
+
+### Rhythm Dotgeo — 스피키송
+
+같은 Core와 Editor 위에 별도 게임 규칙과 리소스를 올린 Project입니다.
+
+- Stage 선택과 독립 실행
+- Cue/Response 기반 Tap·Long Event와 실제 입력 시간(ms) 기반 분류
+- Actor, SFX와 역할 전환에 맞춘 자동 Turn
+- Project JSON 설정을 Play마다 다시 읽어 배치·반응·SFX 수정 반영
+
+Sample과 Rhythm Dotgeo는 서로 다른 콘텐츠를 가지지만 같은 Stage 형식, Core 판정과 실행 계약을 사용합니다.
+
+## 기술적으로 흥미로운 결정
+
+### 1. Stage JSON과 Project Code의 책임 분리
+
+**문제:** 게임 로직 전체를 JSON에 넣으면 복잡한 Actor·SFX 연출을 표현하기 어렵고, 모두 코드에 두면 Stage마다 타이밍을 조정하기 어렵습니다.
+
+**결정:** Project 코드가 Event 동작을 소유하고 Stage JSON은 `categoryId`, `eventId`, `startBeat`, `params`만 저장합니다.
+
+**효과:** 연출 코드를 유지한 채 Editor에서 시간축과 Property를 반복 조정할 수 있습니다.
+
+### 2. Category 폴더 자동 발견
+
+**문제:** 새 기능을 추가할 때 중앙 Registry와 Game 진입 파일을 매번 수정하면 Category 사이의 결합이 커집니다.
+
+**결정:** `game/<CategoryName>/Definition.lua`와 `Runtime.lua` 쌍을 Core가 자동 발견합니다. Definition은 Editor가 읽는 순수 등록 정보이고 Runtime은 실제 게임 실행만 담당합니다.
+
+**효과:** 기존 Category와 Game 진입 모듈을 수정하지 않고 기능 폴더 하나로 Editor 등록과 Runtime 실행을 연결할 수 있습니다.
+
+### 3. 중간 beat 시작 상태 복원
+
+**문제:** Editor에서 Stage 중간부터 재생하면 이전 Event가 만든 입력 상태나 Actor 배치가 누락될 수 있습니다.
+
+**결정:** `StageRuntime`이 시작 beat까지의 Event를 `catchUp` occurrence로 전달합니다. Project는 지속 상태는 복원하고 이미 지난 SFX 같은 일회성 연출은 생략합니다.
+
+**효과:** 전체 Stage를 처음부터 재생하지 않고도 원하는 구간을 반복 시험할 수 있습니다.
+
+## Repository Structure
+
+```text
+core/          시간·음악·판정·Stage 형식과 실행·공통 UI 동작
+editor/        Timeline 편집, Stage 관리와 Project Preview
+launcher/      Core, Editor와 Project 조립
+projects/      서로 독립적인 Sample·Rhythm Dotgeo 게임 코드와 리소스
+tests/         LÖVE 기반 Core·Editor·Project 회귀 테스트
+tests_python/  Project 생성기 테스트
+tools/         새 Project 생성 도구
+docs/          Architecture, Workflow, Stage 형식과 제작 튜토리얼
+```
+
+## Run / Test
+
+### Requirements
 
 - LÖVE2D 11.5
-- Windows PowerShell 기준 명령
-- 기본 창 해상도: 1920×1080(FHD), 최소 크기 1280×720, 비율 제한 없이 크기 조절 가능
-- 기본 UI 폰트: `assets/fonts/D2Coding-Ver1.3.3-20260725-all.ttc` 14px
+- LuaJIT / Lua 5.1 호환 환경
+- Python 3 — Project 생성기 테스트
 
-## 실행
+### Run
 
 ```powershell
 love .
 ```
 
-- `E`: 에디터 열기
-- `1`: Sample Project 열기
-- `2`: Rhythm Dotgeo Project의 Stage 선택 화면 열기
-- `Esc`: Project 화면에서 Launcher로 돌아가기, Launcher에서는 종료
+- `E`: Stage Editor
+- `1`: Sample Project
+- `2`: Rhythm Dotgeo Stage 선택 화면
+- `Esc`: Project에서 Launcher로 복귀, Launcher에서는 종료
 
-자동 테스트:
+### Test
 
 ```powershell
 love . --test
 python -m unittest discover -s tests_python -v
 ```
 
-## 새 Project 생성
+검증 결과 LÖVE test suite 339건과 Python Project 생성기 테스트 5건이 모두 통과합니다.
 
-저장소 루트에서 Project ID와 표시 이름을 지정한다.
+## Documentation
 
-```powershell
-python tools/create_project.py my-game "My Game"
-```
+- [Architecture](docs/ARCHITECTURE.md) — 현재 모듈 책임, 공개 API와 데이터 흐름
+- [Workflow](docs/WORKFLOW.md) — Project 생성부터 Stage 편집·재생까지의 제작 흐름
+- [Stage Format](docs/STAGE_FORMAT.md) — schemaVersion 3 JSON 계약
+- [Project Node Tutorial](docs/PROJECT_NODES_TUTORIAL.md) — Category와 Event 제작 방법
+- [Roadmap](docs/ROADMAP.md) — 완료·진행·보류 기능
+- [Handoff](docs/HANDOFF.md) — 현재 상태, 최신 검증과 다음 작업
 
-생성기는 `projects/my-game/` 아래에 현재 Core API 버전의 매니페스트, 최소 게임 진입 모듈, Stage와 음악·효과음·이미지 폴더를 만든다. Project ID는 소문자 영숫자로 시작하고 이후 소문자 영숫자, `_`, `-`만 사용할 수 있다. 기존 Project는 덮어쓰지 않는다.
+## Current Status / Limitations
 
-## Project 음악 배치
+### Implemented
 
-Project 음악은 `projects/<projectId>/assets/audio/music/` 또는 그 하위 폴더에, 효과음은 `assets/audio/sfx/`에 둔다. 에디터는 `music/` 아래의 `.ogg`, `.mp3`, `.wav` 파일만 재귀 검색해 Music 선택 모달에 Project 상대 경로로 표시한다. 저작권이 있는 오디오 파일은 저장소에 추가하지 않는다.
+- Core 음악 Transport와 Tap·Long 판정
+- schemaVersion 3 Stage 검증·저장과 Project Event 실행
+- Timeline 기반 Stage Editor와 Project 실시간 Preview
+- Sample 및 Rhythm Dotgeo Project 실행
+- Project Category 자동 발견과 `categoryId + eventId` dispatch
 
-## 에디터 Menu와 Properties
+### In Progress
 
-Launcher에서 `E`를 눌러 에디터를 연다. Menu는 마우스로 조작한다.
+- Editor와 Project가 각각 조립하는 StageRuntime을 단일 실행 권위로 통합
 
-- `New`: Project, Stage ID, Name과 BPM으로 빈 Stage 생성
-- `Open`: Project의 `stages/*.json` 열기
-- `Save`: 현재 `<stageId>.json` 저장
-- `Save As`: 같은 Project 안에 새 Stage ID로 저장
-- `Play`: 클릭으로 지정한 기준 beat부터 Project Canvas, 음악과 선택한 메트로놈 재생
-- `Pause`: 재생 위치 바를 숨기고 기준 beat를 유지한 채 편집 화면으로 복귀
-- `Quit`: 미저장 변경을 확인한 뒤 Launcher로 복귀
+### Planned / Deferred
 
-Stage가 수정되면 `Save*`로 표시된다. 상단 패널은 헤더 아래에 15개 행이 들어가는 고정 높이를 사용하고 Timeline은 그 아래의 남은 화면을 사용한다. Categories와 Events는 각각 독립적으로 스크롤하며 Properties와 Values는 행이 어긋나지 않도록 함께 스크롤한다. 내용이 패널을 넘을 때만 오른쪽에 얇은 스크롤바가 표시된다. `Events`에서 선택한 Property 그룹에 따라 다음 순서로 `Properties | Values`가 표시된다.
-
-- `Editor Properties`(기본 선택): Snap, Scale, Playback Rate, Auto Play, Metronome, Metronome Period, Track, Preview Aspect Width, Preview Aspect Height
-- `Mixtape Properties`: Music, Volume, Beat 0 Offset, Onset Threshold, BPM
-
-Metronome은 BPM 한 박마다 한 번 울리며, Metronome Period는 클릭 속도가 아니라 강박 반복 길이입니다. Period 4는 `강 약 약 약`, Period 5는 `강 약 약 약 약`을 반복합니다.
-
-Project, Stage, Music과 Auto Play 선택은 공통 ComboBox를 사용한다. 선택값을 클릭하면 해당 한 줄이 검색 입력으로 바뀌고 그 아래에 목록이 열리며, 타이핑으로 필터링한 뒤 마우스 또는 위·아래 방향키와 Enter로 선택한다. Escape는 열린 목록을 닫는다. Music 선택 시 Beat 0 Offset이 기본값 `0`이면 첫 소리를 자동으로 찾아 설정하며, Offset 오른쪽의 `Auto` 버튼으로 언제든 다시 분석할 수 있다. Onset Threshold는 연속된 10ms RMS 창이 설정값보다 커지는 첫 위치를 정하며 기본값 `0.01`은 작은 압축 노이즈를 건너뛴다.
-
-에디터의 Dialog 입력과 숫자 Values는 공통 텍스트 입력 동작을 사용한다. 포커스되면 값 끝에 깜빡이는 커서가 바로 표시되며, 첫 입력부터 현재 커서 위치에 이어서 입력한다. 좌우 방향키로 커서를 옮겨 중간에 입력하거나 Backspace/Delete로 삭제할 수 있다. Enter 또는 다른 영역 클릭으로 확정하고 Escape로 취소한다. 유효하지 않은 값은 Stage에 적용하지 않고 빨간 테두리로 표시한다. boolean은 클릭 즉시 바뀌며 Music은 `None`과 현재 Project 파일 목록을 제공하는 모달에서 선택한다.
-
-`Game Manager` Category에는 보라색 `End`와 청록색 `Set Input Enabled`가 있다. 두 관리 노드는 beat 길이와 무관하므로 왼쪽이 beat 선에 맞는 `0.25 beat` 폭을 사용한다. Event 행을 선택하고 Timeline 본문을 우클릭하면 커서가 들어간 Snap 박스의 시작 beat와 Track에 노드가 배치된다. 해당 beat 영역에 다른 노드가 있으면 배치하지 않고 화면 우상단에 3초간 에러 토스트를 표시한다. 토스트는 최신순으로 최대 5개까지 쌓이며 각각 독립적으로 사라진다. 노드 이름은 1px 어두운 윤곽선과 함께 박스 내부에 표시되고, 폭을 넘는 부분은 잘리며 마우스를 올리면 윤곽선을 유지한 전체 이름이 표시된다. 노드를 좌클릭하거나 드래그하면 해당 노드가 흰색 선택 상태가 되고, `Ctrl+클릭`으로 여러 노드를 선택·해제할 수 있다. 빈 배경 drag는 선택 사각형과 일부라도 겹친 노드를 한꺼번에 선택하며 `Ctrl+drag`는 기존 선택에 추가한다. 선택된 노드 하나를 drag하면 전체 선택이 간격을 유지한 채 함께 움직인다. 이동 preview는 반투명 흰색이며 가변 beat 폭 영역이 다른 노드와 겹치면 충돌 양쪽을 빨간색으로 표시하고, 이 상태로 놓으면 원래 위치로 돌아가고 같은 에러 토스트를 표시한다. `Delete`는 선택된 노드를 모두 삭제한다. `Ctrl+C`와 `Ctrl+X`는 선택 노드를 모든 프로퍼티와 상대 beat·Track 간격을 포함해 복사하거나 잘라내고, `Ctrl+V`는 묶음의 왼쪽 위 노드를 Timeline 본문의 현재 마우스 Snap 위치에 맞춰 새 ID로 붙여넣는다. 충돌하거나 Track 범위를 벗어나면 전체 붙여넣기를 취소한다. `Ctrl+Z`는 편집을 되돌리고 `Ctrl+Shift+Z`는 다시 실행하며, 되돌린 뒤 새로 편집하면 기존 redo 이력은 제거된다. `Set Input Enabled` Event를 선택하면 Properties/Values에서 새 노드의 `Enabled` 기본값을 정할 수 있고, 배치된 노드를 더블클릭하면 노드별 값을 다시 편집할 수 있다. 입력은 기본적으로 활성화되며 재생 중 이 Event 값으로 바뀐다. `End`는 Stage에 하나만 둘 수 있고 두 번째 배치는 에러 토스트로 거부된다. `End`에 도달하면 에디터 재생이 끝나며, End가 없는 Stage는 Music이 끝나는 순간 자동 종료되고 정보 토스트를 표시한다. Music도 End도 없으면 기존처럼 계속 재생된다.
-
-Timeline 위에 마우스를 두고 wheel을 돌리면 커서가 가리키는 beat를 유지한 채 Scale이 `0.25~8` 범위에서 바뀐다. Timeline은 왼쪽 첫 칸을 비워 둔 뒤 그 오른쪽 경계선부터 beat를 배치하며, 번호는 경계선 중앙에 현재 Metronome Period 간격으로 표시된다. 일시정지 상태에서는 번호가 있는 Timeline 상단을 좌클릭하거나 드래그해 Snap 간격으로 주황색 기준 바를 옮길 수 있다. Play 중에는 기준 바를 유지한 채 하늘색 재생 위치 바가 별도로 나타나 시간에 따라 이동한다. Pause하면 재생 위치 바가 사라지고, 다음 Play는 일시정지 위치가 아니라 기준 바에서 다시 시작한다. 드래그 중 좌우 끝에 머물면 보이는 구간이 자동 이동하며 마우스와 기준 바의 수평 거리가 클수록 빨라진다. Timeline 안을 마우스 중간 버튼으로 드래그하면 보이는 구간이 이동한다. `F`는 Play/Pause를 전환하고 `Ctrl+S`는 저장하며, `Ctrl+Z`와 `Ctrl+Shift+Z`는 Undo/Redo, `R`은 재생을 멈춘 뒤 기준 beat와 Timeline 시작 위치를 0으로 되돌린다. Play 중에도 zoom과 구간 이동을 사용할 수 있다. Music이 없어도 Play/Pause와 Project preview는 동작한다. Preview는 기본 `16:9`이며 Preview Aspect Width와 Height로 정한 비율을 유지한 채 Properties·Values 영역 중앙에 최대 크기로 표시된다. 음악 decode 또는 preview 시작이 실패하면 Transport, Metronome과 TestPlayer를 모두 정지하고 오류 모달을 표시한다. Auto Play 기본값은 `None`이며 `Good`, `Bad`, `Miss`를 선택하면 Play 중 Project가 해당 판정을 자동으로 발생시킨다.
-
-## 구조
-
-```text
-core/       공통 시간·음악·리듬게임과 스타일 독립 UI API
-editor/     Stage 에디터와 Editor 전용 재생 도구
-launcher/   개발용 모드 및 프로젝트 선택
-projects/       서로 독립적인 게임 프로젝트
-tools/          Project 생성 등 개발용 도구
-tests/          외부 프레임워크 없는 LÖVE 자동 테스트
-tests_python/   개발용 Python 도구 테스트
-docs/           아키텍처, 제작 흐름, Stage 형식, 로드맵, 인수인계
-```
-
-## 제작 방향
-
-1. 프로젝트가 코드로 Pattern과 타임라인 Event를 정의한다.
-2. 에디터가 프로젝트의 Categories와 Events를 표시한다.
-3. 제작자가 Event 참조를 박자 기반 타임라인에 배치한다.
-4. 에디터가 배치와 재생 설정을 Stage JSON으로 저장한다.
-5. 런타임이 Pattern을 Tap Note와 Long Note 일정으로 전개한다.
-6. 코어가 입력을 판정하고 프로젝트가 결과를 사운드·화면 연출로 표현한다.
-
-자세한 내용은 `docs/ARCHITECTURE.md`, `docs/WORKFLOW.md`, `docs/STAGE_FORMAT.md`를 참고한다. 새 Project 게임플레이 노드 제작은 `docs/PROJECT_NODES_TUTORIAL.md`에 설명되어 있다. 새 세션에서는 `docs/HANDOFF.md`를 먼저 확인한다.
+- 일반 Pattern 참조와 Tap/Long 일정 전개
+- Launcher의 동적 Project 메뉴
+- EditorApp과 EditorSession 책임 추가 분리
+- 선택 Project별 독립 Packaging

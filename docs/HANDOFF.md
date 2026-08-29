@@ -4,6 +4,10 @@
 
 Core Stage 소유권 구조 개편 Phase 1이 완료되었다. `require("core")`는 API version 2와 함께 `StageSchema`, `StageRepository`, `ProjectManifest`를 공개한다. Stage 형식·정규화는 `StageSchema`, 경로·JSON decode/encode·원자 저장은 `StageRepository`, Project 매니페스트 구조와 Core API 호환 검증은 `ProjectManifest`가 담당한다.
 
+코드 분석용 주석 작업은 첫 단계로 `main.lua`에만 적용했다. 동작을 바꾸지 않고 LÖVE 생명주기, 앱 위임 구조와 Lua의 local·nil·table·ipairs·require·다중 반환·xpcall·논리 연산·콜론 호출 문법을 설명한다.
+
+루트 `README.md`는 채용 포트폴리오 랜딩 페이지로 재구성했다. Editor 스크린샷, Core·Editor·Project 구조와 제작 Workflow, 현재 동작 범위, 사용자와 AI Agent의 역할 구분, 알려진 한계를 앞에서부터 빠르게 확인할 수 있으며 세부 계약은 기존 `docs/` 문서로 연결한다.
+
 Launcher는 `NativeFileSystem`, `STAGE_PATHS`, `vendor.dkjson`으로 StageRepository 인스턴스 하나를 만들고 Editor, Editor preview Project와 독립 Project에 주입한다. Editor의 `StageDocument`는 schemaVersion 3 편집 snapshot, dirty 상태와 mutation만 소유한다. Project는 `require("core")` 공개 API와 주입된 Repository를 사용하며 Editor Stage 내부 모듈, JSON codec이나 Stage 경로 계산을 직접 사용하지 않는다.
 
 Project Event는 `categoryId + eventId` 조합으로 저장·조회·dispatch한다. Category ID는 Project 범위에서 고유하고 Event ID는 Category 범위에서 고유하므로 서로 다른 Category가 같은 Event ID를 사용할 수 있다. 정적 `ModuleBoundaryTest`가 Core·Editor·Launcher·Project의 금지 require를 실제 소스 트리에서 검사한다.
@@ -12,10 +16,17 @@ Project Event는 `categoryId + eventId` 조합으로 저장·조회·dispatch한
 
 ## 알려진 실패
 
-전체 LÖVE suite의 기존 Metronome 6건은 구현의 amplitude·강박 선택과 `tests/MetronomePlaybackTest.lua` 기대값 불일치로 계속 실패하며 이번 Stage 소유권 작업 범위 밖이다.
+현재 알려진 자동 테스트 실패는 없다.
 
 ## 최신 검증
 
+- 포트폴리오 README에서 제품 상태와 설계 효과를 분리하고 최신 테스트 결과를 반영한 뒤 목차·링크·사실 표현 검사 → 성공.
+- RED: `C:\Program Files\LOVE\lovec.exe . --test` → Metronome fixture가 이전 amplitude `0.35`를 가정해 6건 실패 재현.
+- GREEN: fixture amplitude를 제품 정책 `1.0`에 맞춘 뒤 `C:\Program Files\LOVE\lovec.exe . --test` → `PASS: 339 tests`.
+- `python -m unittest discover -s tests_python -v` → `Ran 5 tests`, `OK`.
+- `git diff --check` → 출력 없음.
+- 코드 분석용 `main.lua` 주석 추가 후 `C:\Program Files\LOVE\lovec.exe . --test` → 신규 실패 없이 기존 Metronome 6건만 실패.
+- `git diff --check` → 출력 없음.
 - TDD RED 1: `isFile`이 `(nil, "stat denied")`를 반환하는 목록 테스트를 추가하자 `love . --test`가 기존 6건 외 신규 1건을 `expected: nil`, `actual: table`로 실패했다.
 - TDD GREEN 1: `listStages`가 해당 오류를 `READ_FAILED`로 전달하도록 수정한 뒤 신규 실패가 사라지고 기존 Metronome 6건만 남았다.
 - TDD RED 2: `addEvents({ json.null })` 회귀 테스트를 추가하자 sentinel ID가 `nil` 대신 `event-001`로 변이되어 기존 6건 외 신규 1건이 실패했다. 실패 뒤 테스트가 sentinel을 원복해 전역 fixture 오염은 남기지 않았다.
@@ -30,4 +41,6 @@ Project Event는 `categoryId + eventId` 조합으로 저장·조회·dispatch한
 
 ## 다음 작업
 
-Phase 2에서 Editor와 Project가 각각 조립하는 `StageRuntime`을 단일 실행 권위로 통합한다. Phase 3의 동적 Launcher Project 메뉴와 EditorApp/EditorSession 책임 분리, Project별 packaging은 아직 현재 구현이 아니다.
+코드 분석용 주석의 다음 순서는 `launcher/Launcher.lua`, `launcher/ProjectLoader.lua`의 Launcher와 Project 로딩 흐름이다. 사용자가 현재 `main.lua`를 읽고 이해한 뒤 다음 단계로 진행한다.
+
+기능 개발은 Phase 2에서 Editor와 Project가 각각 조립하는 `StageRuntime`을 단일 실행 권위로 통합한다. Phase 3의 동적 Launcher Project 메뉴와 EditorApp/EditorSession 책임 분리, Project별 packaging은 아직 현재 구현이 아니다.

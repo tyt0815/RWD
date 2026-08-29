@@ -65,7 +65,7 @@
 - [x] 기준 바와 재생 위치 바 분리, 기준 beat 재시작, 오류 rollback과 자동 playhead 추적
 - [x] Editor 전용 Playback Rate와 Metronome
 - [x] None·Good·Bad·Miss Project 판정 Auto Play
-- [x] 고정 메모리 동적 BPM beat 클릭과 Metronome Period 강박 그룹
+- [x] 고정 메모리 동적 BPM beat 클릭, Metronome Period 강박 그룹과 amplitude 1.0 회귀 테스트 동기화
 - [x] Music 없음, Offset, duration 종료와 희소 설정 통합 경로
 - [x] Core StageRuntime 기반 Game Manager End·Set Input Enabled와 Project Event 공통 전개
 - [x] End 없는 Music 자동 종료
@@ -82,3 +82,16 @@
 - [ ] 선택 Project와 Core만 포함하는 독립 패키징
 - [ ] Core API 호환 버전 검사 확장
 - [ ] 버전형 Core·Editor 패키지 분리 검토
+
+## 코드 분석용 주석
+
+- [x] `main.lua`의 LÖVE 생명주기와 Lua 입문 주석
+- [ ] Launcher와 Project 로딩 흐름
+- [ ] Sample Project와 Core StageRuntime 실행 흐름
+- [ ] Core 시간·음악과 판정 흐름
+- [ ] Stage 데이터와 Editor 흐름
+
+## 포트폴리오 문서
+
+- [x] Editor 화면, Architecture, 제작 Workflow, 역할 구분과 현재 한계를 중심으로 README 랜딩 페이지 재구성·압축
+- [ ] README에 데모 플레이 영상 추가

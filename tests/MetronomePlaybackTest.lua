@@ -1,6 +1,6 @@
 local SAMPLE_RATE = 44100
 local CLICK_SECONDS = 0.012
-local AMPLITUDE = 0.35
+local AMPLITUDE = 1
 local CLICK_SAMPLE_COUNT = math.floor(CLICK_SECONDS * SAMPLE_RATE)
 
 local function expectedClickSample(frequency, offset)
