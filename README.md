@@ -2,7 +2,11 @@
 
 **하나의 Rhythm Game Core와 Timeline Stage Editor로 여러 독립 리듬게임 Project를 제작하기 위한 LÖVE2D 기반 제작 시스템**
 
+`2026.07–2026.08` · `개인 개발 1인` · 담당: 제품 규칙·구조 설계·검증 · `AI-assisted Development`
+
 `LÖVE2D 11.5` · `Lua` · `JSON` · `Stage Editor` · `Data-Driven` · `AI-assisted Development`
+
+[Public Repository](https://github.com/tyt0815/RWD)
 
 ![RWD Stage Editor에서 Rhythm Dotgeo Project를 미리 실행하는 화면](docs/Images/editor.png)
 
@@ -43,7 +47,7 @@ Event 정의와 Actor, Sprite, SFX, UI, 애니메이션을 소유합니다. Core
 
 ### Launcher
 
-`StageRepository` 하나를 구성해 Editor, Editor Preview와 독립 실행 Project에 주입합니다. 게임 규칙이나 Editor 기능은 구현하지 않습니다.
+Launcher에서 하나의 `StageRepository`를 생성해 Editor, Preview와 독립 실행 Project가 같은 Stage 저장·불러오기 경로를 사용하도록 연결합니다. Launcher는 게임 규칙이나 Editor 기능을 구현하지 않습니다.
 
 이 경계는 **공통 실행 규칙과 게임별 표현을 분리하면서 Editor Preview와 실제 게임의 동작 차이를 줄이기 위해** 선택했습니다. 금지된 모듈 의존 방향은 자동 테스트로 검사합니다.
 
@@ -87,27 +91,35 @@ flowchart LR
 
 ## My Role / AI-assisted Development
 
-이 프로젝트는 AI Agent를 코드 자동완성에만 사용한 것이 아니라, 요구사항과 제작 Workflow를 정의하고 Agent와 설계·구현·수정을 반복하는 방식으로 개발했습니다.
+이 프로젝트는 개인 개발로 진행했으며, 제품의 규칙과 제작 Workflow는 직접 결정하고 AI Agent는 설계와 구현을 보조했습니다. 구현 결과는 직접 실행·청취·수정하며 확인했습니다.
 
-### My Role
+### 직접 정의한 것
 
 - 화면에 노트를 표시하지 않는 Cue/Response 게임 방향과 Tap/Long 입력 모델 정의
 - Core / Editor / Project 책임 분리의 제품 방향 결정
 - Stage JSON은 배치·설정, Project 코드는 게임 동작을 소유하도록 책임 경계 결정
 - Timeline, Snap, Playback, Preview와 Property 편집 UX 요구사항 설계
 - Project Category 단위 확장과 Project별 독립 리소스 방향 결정
-- 실제 실행·청취를 통한 Metronome, Pause/Play, Tap/Long 분류와 SFX 구조 수정
 - 구현 결과 확인과 후속 구조 개선 우선순위 결정
 
-### AI Agent Contribution
+### AI가 보조한 것
 
-- Codex와 Pi Agent를 이용한 코드 구현과 반복 수정
+- AI Agent를 활용한 코드 구현과 반복 수정
 - 세부 클래스·파일 구조 및 일부 모듈 경계 대안 제안
 - 음악 동기화, 입력 처리, 저장과 UI 상태 등 저수준 구현
-- 자동 테스트 작성·실행, 코드 리뷰와 회귀 문제 보완
+- 테스트 초안 작성과 반복 실행 보조
 - 설계·작업 계획과 기술 문서 초안 작성
 
-구현은 Codex와 Pi Agent를 적극 활용했으며, 현재 주요 실행 경로를 직접 분석하고 주석화하며 코드 이해 범위를 넓히고 있습니다.
+### 직접 실행·청취·수정한 것
+
+- 실제 실행과 청취를 통해 Metronome, Pause/Play, Tap/Long 분류와 SFX 구조를 확인하고 수정
+- 테스트 결과 판독, 코드 리뷰와 회귀 문제 수정 판단
+- 주요 실행 경로를 직접 분석하고 주석화하며 코드 이해 범위를 확장
+- 구현 결과를 바탕으로 다음 구조 개선의 우선순위 결정
+
+### 대표 수정 사례: Tap/Long 입력 판정
+
+Tap/Long 구분을 노트 종류나 beat 기반 hold가 아니라 실제 입력 지속시간(ms) 기반으로 재정의했습니다. 이 공통 규칙은 Game Project가 아닌 Core의 [`PlayerAction`](core/PlayerAction.lua)으로 옮겼습니다. 사용자가 판정 기준과 Core 소유권을 결정했고, AI Agent는 그 결정을 구조에 반영하는 구현을 보조했으며, 이후 실제 입력·청취로 동작을 확인해 수정했습니다.
 
 ## Stage Editor
 
@@ -131,22 +143,16 @@ flowchart LR
 
 코드를 다시 수정하지 않고 Stage의 시간축과 Event 배치를 반복 조정하고, 같은 화면에서 실제 Project 연출을 확인할 수 있도록 구성했습니다.
 
-## Game Project Examples
+## Sample Project
 
-### Sample
-
-Core Tap 판정, Category 등록과 Cue/Response Event 제작 방식을 보여주는 참고 Project입니다. 새 Project 제작자가 Core와 Project의 책임 경계를 확인할 수 있도록 구성했습니다.
-
-### Rhythm Dotgeo — 스피키송
-
-같은 Core와 Editor 위에 별도 게임 규칙과 리소스를 올린 Project입니다.
+현재 구현된 Sample과 Rhythm Dotgeo 콘텐츠는 별도 대표 프로젝트가 아니라, 같은 Core와 Editor 제작 흐름을 검증하기 위한 Sample Project입니다. 기본 Sample은 Core Tap 판정, Category 등록과 Cue/Response Event 제작 방식을 보여주고, Rhythm Dotgeo 콘텐츠는 같은 구조에 별도 게임 규칙과 리소스를 적용합니다.
 
 - Stage 선택과 독립 실행
 - Cue/Response 기반 Tap·Long Event와 실제 입력 시간(ms) 기반 분류
 - Actor, SFX와 역할 전환에 맞춘 자동 Turn
 - Project JSON 설정을 Play마다 다시 읽어 배치·반응·SFX 수정 반영
 
-Sample과 Rhythm Dotgeo는 서로 다른 콘텐츠를 가지지만 같은 Stage 형식, Core 판정과 실행 계약을 사용합니다.
+두 콘텐츠는 같은 Stage 형식, Core 판정과 실행 계약을 사용합니다.
 
 ## 기술적으로 흥미로운 결정
 
@@ -212,8 +218,6 @@ love .
 love . --test
 python -m unittest discover -s tests_python -v
 ```
-
-검증 결과 LÖVE test suite 339건과 Python Project 생성기 테스트 5건이 모두 통과합니다.
 
 ## Documentation
 
