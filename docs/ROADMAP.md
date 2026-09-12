@@ -41,6 +41,8 @@
 
 - [x] Project와 Stage 선택
 - [x] EditorSession의 Stage 생성, 열기와 저장 상태
+- [x] 오류 모달 전문 클립보드 복사 버튼과 Ctrl+C 단축키
+- [x] Windows 한글 프로젝트 경로의 Stage 파일 확인·열기·저장 오류 수정 및 실제 파일 회귀 검증
 - [x] Core.UI Button·TextInput·ComboBox·ScrollArea와 Editor 스타일 조합, Values 바깥 클릭 확정·Escape 취소
 - [x] D2Coding 기본 폰트로 Launcher·Editor·Project 한글 렌더링 통일
 - [x] 콘텐츠 15행 높이의 고정 상단 패널과 Categories·Events 독립/Properties·Values 연동 조건부 스크롤

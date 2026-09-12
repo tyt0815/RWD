@@ -82,6 +82,8 @@ Timeline 위의 wheel zoom은 커서가 가리키는 beat를 화면의 같은 x�
 
 ## 5. Test Play
 
+오류 모달의 `Copy (Ctrl+C)` 버튼 또는 Ctrl+C로 오류 전문을 클립보드에 복사할 수 있다. 화면에 다 표시되지 않는 긴 메시지도 포함하며, 복사 후 `Copied`가 표시되고 모달은 유지된다. OK·Enter·Esc로 닫는다.
+
 Play는 클릭으로 지정한 기준 beat부터 다음 구성 요소를 함께 시작한다. Pause 뒤 다시 Play해도 직전 재생 위치에서 이어가지 않고 같은 기준 beat에서 새로 시작한다.
 
 - Core `PlaybackTransport`: 논리 시간, beat, Music Offset과 pitch

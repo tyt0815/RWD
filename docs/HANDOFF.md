@@ -2,6 +2,10 @@
 
 ## 현재 구현 상태
 
+Editor 오류 모달에 `Copy (Ctrl+C)` 버튼과 Ctrl+C 단축키를 추가했다. 오류 메시지 전문을 OS 클립보드로 복사하고 버튼을 `Copied`로 바꾸며 모달은 유지한다. Enter·Esc·OK는 기존처럼 닫는다.
+
+Windows에서 한글이 포함된 sourceRoot로 Stage를 열 때 `io.open`이 `Invalid argument`를 반환하던 오류를 수정했다. `NativeFileSystem`은 Windows의 비 ASCII 경로에 한해 `WindowsFileSystem`의 UTF-8 → UTF-16 변환과 wide CRT 파일 함수를 사용한다. 존재 확인·읽기·쓰기·복사·이름 변경·삭제 모두 같은 경로 처리를 사용하며, 기존 source 파일 접근과 packaged 읽기 전용 계약을 유지한다.
+
 Core Stage 소유권 구조 개편 Phase 1이 완료되었다. `require("core")`는 API version 2와 함께 `StageSchema`, `StageRepository`, `ProjectManifest`를 공개한다. Stage 형식·정규화는 `StageSchema`, 경로·JSON decode/encode·원자 저장은 `StageRepository`, Project 매니페스트 구조와 Core API 호환 검증은 `ProjectManifest`가 담당한다.
 
 코드 분석용 주석 작업은 첫 단계로 `main.lua`에만 적용했다. 동작을 바꾸지 않고 LÖVE 생명주기, 앱 위임 구조와 Lua의 local·nil·table·ipairs·require·다중 반환·xpcall·논리 연산·콜론 호출 문법을 설명한다.
@@ -19,6 +23,16 @@ Project Event는 `categoryId + eventId` 조합으로 저장·조회·dispatch한
 현재 알려진 자동 테스트 실패는 없다.
 
 ## 최신 검증
+
+- 오류 복사 RED: `& 'C:/Program Files/LOVE/lovec.exe' . --test` → 신규 테스트가 Copy 버튼 부재로 1건 실패.
+- 오류 복사 GREEN: 같은 명령 → `PASS: 341 tests`. 버튼 클릭, 좌·우 Ctrl+C, 한글·줄바꿈·긴 메시지 전문, 복사 후 모달 유지, Enter·Esc 닫기와 다른 모달에 영향 없음을 검증했다.
+- 오류 복사 `git diff --check` → 출력 없음.
+- `& 'C:/Program Files/LOVE/love.exe' .` 실행 후 에디터 화면을 확인했다. 사용자가 물리 Escape로 Computer Use를 중단해 오류창 버튼의 실제 클릭·시각 확인은 완료하지 못했다.
+
+- 2026-09-12 RED: `& 'C:/Program Files/LOVE/lovec.exe' . --test` → 한글 sourceRoot의 실제 Stage 확인에서 사진과 같은 `Invalid argument` 재현. 신규 NativeFileSystem 회귀 테스트와 기존 실제 Speaki Song 열기 테스트 총 2건 실패.
+- 2026-09-12 GREEN: 같은 명령 → `PASS: 340 tests`. 실제 Stage 읽기, 한글 파일명·공백·NUL 포함 다중 청크 데이터의 저장·복사·이름 변경·빈 파일 덮어쓰기·삭제를 검증했다.
+- `Get-Content -Raw -Encoding utf8 projects/rhythm_dotgeo/stages/speaki_song.json | ConvertFrom-Json | Out-Null` → 성공.
+- `git diff --check` → 출력 없음. 화면 레이아웃 변경은 없으며, 에디터의 실제 클릭 조작은 이번 검증에 포함하지 않았다.
 
 - 포트폴리오 README에서 제품 상태와 설계 효과를 분리하고 최신 테스트 결과를 반영한 뒤 목차·링크·사실 표현 검사 → 성공.
 - RED: `C:\Program Files\LOVE\lovec.exe . --test` → Metronome fixture가 이전 amplitude `0.35`를 가정해 6건 실패 재현.
@@ -40,6 +54,10 @@ Project Event는 `categoryId + eventId` 조합으로 저장·조회·dispatch한
 - `git diff --check` → 출력 없음. `git diff 68fd12a -- editor/playback/MetronomePlayback.lua tests/MetronomePlaybackTest.lua`와 `.references` diff도 출력 없음.
 
 ## 다음 작업
+
+오류 모달에서 `Copy (Ctrl+C)`와 복사 후 `Copied` 표시를 실제 화면에서 확인한다. 자동 회귀 테스트는 통과했다.
+
+실행 중이던 LÖVE 앱을 재시작한 뒤 Editor에서 Rhythm Dotgeo / Speaki Song Stage Open을 다시 확인한다.
 
 코드 분석용 주석의 다음 순서는 `launcher/Launcher.lua`, `launcher/ProjectLoader.lua`의 Launcher와 Project 로딩 흐름이다. 사용자가 현재 `main.lua`를 읽고 이해한 뒤 다음 단계로 진행한다.
 

@@ -65,6 +65,54 @@ end
 
 return {
     {
+        name = "오류창 Copy와 Ctrl+C는 전문을 복사하고 창을 유지한다",
+        run = function(test)
+            local EditorDialog = require("editor.ui.EditorDialog")
+            local previousLove = love
+            local copiedText, controlKey
+            love = {
+                system = { setClipboardText = function(text) copiedText = text end },
+                keyboard = { isDown = function(...)
+                    for _, key in ipairs({ ... }) do
+                        if key == controlKey then return true end
+                    end
+                    return false
+                end },
+            }
+            local succeeded, errorMessage = xpcall(function()
+                local message = "Failed to open C:/한글 경로/stage.json\n" .. string.rep("trace line\n", 100)
+                local dialog = EditorDialog.error(message)
+                local layout = dialog:getLayout(1000, 700)
+                local copy = findRect(layout.buttons, "buttonId", "copy")
+                test.assertTrue(copy ~= nil, "오류창에 Copy 버튼이 필요합니다.")
+                test.assertEqual(copy.label, "Copy (Ctrl+C)")
+                test.assertEqual(dialog:keypressed("c"), false)
+                test.assertEqual(copiedText, nil)
+                clickCenter(dialog, copy)
+                test.assertEqual(copiedText, message)
+                test.assertEqual(dialog:consumeResult(), nil)
+                test.assertEqual(findRect(dialog:getLayout(1000, 700).buttons, "buttonId", "copy").label, "Copied")
+                for _, key in ipairs({ "lctrl", "rctrl" }) do
+                    controlKey = key
+                    copiedText = nil
+                    test.assertEqual(dialog:keypressed("c"), true)
+                    test.assertEqual(copiedText, message)
+                    test.assertEqual(dialog:consumeResult(), nil)
+                end
+                dialog:keypressed("return")
+                test.assertEqual(dialog:consumeResult().buttonId, "ok")
+                dialog:keypressed("escape")
+                test.assertEqual(dialog:consumeResult().buttonId, "ok")
+                copiedText = nil
+                local otherDialog = EditorDialog.unsaved("quit")
+                otherDialog:keypressed("c")
+                test.assertEqual(copiedText, nil)
+            end, debug.traceback)
+            love = previousLove
+            if not succeeded then error(errorMessage, 0) end
+        end,
+    },
+    {
         name = "New Stage 모달은 Project와 세 입력값을 가진다",
         run = function(test)
             local EditorDialog = require("editor.ui.EditorDialog")

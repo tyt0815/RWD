@@ -3,6 +3,18 @@ NativeFileSystem.__index = NativeFileSystem
 
 local PACKAGED_WRITE_ERROR = "Cannot write Stage files inside a packaged .love source."
 
+local function needsWidePath(path)
+    return jit and jit.os == "Windows" and path:find("[\128-\255]") ~= nil
+end
+
+local function openFile(path, mode)
+    -- Windows Lua io.open uses the ANSI code page, while LÖVE paths are UTF-8.
+    if needsWidePath(path) then
+        return require("launcher.WindowsFileSystem").open(path, mode)
+    end
+    return io.open(path, mode)
+end
+
 local function normalizeRoot(rootPath)
     return rootPath:gsub("[\\/]+$", "")
 end
@@ -12,7 +24,7 @@ local function join(rootPath, relativePath)
 end
 
 local function nativeFileExists(path)
-    local file, openError, errorCode = io.open(path, "rb")
+    local file, openError, errorCode = openFile(path, "rb")
     if not file then
         if errorCode == 2 or errorCode == 20 then return false, nil end
         return nil, tostring(openError)
@@ -22,7 +34,7 @@ local function nativeFileExists(path)
 end
 
 local function readFile(path)
-    local file, openError = io.open(path, "rb")
+    local file, openError = openFile(path, "rb")
     if not file then return nil, tostring(openError) end
     local contents, readError = file:read("*a")
     local closed, closeError = file:close()
@@ -33,7 +45,7 @@ local function readFile(path)
 end
 
 local function writeFile(path, contents)
-    local file, openError = io.open(path, "wb")
+    local file, openError = openFile(path, "wb")
     if not file then return nil, tostring(openError) end
     local wrote, writeError = file:write(contents)
     local closed, closeError = file:close()
@@ -74,10 +86,16 @@ function NATIVE_OPERATIONS:write(path, contents)
 end
 
 function NATIVE_OPERATIONS:remove(path)
+    if needsWidePath(path) then
+        return require("launcher.WindowsFileSystem").remove(path)
+    end
     return os.remove(path)
 end
 
 function NATIVE_OPERATIONS:rename(sourcePath, targetPath)
+    if needsWidePath(sourcePath) or needsWidePath(targetPath) then
+        return require("launcher.WindowsFileSystem").rename(sourcePath, targetPath)
+    end
     return os.rename(sourcePath, targetPath)
 end
 

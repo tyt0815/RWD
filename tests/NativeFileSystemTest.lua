@@ -74,6 +74,37 @@ end
 
 return {
     {
+        name = "Launcher NativeFileSystem supports Unicode source files and round-trip mutations",
+        run = function(test)
+            local NativeFileSystem = require("launcher.NativeFileSystem")
+            local fileSystem = NativeFileSystem.new()
+            local stagePath = "projects/rhythm_dotgeo/stages/speaki_song.json"
+            test.assertEqual(assert(fileSystem:isFile(stagePath)), true)
+            test.assertEqual(assert(fileSystem:read(stagePath)), assert(love.filesystem.read(stagePath)))
+            local path = "tests/한글 파일-" .. tostring(love.timer.getTime()):gsub("%.", "-")
+            local movedPath = path .. "-moved"
+            local copiedPath = path .. "-copy"
+            local contents = string.rep("한글\0contents\n", 10000)
+            local succeeded, errorMessage = xpcall(function()
+                test.assertEqual(fileSystem:exists(path), false)
+                assert(fileSystem:write(path, contents))
+                test.assertEqual(assert(fileSystem:read(path)), contents)
+                assert(fileSystem:copy(path, copiedPath))
+                assert(fileSystem:rename(copiedPath, movedPath))
+                test.assertEqual(fileSystem:exists(copiedPath), false)
+                test.assertEqual(assert(fileSystem:read(movedPath)), contents)
+                assert(fileSystem:write(movedPath, ""))
+                test.assertEqual(assert(fileSystem:read(movedPath)), "")
+                assert(fileSystem:remove(movedPath))
+                test.assertEqual(fileSystem:exists(movedPath), false)
+            end, debug.traceback)
+            fileSystem:remove(path)
+            fileSystem:remove(movedPath)
+            fileSystem:remove(copiedPath)
+            if not succeeded then error(errorMessage, 0) end
+        end,
+    },
+    {
         name = "Launcher NativeFileSystem keeps unpackaged list source-relative and joins file paths",
         run = function(test)
             local NativeFileSystem = require("launcher.NativeFileSystem")

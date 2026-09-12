@@ -233,6 +233,7 @@ function EditorDialog.error(message)
         title = "Error",
         message = tostring(message),
         buttons = {
+            { id = "copy", label = "Copy (Ctrl+C)" },
             { id = "ok", label = "OK", default = true, cancel = true },
         },
     })
@@ -302,6 +303,13 @@ function EditorDialog:textinput(text)
 end
 
 function EditorDialog:submit(buttonId)
+    if self.kind == "error" and buttonId == "copy" then
+        love.system.setClipboardText(self.message)
+        for _, button in ipairs(self.buttons) do
+            if button.id == "copy" then button.label = "Copied" end
+        end
+        return
+    end
     local values = {}
     local selections = {}
     for _, field in ipairs(self.fields) do
@@ -319,6 +327,11 @@ function EditorDialog:submit(buttonId)
 end
 
 function EditorDialog:keypressed(key)
+    if self.kind == "error" and key == "c"
+        and love.keyboard.isDown("lctrl", "rctrl") then
+        self:submit("copy")
+        return true
+    end
     for _, selector in ipairs(self.selectors) do
         if selector:isOpen() then
             local result = selector:keypressed(key)
