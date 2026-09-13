@@ -27,6 +27,52 @@ end
 
 return {
     {
+        name = "스피키송 턴 대기 액터는 화면 가장자리에 조금만 걸친다",
+        run = function(test)
+            local Actor = require("projects.rhythm_dotgeo.game.SpeakiSong.SpeakiActor")
+            local previousGraphics = love.graphics
+            local centerX, scaleX
+            love.graphics = {
+                setColor = function() end,
+                draw = function(_, x, _, _, scale) centerX, scaleX = x, scale end,
+            }
+            local succeeded, errorMessage = xpcall(function()
+                local image = {
+                    getWidth = function() return 300 end,
+                    getHeight = function() return 306 end,
+                }
+                for _, size in ipairs({ { 1280, 720 }, { 480, 270 } }) do
+                    for _, side in ipairs({ "left", "right" }) do
+                        local actor = Actor.new({
+                            side = side,
+                            flipHorizontal = side == "right",
+                            sprites = { get = function() return image end },
+                            settings = {
+                                actorHeightRatio = 0.52, maxActorWidthRatio = 0.3,
+                                minMargin = 24, sideMarginRatio = 0.09, outsidePadding = 12,
+                            },
+                        })
+                        actor:spawn()
+                        actor:moveOutside(true, 0, 0.5)
+                        actor:draw(size[1], size[2], 0.5)
+                        local halfWidth = 300 * math.abs(scaleX) / 2
+                        if side == "left" then
+                            test.assertNear(centerX - halfWidth, -12, 0.000001)
+                        else
+                            test.assertNear(centerX + halfWidth, size[1] + 12, 0.000001)
+                        end
+                        actor:moveOutside(false, 1, 0.5)
+                        actor:draw(size[1], size[2], 1.5)
+                        test.assertTrue(centerX - halfWidth >= 0)
+                        test.assertTrue(centerX + halfWidth <= size[1])
+                    end
+                end
+            end, debug.traceback)
+            love.graphics = previousGraphics
+            if not succeeded then error(errorMessage, 0) end
+        end,
+    },
+    {
         name = "Rhythm Dotgeo는 스피키송 Category 노드를 자동 등록한다",
         run = function(test)
             local project = require("projects.rhythm_dotgeo.project")

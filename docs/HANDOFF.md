@@ -2,6 +2,8 @@
 
 ## 현재 구현 상태
 
+스피키송 자동 Turn의 대기 액터는 완전히 퇴장하지 않고 바깥쪽 끝만 `outsidePadding`(기본 12px)만큼 화면 경계에 걸친다. 캐릭터 대부분은 화면 안에 남으며 기존 Core.BeatTween 조합과 이동 시간은 유지한다.
+
 Editor 오류 모달에 `Copy (Ctrl+C)` 버튼과 Ctrl+C 단축키를 추가했다. 오류 메시지 전문을 OS 클립보드로 복사하고 버튼을 `Copied`로 바꾸며 모달은 유지한다. Enter·Esc·OK는 기존처럼 닫는다.
 
 Windows에서 한글이 포함된 sourceRoot로 Stage를 열 때 `io.open`이 `Invalid argument`를 반환하던 오류를 수정했다. `NativeFileSystem`은 Windows의 비 ASCII 경로에 한해 `WindowsFileSystem`의 UTF-8 → UTF-16 변환과 wide CRT 파일 함수를 사용한다. 존재 확인·읽기·쓰기·복사·이름 변경·삭제 모두 같은 경로 처리를 사용하며, 기존 source 파일 접근과 packaged 읽기 전용 계약을 유지한다.
@@ -23,6 +25,11 @@ Project Event는 `categoryId + eventId` 조합으로 저장·조회·dispatch한
 현재 알려진 자동 테스트 실패는 없다.
 
 ## 최신 검증
+
+- 2026-09-13 턴 위치 RED: `& 'C:/Program Files/LOVE/lovec.exe' . --test` → 신규 회귀 1건 실패(왼쪽 경계 기대 -12, 실제 약 -379.06).
+- GREEN: 같은 명령 → `PASS: 342 tests`. 1280×720 및 480×270에서 좌우 대기 위치와 화면 안 복귀를 확인했다.
+- `Get-Content -Raw -Encoding utf8 projects/rhythm_dotgeo/config/speaki_song.json | ConvertFrom-Json | Out-Null`, `git diff --check` → 성공.
+- `& 'C:/Program Files/LOVE/love.exe' .` 실행 및 실제 Editor Play 화면에서 우측 캐릭터 대부분이 보이고 끝만 걸친 것을 확인했다. 다음 화면 확인은 사용자가 물리 Escape로 Computer Use를 중단했다.
 
 - 오류 복사 RED: `& 'C:/Program Files/LOVE/lovec.exe' . --test` → 신규 테스트가 Copy 버튼 부재로 1건 실패.
 - 오류 복사 GREEN: 같은 명령 → `PASS: 341 tests`. 버튼 클릭, 좌·우 Ctrl+C, 한글·줄바꿈·긴 메시지 전문, 복사 후 모달 유지, Enter·Esc 닫기와 다른 모달에 영향 없음을 검증했다.
@@ -54,6 +61,8 @@ Project Event는 `categoryId + eventId` 조합으로 저장·조회·dispatch한
 - `git diff --check` → 출력 없음. `git diff 68fd12a -- editor/playback/MetronomePlayback.lua tests/MetronomePlaybackTest.lua`와 `.references` diff도 출력 없음.
 
 ## 다음 작업
+
+대기 위치의 잘림 정도를 추가 조정하려면 `config/speaki_song.json`의 `actorLayout.outsidePadding`을 조정한다. 현재 기본값은 12px이다.
 
 오류 모달에서 `Copy (Ctrl+C)`와 복사 후 `Copied` 표시를 실제 화면에서 확인한다. 자동 회귀 테스트는 통과했다.
 

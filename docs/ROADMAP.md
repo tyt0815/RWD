@@ -39,6 +39,8 @@
 
 ## 3. 에디터 편집 기능
 
+- [x] 스피키송 자동 Turn 대기 위치를 화면 가장자리에 12px만 걸치도록 조정
+
 - [x] Project와 Stage 선택
 - [x] EditorSession의 Stage 생성, 열기와 저장 상태
 - [x] 오류 모달 전문 클립보드 복사 버튼과 Ctrl+C 단축키

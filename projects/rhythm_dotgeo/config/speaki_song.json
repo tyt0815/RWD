@@ -8,7 +8,7 @@
       "maxWidthRatio": "화면 너비에 대한 액터 최대 너비 비율입니다.",
       "sideMarginRatio": "화면 좌우 끝에서 액터 중심 방향으로 둘 여백 비율입니다.",
       "minMargin": "창이 작을 때도 유지할 좌우 최소 여백(px)입니다.",
-      "outsidePadding": "자동 Turn으로 화면 밖에 숨길 때 화면 경계에서 더 이동할 거리(px)입니다."
+      "outsidePadding": "자동 Turn 대기 위치에서 액터의 바깥쪽 끝이 화면 경계를 넘어 걸치는 거리(px)입니다. 액터 대부분은 화면 안에 남습니다."
     },
     "reactions": {
       "longPressBeats": "롱노트 누름 Sprite가 완전히 눌린 상태가 되기까지 걸리는 박자입니다.",
@@ -29,7 +29,7 @@
     "maxWidthRatio": 0.3,
     "sideMarginRatio": 0.09,
     "minMargin": 24,
-    "outsidePadding": 12
+    "outsidePadding": 50
   },
   "reactions": {
     "longPressBeats": 0.2,

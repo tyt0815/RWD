@@ -66,10 +66,10 @@ local function actorCenterX(actor, width, actorWidth)
     local outsideX
     if actor.side == "left" then
         visibleX = margin + actorWidth / 2
-        outsideX = -actorWidth / 2 - settings.outsidePadding
+        outsideX = actorWidth / 2 - settings.outsidePadding
     else
         visibleX = width - margin - actorWidth / 2
-        outsideX = width + actorWidth / 2 + settings.outsidePadding
+        outsideX = width - actorWidth / 2 + settings.outsidePadding
     end
     local progress = actor.movement:getValue(actor.currentBeat)
     return visibleX + (outsideX - visibleX) * progress
