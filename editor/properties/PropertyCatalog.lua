@@ -20,6 +20,7 @@ local CATEGORIES = {
                     { id = "trackCount", label = "Track", kind = "number" },
                     { id = "previewAspectWidth", label = "Preview Aspect Width", kind = "number" },
                     { id = "previewAspectHeight", label = "Preview Aspect Height", kind = "number" },
+                    { id = "fullscreen", label = "Fullscreen", kind = "boolean" },
                 },
             },
             {

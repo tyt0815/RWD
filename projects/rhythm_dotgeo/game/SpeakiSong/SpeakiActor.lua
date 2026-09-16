@@ -3,6 +3,10 @@ local Core = require("core")
 local SpeakiActor = {}
 SpeakiActor.__index = SpeakiActor
 
+local IDLE_SQUASH = 0.12
+local IDLE_PRESS_BEATS = 0.12
+local IDLE_RECOVER_BEATS = 0.48
+
 function SpeakiActor.new(options)
     options = options or {}
     return setmetatable({
@@ -102,7 +106,7 @@ local function effectTransform(actor, width, height, beat)
     return 0, 0, 0, nil
 end
 
-local function drawImage(actor, image, centerX, topY, scale, alpha)
+local function drawImage(actor, image, centerX, topY, scale, alpha, scaleY)
     local scaleX = actor.flipHorizontal and -scale or scale
     love.graphics.setColor(1, 1, 1, alpha)
     love.graphics.draw(
@@ -111,7 +115,7 @@ local function drawImage(actor, image, centerX, topY, scale, alpha)
         topY,
         0,
         scaleX,
-        scale,
+        scaleY or scale,
         image:getWidth() / 2,
         0
     )
@@ -141,7 +145,18 @@ function SpeakiActor:draw(width, height, beat)
         drawImage(self, self.sprites:get("uu"), centerX + offsetX, topY + offsetY,
             scale, 1)
     else
-        drawImage(self, smile, centerX, topY, scale, 1)
+        -- Stage beat로 직접 계산해 중간 재생과 일시정지에도 같은 모양을 유지한다.
+        local phase = beat - math.floor(beat)
+        local squash = 0
+        if phase < IDLE_PRESS_BEATS then
+            squash = (1 - math.cos(math.pi * phase / IDLE_PRESS_BEATS)) / 2
+        elseif phase < IDLE_PRESS_BEATS + IDLE_RECOVER_BEATS then
+            squash = (1 + math.cos(math.pi * (phase - IDLE_PRESS_BEATS)
+                / IDLE_RECOVER_BEATS)) / 2
+        end
+        local heightRatio = 1 - IDLE_SQUASH * squash
+        drawImage(self, smile, centerX, topY + actorHeight * (1 - heightRatio),
+            scale, 1, scale * heightRatio)
     end
 end
 

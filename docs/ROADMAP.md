@@ -64,6 +64,10 @@
 
 ## 4. TestPlayer와 Editor 재생
 
+- [x] Editor Properties Fullscreen 저장 설정과 Tab 토글, 재생 시작부터 설정 적용, Esc 복귀, 종횡비 유지와 숨겨진 편집 입력 차단
+- [ ] Editor Properties의 Record boolean과 화면·게임 소리 영상 저장: 녹화 백엔드 방식 결정 필요
+
+- [x] 미리보기 Canvas 합성에 UI 색상·알파가 곱해지는 문제 수정 및 실제 흰색 픽셀 회귀 검증
 - [x] 기본 Project Canvas 렌더링과 Stage별 Preview 종횡비 설정
 - [x] Core PlaybackTransport 기반 Timeline과 Music 동기화
 - [x] 기준 바와 재생 위치 바 분리, 기준 beat 재시작, 오류 rollback과 자동 playhead 추적
@@ -78,6 +82,17 @@
 - [x] Sample Sprite 상태 피드백과 Core BeatTween 기반 0.5박 Turn 이동
 - [x] Rhythm Dotgeo 독립 실행 Stage 목록과 클릭 시 Music·beat 시작
 - [x] Rhythm Dotgeo 스피키송 Category의 배경·액터 소환, Tap/Long 큐 응답과 Cue/Response 0.5박 전 자동 Turn
+- [x] 스피키송 배경을 흰색으로 변경한 뒤 사용자 요청으로 기존 배경 이미지 복원
+- [x] 스피키 idle에 하단 고정 매 박자 눌림·복원 적용, Tap/Long 제외와 재생 위치 동기화 검증
+- [x] 스피키송 상단 중앙 크레페 이미지 2장의 매 박자 교대 애니메이션
+- [x] 크레페의 매 박자 왼쪽 이동과 화면 밖 오른쪽 재등장, 중간 재생 위치 동기화
+- [x] 크레페를 상단 중앙에서 시작하는 한 명으로 변경하고 기존 걷기·턴·플립 유지 (가로 반복 표시 대체)
+- [x] 크레페 행 이동 방향을 Turn에 연결: 왼쪽 스피키는 오른쪽 이동, 오른쪽 스피키는 왼쪽 이동
+- [x] 오른쪽 이동 턴에서 크레페 스프라이트 좌우 반전, 왼쪽 이동 턴에서 원본 방향 복원
+- [x] 크레페 방향 반전·프레임 교대·이동을 같은 정수 박자로 동기화
+- [x] 크레페 이미지를 0~11의 12프레임으로 교체하고 한 박자에 한 사이클 반복, 방향 반전은 사이클 시작에 적용
+- [x] 크레페 애니메이션 주기를 두 박자로 조정하고 소수 beat 기반 연속 이동으로 전환, 턴 경계 위치 연속성 유지
+- [x] 크레페 방향 전환에 0.25박 종이 플립 적용, 이동·걷기 애니메이션과 중간 재생 동기화 유지
 - [x] 스피키송 배치·반응·SFX Project JSON Play 자동 재로드와 QueueableSource 기반 Long start→loop 연속 재생·end SFX·설정 개수 기반 역할별 Tap SFX 순환
 - [x] 스피키송의 노트 종류 독립 Tap/Long 선택과 Project 전역 ms 임계값
 

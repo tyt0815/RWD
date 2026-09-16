@@ -123,10 +123,13 @@ Mixtape와 Editor 설정이 모두 기본값이면 `mixtape`와 `editorSettings`
 | `trackCount` | `10` | Timeline Track 수, `1~32` 정수 |
 | `previewAspectWidth` | `16` | Editor Play 화면 종횡비의 너비, 0보다 큰 유한 수 |
 | `previewAspectHeight` | `9` | Editor Play 화면 종횡비의 높이, 0보다 큰 유한 수 |
+| `fullscreen` | `false` | true이면 Editor 재생 시작부터 창 전체 Preview, Tab으로 전환하는 boolean |
 
 `autoPlay`는 Editor Test Play 전용 선택이다. `none`은 수동 입력을 유지하고 `good`, `bad`, `miss`는 Project의 선택적 Auto Play 계약으로 전달한다. 독립 게임 실행에는 적용하지 않는다.
 
-`previewAspectWidth`와 `previewAspectHeight`는 Editor Play 화면의 비율만 정한다. Preview는 이 비율을 유지하면서 Properties·Values 영역 안에 들어가는 최대 크기로 중앙 정렬되며, Project의 실제 게임 규칙에는 전달되지 않는다.
+`previewAspectWidth`와 `previewAspectHeight`는 Editor Play 화면의 비율만 정한다. Preview는 이 비율을 유지하면서 Properties·Values 영역(Fullscreen이면 에디터 창 전체) 안에 들어가는 최대 크기로 중앙 정렬되며, Project의 실제 게임 규칙에는 전달되지 않는다.
+
+`fullscreen`은 기본 false인 선택 필드 추가이므로 schemaVersion 3을 유지한다. 기존 Stage는 같은 화면으로 실행되며 true만 저장한다. 이 필드를 모르는 이전 버전의 로더는 unknown field 오류로 거부하므로 새 설정을 저장한 파일은 갱신된 에디터로 연다.
 
 `metronomePeriod`는 강박을 반복하는 BPM 박자 수다. 값 4는 beat 0, 4, 8, 12에서 강박이 울리고 BPM 클릭 간격 자체는 바뀌지 않는다.
 

@@ -1,6 +1,7 @@
 local Core = require("core")
 local Background = require("projects.rhythm_dotgeo.game.SpeakiSong.Background")
 local Config = require("projects.rhythm_dotgeo.game.SpeakiSong.Config")
+local CrepeActor = require("projects.rhythm_dotgeo.game.SpeakiSong.CrepeActor")
 local GameplayConfig = require("projects.rhythm_dotgeo.game.GameplayConfig")
 local LongCueResponse = require("projects.rhythm_dotgeo.game.SpeakiSong.LongCueResponse")
 local Sounds = require("projects.rhythm_dotgeo.game.SpeakiSong.Sounds")
@@ -78,6 +79,7 @@ function Runtime.new(project, category, options)
         config = options.config or Config.new(options.configLoader),
         gameplayConfig = options.gameplayConfig or GameplayConfig.new(),
         background = Background.new(sprites),
+        crepeActor = CrepeActor.new(options.graphics),
         guideActor = SpeakiActor.new({
             role = "guide",
             side = "left",
@@ -117,6 +119,7 @@ function Runtime:startStage(stage, startBeat)
     self.currentBeat = startBeat or 0
     self.lastUpdatedBeat = self.currentBeat
     self.turnSchedule = buildTurnSchedule(stage, self.category.id)
+    self.crepeActor:setTurnSchedule(self.turnSchedule)
     self.nextTurnIndex = 1
     self.tapCues = {}
     self.longCues = {}
@@ -320,6 +323,9 @@ end
 
 function Runtime:draw(width, height)
     self.background:draw(width, height)
+    if self.background.spawned then
+        self.crepeActor:draw(width, height, self.currentBeat)
+    end
     self.guideActor:draw(width, height, self.currentBeat)
     self.playerActor:draw(width, height, self.currentBeat)
 end

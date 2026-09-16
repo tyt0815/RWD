@@ -18,16 +18,8 @@ function Background:draw(width, height)
     local image = self.sprites:get("background")
     local scale = math.max(width / image:getWidth(), height / image:getHeight())
     love.graphics.setColor(1, 1, 1, 1)
-    love.graphics.draw(
-        image,
-        width / 2,
-        height / 2,
-        0,
-        scale,
-        scale,
-        image:getWidth() / 2,
-        image:getHeight() / 2
-    )
+    love.graphics.draw(image, width / 2, height / 2, 0, scale, scale,
+        image:getWidth() / 2, image:getHeight() / 2)
 end
 
 return Background

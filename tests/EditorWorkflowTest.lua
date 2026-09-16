@@ -135,6 +135,93 @@ end
 
 return {
     {
+        name = "Tab은 저장되는 Fullscreen 설정을 전환하고 다음 재생에도 적용한다",
+        run = function(test)
+            local app, state = newFixture()
+            createStageThroughDialog(app, "fullscreen-setting")
+            test.assertEqual(app.session:getProperty("editorProperties", "fullscreen"), false)
+            app:keypressed("tab")
+            test.assertEqual(app.session:getProperty("editorProperties", "fullscreen"), true)
+            test.assertEqual(app.session:isPlaying(), false)
+            app:executeAction("save")
+            test.assertEqual(state.saved["fullscreen-setting"].editorSettings.fullscreen, true)
+            assert(app.session:openStage("sample", "fullscreen-setting"))
+            test.assertEqual(app:getViewModel().properties[10].label, "Fullscreen")
+            test.assertEqual(app:getViewModel().properties[10].value, true)
+            app:executeAction("play")
+            test.assertEqual(app:isPreviewExpanded(), true)
+            app:keypressed("f")
+            app:update(0)
+            test.assertEqual(app.session:getProperty("editorProperties", "fullscreen"), true)
+            app:keypressed("f")
+            test.assertEqual(app:isPreviewExpanded(), true)
+            app:keypressed("tab")
+            test.assertEqual(app:isPreviewExpanded(), false)
+            test.assertEqual(app.session:getProperty("editorProperties", "fullscreen"), false)
+            app:keypressed("f")
+            local rect = require("editor.ui.EditorLayout").getPropertyValueRect(app.layout, 10)
+            app:mousepressed(rect.x + 8, rect.y + 8, 1)
+            test.assertEqual(app.session:getProperty("editorProperties", "fullscreen"), true)
+            app:keypressed("f")
+            test.assertEqual(app:isPreviewExpanded(), true)
+        end,
+    },
+    {
+        name = "확대 Preview는 창 전체에서 종횡비를 맞추고 draw 오류를 표시한다",
+        run = function(test)
+            local app = newFixture()
+            createStageThroughDialog(app, "wide-draw")
+            app:keypressed("f")
+            app:keypressed("tab")
+            local drawnRect
+            app.session.testPlayer.draw = function(_, rect)
+                drawnRect = rect
+                return true
+            end
+            app:draw(1600, 900)
+            test.assertEqual(drawnRect.x, 0)
+            test.assertEqual(drawnRect.y, 0)
+            test.assertEqual(drawnRect.width, 1600)
+            test.assertEqual(drawnRect.height, 900)
+            app:draw(1600, 1000)
+            test.assertEqual(drawnRect.x, 0)
+            test.assertEqual(drawnRect.y, 50)
+            test.assertEqual(drawnRect.width, 1600)
+            test.assertEqual(drawnRect.height, 900)
+            app.session.testPlayer.draw = function() return nil, "draw failed" end
+            app:draw(1600, 900)
+            test.assertEqual(app.session:isPlaying(), false)
+            test.assertEqual(app:isPreviewExpanded(), false)
+            test.assertEqual(app:getDialog() ~= nil, true)
+        end,
+    },
+    {
+        name = "Tab 확대는 재생을 유지하고 숨겨진 편집 입력을 막으며 종료 시 복귀한다",
+        run = function(test)
+            local app = newFixture()
+            createStageThroughDialog(app, "wide-preview")
+            test.assertEqual(app:isPreviewExpanded(), false)
+            app:keypressed("f")
+            local beat = app.session:getBeat()
+            app:keypressed("tab")
+            test.assertEqual(app:isPreviewExpanded(), true)
+            test.assertEqual(app.session:isPlaying(), true)
+            test.assertEqual(app.session:getBeat(), beat)
+            app:keypressed("tab", nil, true)
+            test.assertEqual(app:isPreviewExpanded(), true)
+            app:mousepressed(700, 600, 3)
+            test.assertEqual(app.timelineDrag, nil)
+            app:keypressed("escape")
+            test.assertEqual(app:isPreviewExpanded(), false)
+            test.assertEqual(app.session:isPlaying(), true)
+            app:keypressed("tab")
+            app:keypressed("f")
+            app:update(0)
+            test.assertEqual(app:isPreviewExpanded(), false)
+            test.assertEqual(app.session:isPlaying(), false)
+        end,
+    },
+    {
         name = "Stage가 없으면 보이지 않는 Event 행 클릭을 무시한다",
         run = function(test)
             local EditorLayout = require("editor.ui.EditorLayout")

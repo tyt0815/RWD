@@ -100,6 +100,11 @@ function EditorApp:getSession()
     return self.session
 end
 
+function EditorApp:isPreviewExpanded()
+    return self.session:isPlaying()
+        and self.session:getProperty("editorProperties", "fullscreen") == true
+end
+
 function EditorApp:getDialog()
     return self.dialog
 end
@@ -882,6 +887,17 @@ function EditorApp:draw(width, height)
     width = width or love.graphics.getWidth()
     height = height or love.graphics.getHeight()
     self.layout = EditorLayout.getLayout(width, height)
+    if self:isPreviewExpanded() then
+        love.graphics.clear(0, 0, 0, 1)
+        local drawn, errorMessage = self.session:drawPreview({
+            x = 0, y = 0, width = width, height = height,
+        })
+        if not drawn then
+            self:showError(errorMessage)
+        end
+        if self.dialog then self.dialog:draw(width, height) end
+        return
+    end
     self:updatePanelScrollAreas()
     local previewError
     self.layout = EditorLayout.draw(width, height, self:getViewModel(), function(rect)
@@ -893,6 +909,7 @@ function EditorApp:draw(width, height)
 end
 
 function EditorApp:mousemoved(x, y, deltaX)
+    if self:isPreviewExpanded() then return true end
     local movementX = deltaX
     if movementX == nil then
         movementX = self.mouseX and x - self.mouseX or 0
@@ -938,6 +955,7 @@ function EditorApp:mousemoved(x, y, deltaX)
 end
 
 function EditorApp:wheelmoved(_, deltaY)
+    if self:isPreviewExpanded() then return true end
     if self.dialog or self.mouseX == nil or self.mouseY == nil then return true end
 
     local timeline = self.layout.timeline
@@ -971,6 +989,9 @@ function EditorApp:wheelmoved(_, deltaY)
 end
 
 function EditorApp:mousepressed(x, y, button, _, presses)
+    if self:isPreviewExpanded() and not self.dialog then
+        return true
+    end
     if self.dialog then
         if button ~= 1 then return true end
         local previousProject = self.dialog:getSelection("projectId")
@@ -1243,6 +1264,7 @@ function EditorApp:mousepressed(x, y, button, _, presses)
 end
 
 function EditorApp:mousereleased(_, _, button)
+    if self:isPreviewExpanded() then return true end
     if button == 1 and self.timelineDrag == "playhead" then
         self.timelineDrag = nil
     elseif button == 1 and type(self.timelineDrag) == "table"
@@ -1314,6 +1336,16 @@ function EditorApp:keypressed(key, _, isRepeat)
         elseif key == "escape" then
             self.valueEdit = nil
         end
+    elseif not isRepeat and self.session:hasStage()
+        and (key == "tab" or (key == "escape" and self:isPreviewExpanded())) then
+        local fullscreen = key == "tab"
+            and not self.session:getProperty("editorProperties", "fullscreen")
+        local changed, errorMessage = self.session:setProperty(
+            "editorProperties", "fullscreen", fullscreen
+        )
+        if not changed then self:showError(errorMessage) end
+        self.timelineDrag = nil
+        self.hoveredTimelineEventId = nil
     elseif not isRepeat and self.isControlDown()
         and self.session:hasStage() and not self.session:isPlaying()
         and key == "c" then

@@ -27,6 +27,245 @@ end
 
 return {
     {
+        name = "스피키 idle은 바닥을 고정하고 매 박자 눌렸다 복원된다",
+        run = function(test)
+            local Actor = require("projects.rhythm_dotgeo.game.SpeakiSong.SpeakiActor")
+            local previousGraphics = love.graphics
+            local drawn
+            love.graphics = {
+                setColor = function() end,
+                draw = function(image, x, y, angle, sx, sy, ox, oy)
+                    drawn = { x = x, y = y, sx = sx, sy = sy, oy = oy }
+                end,
+            }
+            local succeeded, errorMessage = xpcall(function()
+                local image = {
+                    getWidth = function() return 300 end,
+                    getHeight = function() return 306 end,
+                }
+                for _, size in ipairs({ { 1280, 720 }, { 480, 270 } }) do
+                    for _, side in ipairs({ "left", "right" }) do
+                        local actor = Actor.new({
+                            side = side, flipHorizontal = side == "right",
+                            sprites = { get = function() return image end },
+                            settings = {
+                                actorHeightRatio = 0.52, maxActorWidthRatio = 0.3,
+                                minMargin = 24, sideMarginRatio = 0.09, outsidePadding = 12,
+                                tapDurationBeats = 0.5, tapShakeRatio = 0,
+                                tapShiftXRatio = 0, tapShiftYRatio = 0,
+                                longPressBeats = 0.5, longShiftXRatio = 0, longShiftYRatio = 0,
+                            },
+                        })
+                        actor:spawn()
+                        actor:draw(size[1], size[2], 0)
+                        local rest = drawn
+                        local function sample(beat, ratio)
+                            actor:draw(size[1], size[2], beat)
+                            test.assertNear(drawn.sy, rest.sy * ratio, 0.000001)
+                            test.assertNear(drawn.y + (306 - drawn.oy) * drawn.sy,
+                                size[2] * 0.92, 0.000001)
+                            test.assertNear(drawn.x, rest.x, 0.000001)
+                            test.assertNear(drawn.sx, rest.sx, 0.000001)
+                        end
+                        sample(0.12, 0.88)
+                        sample(0.36, 0.94)
+                        sample(0.6, 1)
+                        sample(1, 1)
+                        sample(25.12, 0.88)
+                        sample(25.12, 0.88)
+                        sample(0.12, 0.88)
+                        actor:tap(0)
+                        sample(0.12, 1)
+                        actor:update(0.6)
+                        sample(1.12, 0.88)
+                        actor:startLong(1, 2)
+                        sample(1.12, 1)
+                        actor:stopLong()
+                        sample(1.12, 0.88)
+                    end
+                end
+            end, debug.traceback)
+            love.graphics = previousGraphics
+            if not succeeded then error(errorMessage, 0) end
+        end,
+    },
+    {
+        name = "크레페 이동은 스피키 Turn 방향을 따르고 중간 재생 위치를 복원한다",
+        run = function(test)
+            local Game = require("projects.rhythm_dotgeo.game.Game")
+            local game = Game.new(require("projects.rhythm_dotgeo.project"), {
+                stageRepository = createStageRepository(),
+            })
+            local stage = {
+                projectId = "rhythm_dotgeo", stageId = "turn_walk", name = "Turn Walk",
+                bpm = 120,
+                events = {
+                    { id = "cue", type = "projectEvent", categoryId = "speakiSong",
+                        eventId = "doNotNer", startBeat = 2, track = 1,
+                        params = { responseDelayBeats = 4 } },
+                    { id = "cue2", type = "projectEvent", categoryId = "speakiSong",
+                        eventId = "doNotNer", startBeat = 10, track = 1,
+                        params = { responseDelayBeats = 4 } },
+                },
+            }
+            for _, startBeat in ipairs({ 0, 7, 0 }) do
+                assert(game:startStage(stage, startBeat))
+                local actor = game:getCategoryRuntime("speakiSong").crepeActor
+                for _, sample in ipairs({ { 0, 0 }, { 1, -1 }, { 1.5, -1.5 },
+                    { 2, -2 }, { 5, 1 }, { 5.5, 1.5 }, { 6, 2 }, { 7, 1 },
+                    { 9, -1 }, { 9.5, -1.5 }, { 10, -2 }, { 2, -2 } }) do
+                    test.assertEqual(actor:getStepOffset(sample[1]), sample[2])
+                end
+            end
+            stage.events = {}
+            assert(game:startStage(stage, 0))
+            test.assertEqual(game:getCategoryRuntime("speakiSong").crepeActor:getStepOffset(7), -7)
+            local actor = game:getCategoryRuntime("speakiSong").crepeActor
+            actor:setTurnSchedule({
+                { startBeat = -0.5, role = "guide" },
+                { startBeat = 2, role = "player" },
+                { startBeat = 2.25, role = "guide" },
+            })
+            test.assertEqual(actor:getStepOffset(0), 0)
+            test.assertEqual(actor:getStepOffset(1), 1)
+            test.assertEqual(actor:getStepOffset(2), 2)
+            test.assertEqual(actor:getStepOffset(2.25), 1.75)
+            test.assertEqual(actor:getStepOffset(3), 1)
+            for _, boundary in ipairs({ 1, 2, 3 }) do
+                test.assertNear(actor:getStepOffset(boundary - 0.000001),
+                    actor:getStepOffset(boundary), 0.000002)
+                test.assertNear(actor:getStepOffset(boundary + 0.000001),
+                    actor:getStepOffset(boundary), 0.000002)
+            end
+        end,
+    },
+    {
+        name = "스피키송 크레페는 중앙에서 한 명만 시작하고 박자에 맞춰 걷는다",
+        run = function(test)
+            local CrepeActor = require("projects.rhythm_dotgeo.game.SpeakiSong.CrepeActor")
+            local previousGraphics = love.graphics
+            local loadedPaths, draws = {}, {}
+            love.graphics = {
+                newImage = function(path)
+                    table.insert(loadedPaths, path)
+                    return {
+                        path = path,
+                        setFilter = function() end,
+                        getWidth = function() return 500 end,
+                        getHeight = function() return 500 end,
+                    }
+                end,
+                setColor = function() end,
+                draw = function(...) table.insert(draws, { ... }) end,
+            }
+            local succeeded, errorMessage = xpcall(function()
+                local actor = CrepeActor.new()
+                test.assertEqual(#loadedPaths, 12)
+                for index = 1, 12 do
+                    test.assertEqual(loadedPaths[index],
+                        "projects/rhythm_dotgeo/assets/image/crepe_walk_" .. (index - 1) .. ".png")
+                    draws = {}
+                    actor:draw(1280, 720, (index - 0.5) / 6)
+                    test.assertEqual(draws[1][1].path, loadedPaths[index])
+                end
+                for _, size in ipairs({ { 1280, 720 }, { 480, 270 } }) do
+                    for _, sample in ipairs({ { 0, 1 }, { 0.166, 1 }, { 1 / 6, 2 },
+                        { 0.5, 4 }, { 0.999, 6 }, { 1, 7 }, { 1, 7 }, { 1.999, 12 },
+                        { 2, 1 }, { 11, 7 }, { 12, 1 }, { 13, 7 },
+                        { 36.5, 4 }, { 10000, 1 }, { 4, 1 }, { 0, 1 } }) do
+                        draws = {}
+                        actor:draw(size[1], size[2], sample[1])
+                        local imageWidth = size[2] * 0.32
+                        test.assertEqual(#draws, 1)
+                        local anchor = size[1] * (0.5 - sample[1] * 0.05)
+                        local expectedX = (anchor + imageWidth / 2) % (size[1] + imageWidth)
+                            - imageWidth / 2
+                        for _, draw in ipairs(draws) do
+                            test.assertEqual(draw[1].path, loadedPaths[sample[2]])
+                            test.assertNear(draw[2], expectedX, 0.000001)
+                            test.assertNear(draw[3], size[2] * 0.22, 0.000001)
+                            test.assertNear(draw[5] * 500, imageWidth, 0.000001)
+                            test.assertEqual(draw[5], draw[6])
+                            test.assertEqual(draw[7], 250)
+                            test.assertEqual(draw[8], 250)
+                        end
+                    end
+                end
+                actor:setTurnSchedule({
+                    { startBeat = 0, role = "guide" },
+                    { startBeat = 2.5, role = "player" },
+                })
+                for _, sample in ipairs({ { -0.1, 1 }, { 0, 1 }, { 0.0625, 0.5 },
+                    { 0.125, 0 }, { 0.1875, -0.5 }, { 0.25, -1 }, { 1, -1 },
+                    { 2, -1 }, { 2.499, -1 }, { 2.5, -1 }, { 2.999, -1 },
+                    { 3, -1 }, { 3.0625, -0.5 }, { 3.125, 0 }, { 3.1875, 0.5 },
+                    { 3.25, 1 }, { 3.125, 0 }, { 2.5, -1 }, { 1, -1 } }) do
+                    draws = {}
+                    actor:draw(1280, 720, sample[1])
+                    test.assertEqual(#draws, 1)
+                    for _, draw in ipairs(draws) do
+                        test.assertEqual(draw[1].path, loadedPaths[math.floor((sample[1] % 2) * 6) + 1])
+                        test.assertNear(draw[5], draw[6] * sample[2], 0.000001)
+                        test.assertEqual(draw[7], 250)
+                        test.assertEqual(draw[8], 250)
+                        if sample[1] >= 2 then
+                            local offset = sample[1] <= 3 and sample[1] or 6 - sample[1]
+                            local anchor = 1280 * (0.5 + offset * 0.05)
+                            test.assertNear(draw[2], anchor, 0.000001)
+                        end
+                    end
+                end
+                test.assertEqual(#loadedPaths, 12)
+            end, debug.traceback)
+            love.graphics = previousGraphics
+            if not succeeded then error(errorMessage, 0) end
+        end,
+    },
+    {
+        name = "스피키송 배경 이미지는 화면을 채우도록 표시한다",
+        run = function(test)
+            local Background = require("projects.rhythm_dotgeo.game.SpeakiSong.Background")
+            local Sprites = require("projects.rhythm_dotgeo.game.SpeakiSong.Sprites")
+            local loadedPaths = {}
+            local sprites = Sprites.new({
+                newImage = function(path)
+                    table.insert(loadedPaths, path)
+                    return {
+                        setFilter = function() end,
+                        getWidth = function() return 640 end,
+                        getHeight = function() return 480 end,
+                    }
+                end,
+            })
+            test.assertEqual(#loadedPaths, 4)
+            test.assertTrue(table.concat(loadedPaths, "\n"):find("ghost_basic.png", 1, true) ~= nil)
+
+            local previousGraphics = love.graphics
+            local color, drawn
+            love.graphics = {
+                setColor = function(...)
+                    color = { ... }
+                end,
+                draw = function(...)
+                    drawn = { ... }
+                end,
+            }
+            local succeeded, errorMessage = xpcall(function()
+                local background = Background.new(sprites)
+                background:spawn()
+                background:draw(1280, 720)
+                test.assertEqual(table.concat(color, ","), "1,1,1,1")
+                test.assertEqual(drawn[1], sprites:get("background"))
+                test.assertEqual(drawn[2], 640)
+                test.assertEqual(drawn[3], 360)
+                test.assertEqual(drawn[5], 2)
+                test.assertEqual(drawn[6], 2)
+            end, debug.traceback)
+            love.graphics = previousGraphics
+            if not succeeded then error(errorMessage, 0) end
+        end,
+    },
+    {
         name = "스피키송 턴 대기 액터는 화면 가장자리에 조금만 걸친다",
         run = function(test)
             local Actor = require("projects.rhythm_dotgeo.game.SpeakiSong.SpeakiActor")
@@ -409,6 +648,7 @@ return {
                 graphics = {
                     clear = function() end,
                     setColor = function() end,
+                    rectangle = function() end,
                     printf = function() end,
                     draw = function(_, _, _, _, scaleX)
                         table.insert(scales, scaleX)
@@ -419,8 +659,11 @@ return {
             love = previousLove
 
             test.assertTrue(succeeded, errorMessage)
-            test.assertTrue(scales[2] > 0)
-            test.assertTrue(scales[3] < 0)
+            test.assertTrue(#scales > 3)
+            for index = 1, #scales - 1 do
+                test.assertTrue(scales[index] > 0)
+            end
+            test.assertTrue(scales[#scales] < 0)
         end,
     },
     {

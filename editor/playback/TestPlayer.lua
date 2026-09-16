@@ -147,7 +147,10 @@ function TestPlayer:draw(rect)
         return nil, "Project preview draw failed: " .. tostring(errorMessage)
     end
 
+    local red, green, blue, alpha = self.graphics.getColor()
+    self.graphics.setColor(1, 1, 1, 1)
     self.graphics.draw(self.canvas, rect.x, rect.y)
+    self.graphics.setColor(red, green, blue, alpha)
     return true, nil
 end
 

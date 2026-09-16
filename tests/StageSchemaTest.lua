@@ -11,6 +11,20 @@ end
 
 return {
     {
+        name = "Fullscreen은 boolean만 허용하고 false는 생략하며 true는 보존한다",
+        run = function(test)
+            local Schema = require("core").StageSchema
+            local stage = validStage()
+            stage.editorSettings = { fullscreen = true }
+            local normalized = assert(Schema.normalize(stage))
+            test.assertEqual(normalized.editorSettings.fullscreen, true)
+            stage.editorSettings.fullscreen = false
+            test.assertEqual(assert(Schema.normalize(stage)).editorSettings, nil)
+            stage.editorSettings.fullscreen = "true"
+            test.assertEqual(Schema.validate(stage), nil)
+        end,
+    },
+    {
         name = "StageSchema validates a minimum schemaVersion 3 Stage",
         run = function(test)
             local Schema = require("core").StageSchema

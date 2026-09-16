@@ -1,6 +1,7 @@
 local StageSettings = {}
 
 local DEFAULTS = {
+    fullscreen = false,
     metronome = false,
     metronomePeriod = 4,
     snap = 1,
@@ -14,6 +15,7 @@ local DEFAULTS = {
 }
 
 local ALLOWED_KEYS = {
+    fullscreen = true,
     metronome = true,
     metronomePeriod = true,
     snap = true,
@@ -40,6 +42,9 @@ function StageSettings.validate(value)
         if not ALLOWED_KEYS[key] then
             return "$.editorSettings contains an unknown field: " .. tostring(key)
         end
+    end
+    if value.fullscreen ~= nil and type(value.fullscreen) ~= "boolean" then
+        return "$.editorSettings.fullscreen must be a boolean."
     end
     if value.metronome ~= nil and type(value.metronome) ~= "boolean" then
         return "$.editorSettings.metronome must be a boolean."
@@ -106,6 +111,7 @@ function StageSettings.resolve(value)
     local metronome = value.metronome
     if metronome == nil then metronome = DEFAULTS.metronome end
     return {
+        fullscreen = value.fullscreen == true,
         metronome = metronome,
         metronomePeriod = value.metronomePeriod or DEFAULTS.metronomePeriod,
         snap = value.snap or DEFAULTS.snap,

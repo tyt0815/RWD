@@ -47,6 +47,9 @@ local function newGraphics()
     function graphics.clear()
     end
 
+    function graphics.getColor() return 1, 1, 1, 1 end
+    function graphics.setColor() end
+
     function graphics.draw(canvas, x, y)
         graphics.draws = graphics.draws + 1
         graphics.compositeCanvas = canvas
@@ -60,6 +63,41 @@ local function newGraphics()
 end
 
 return {
+    {
+        name = "TestPlayer composites white without inheriting the Editor tint",
+        run = function(test)
+            local TestPlayer = require("editor.playback.TestPlayer")
+            local graphics = love.graphics
+            graphics.push("all")
+            local succeeded, errorMessage = xpcall(function()
+                local target = graphics.newCanvas(4, 4)
+                graphics.setCanvas(target)
+                graphics.clear(0, 0, 0, 1)
+                graphics.setColor(0.5, 0.6, 0.7, 0.8)
+                local player = TestPlayer.new({
+                    graphics = graphics,
+                    createGame = function()
+                        return { draw = function() graphics.clear(1, 1, 1, 1) end }
+                    end,
+                })
+                assert(player:start({ id = "sample" }))
+                assert(player:draw({ x = 0, y = 0, width = 4, height = 4 }))
+                local r, g, b, a = graphics.getColor()
+                test.assertNear(r, 0.5, 0.000001)
+                test.assertNear(g, 0.6, 0.000001)
+                test.assertNear(b, 0.7, 0.000001)
+                test.assertNear(a, 0.8, 0.000001)
+                graphics.setCanvas()
+                r, g, b, a = target:newImageData():getPixel(1, 1)
+                test.assertNear(r, 1, 0.000001)
+                test.assertNear(g, 1, 0.000001)
+                test.assertNear(b, 1, 0.000001)
+                test.assertNear(a, 1, 0.000001)
+            end, debug.traceback)
+            graphics.pop()
+            if not succeeded then error(errorMessage, 0) end
+        end,
+    },
     {
         name = "TestPlayer starts a created Project game",
         run = function(test)

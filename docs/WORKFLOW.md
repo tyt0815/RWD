@@ -69,6 +69,7 @@ New는 Project, Stage ID, Name과 BPM으로 `events: []`인 schemaVersion 3 Stag
 7. Track: Timeline Track 수 `1~32`. 기본값은 `10`이며 현재 노드가 있는 Track보다 작게 줄일 수 없다.
 8. Preview Aspect Width: Editor Play 화면 비율의 너비. 기본값은 `16`이며 0보다 커야 한다.
 9. Preview Aspect Height: Editor Play 화면 비율의 높이. 기본값은 `9`이며 0보다 커야 한다.
+10. Fullscreen: 기본값 `false`. `true`이면 재생 시작부터 Preview를 에디터 창 전체에 표시한다.
 
 숫자 Value는 셀을 클릭하면 값 끝에 깜빡이는 커서가 바로 표시된다. 공통 입력 모듈에 숫자 필터를 적용하며 첫 입력부터 현재 커서 위치에 이어서 입력한다. 좌우 방향키로 커서를 옮겨 중간 삽입하고 Backspace/Delete로 커서 주변 문자를 삭제할 수 있다. Enter 또는 다른 영역 클릭은 유효한 값을 확정하며 Escape는 취소한다. boolean은 클릭 즉시 바뀐다. 기본값과 같은 선택 속성은 저장 JSON에서 제거된다.
 
@@ -95,6 +96,8 @@ Music이 `None`이어도 Transport와 Project preview는 정상 동작한다. Pr
 decode, Source, preview 시작·update·draw가 실패하면 오류 모달을 표시하고 `EditorSession:pause()`를 통해 Transport, Metronome과 TestPlayer를 함께 정리한다. TestPlayer update 실패는 pause 뒤 이전 beat로 rollback한다.
 
 현재 preview는 현재 Stage와 기준 beat를 Project의 `startStage`에 전달한다. Auto Play가 `None`이 아니고 Project가 선택적 `setAutoPlay(value)`를 구현하면 Stage 시작 전에 `good`, `bad`, `miss` 중 선택값을 전달한다. 입력 상태는 기본 true이고 `Set Input Enabled` 도달 시 바뀌며, 활성 상태의 Space 누름·뗌을 현재 beat와 함께 Project `keypressed`·`keyreleased`로 전달한다. `End` 도달 시 해당 beat에서 끝나고, End가 없고 Music이 있으면 Music duration에서 자동 종료한다. Sample은 Core TapJudgment 예제와 Turn을 제공한다. Rhythm Dotgeo의 스피키송은 `Response Delay (Beats)` 뒤 Tap 또는 Long 응답을 만든다. 예정된 노트 종류와 무관하게 Space를 `longHoldThresholdMs` 전에 떼면 Tap, 실제 시간 기준 임계점까지 유지하면 Long Start, 이후 떼면 Long Release로 먼저 분류한다. Tap과 Long 시작 판정에는 최초 press beat를 사용하고 Long은 `Long Note Length (Beats)`의 종료 beat에 맞춰 뗀다. 일반 Pattern 실행은 후속 작업이다.
+
+Editor에서 `Tab`은 Editor Properties의 `Fullscreen` boolean을 전환한다. 정지 중에도 설정할 수 있으며 true이면 Play 시작부터 게임 Preview가 에디터 창 전체로 확대된다. Preview Aspect Width/Height 비율을 유지하고 남는 영역은 검정색으로 표시한다. 재생 중 `Tab`으로 즉시 전환하고, 확대 중 `Esc`는 Fullscreen을 false로 바꿔 재생을 유지한 채 기존 패널로 돌아온다. 확대 중에도 `F` 재생 정지, `R` 초기화와 Space 게임 입력은 유지되며 숨겨진 에디터의 마우스 조작은 막는다. 재생이 종료되면 편집 화면으로 복귀한다. Fullscreen은 Stage에 저장하며 재생 종료 후에도 설정을 유지한다. 텍스트 편집·선택 목록·모달의 키 처리를 우선한다.
 
 ## 6. 독립 실행 Stage 선택
 
