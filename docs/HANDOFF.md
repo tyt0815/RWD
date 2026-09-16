@@ -2,19 +2,32 @@
 
 ## 현재 구현 상태
 
+크레페에도 스피키와 동일한 매 박자 바운스를 적용했다. Category 전용 `BeatBounce.lua`가 0.12박 동안 12% 눌림·0.48박 복원의 높이 비율을 공유하며 이미지 하단은 고정한다. 크레페는 초기 idle·걷기 모두 적용하고, 스피키는 기존처럼 idle만 적용한다. 위치 복귀 시 모두 바운스를 끄고 크레페 idle 프레임 재생은 유지한다. 다음 자동 Turn에서 재개하며 마지막 복귀 뒤 Turn이 없으면 계속 멈춘다.
+
+
+크레페 idle은 `projects/rhythm_dotgeo/assets/image/crepe_idle_0.png`~`crepe_idle_39.png` 40장이 모두 있을 때 30fps로 반복한다. 미배치·부분 배치 때는 `crepe_walk_0.png`로 중앙 대기한다. 이미지 추가 후 앱 재시작이 필요하다. 걷기는 첫 이동 시점에 0번 프레임부터 시작하며 기존 24프레임·30fps를 유지한다.
+
+스피키송 Category에 `returnActors` / `스피키 위치 복귀` 이벤트를 추가했다. 사용자 확인에 따라 두 스피키는 최초 등장 위치로 0.5박 동안 복귀하며 크레페는 현재 위치에서 멈추고 idle로 전환한다. 다음 스피키 자동 Turn에 멈춘 위치부터 왕복 진행도를 이어 걷는다. 기존 `SpeakiActor:moveOutside(false)`와 Core.BeatTween을 재사용한다. Event 실행은 Core.StageRuntime occurrence를 따르고, Runtime은 각 Event 시점까지 자동 Turn을 먼저 적용한 뒤 handler를 실행한다. 중간 시작은 catch-up 뒤 0초 update로 최종 위치를 완성한다. 복귀는 자동 Turn 구간을 나누므로 같은 역할의 다음 Cue도 새 Turn 이동을 시작한다.
+
+
+Editor Snap은 `0 < snap <= 32`의 유한수로 소수를 허용한다. 0.5·0.25·0.1 설정과 JSON 저장을 지원하며 0.1 간격의 0.3박 셀 경계에서 부동소수점 오차로 앞 칸에 붙는 문제를 보정했다. schemaVersion은 3을 유지한다.
+
+Rhythm Dotgeo Windows 빌드는 `python tools/build_rhythm_dotgeo.py --verify`로 실행한다. `dist/RhythmDotgeo/`에 EXE·DLL·런타임 라이선스, `dist/RhythmDotgeo-windows.zip`에 배포 ZIP을 만든다. Stage 선택 화면으로 바로 시작하며 Editor·Sample·테스트는 제외한다. 배포 진입점은 `tools/packaging/rhythm_dotgeo/`, 원본 개발 진입점은 유지한다. NativeFileSystem은 fused EXE도 읽기 전용 LÖVE 파일시스템으로 처리한다.
+
+
 스피키 idle(smile)은 매 박자 0.12박 동안 높이가 최대 12% 눌리고 다음 0.48박 동안 부드럽게 복원된다. 스프라이트 하단과 가로 크기·위치는 고정하며 Tap·Long 효과에는 적용하지 않는다. Stage beat로 직접 계산해 중간 재생·되감기·일시정지에 동기화한다. Project 전용 연출이므로 기존 Core 박자와 이동 API를 유지하고 `SpeakiActor.lua`에서 처리한다.
 
-크레페 방향 전환에는 `Core.BeatTween`을 조합한 0.25박 종이 플립을 적용한다. 중심과 높이를 유지하며 가로 scale이 기존 방향 → 0 → 반대 방향으로 변한다. 전환 중에도 연속 이동과 두 박자 걷기 애니메이션은 진행하며, 매 draw에서 기존 Turn 일정으로 보간 상태를 복원해 중간 재생·되감기에도 일치한다. 효과 길이는 `FLIP_DURATION_BEATS`로 조정한다.
+크레페 방향 전환은 `Core.BeatTween`의 0.25박 종이 플립을 유지한다. 8박 주기 전환 시점에서 가로 scale만 보간하며 걷기와 이동은 계속 진행한다.
 
 Editor Properties의 `Fullscreen` boolean(기본 false)이 Preview 확대 여부를 소유한다. Tab은 정지·재생 중 이 설정을 전환하며 true이면 재생 시작부터 창 전체로 확대한다. 모니터 전체 화면 전환은 아니며 기존 Preview 종횡비를 유지하고 남는 영역을 검정색으로 채운다. Tab·Esc는 재생을 유지한 채 패널로 복귀하고 F·R·Space는 기존 동작을 유지한다. 확대 중 숨겨진 편집 화면의 마우스 입력을 막으며 재생 종료·오류 시 편집 화면으로 돌아가되 설정은 유지한다. Esc는 Fullscreen을 false로 바꾼다. Stage의 editorSettings.fullscreen에 희소 저장하며 별도 임시 확대 상태는 없다.
 
 사용자는 Editor Properties에 true/false로 게임 화면과 소리를 영상 저장하는 녹화를 요청했다. LÖVE 내장 지원 여부를 확인하는 단계이며 녹화 백엔드는 미정이다. Record 속성과 녹화 기능은 아직 추가하지 않았다. LÖVE의 screenshot과 입력 장치 RecordingDevice만으로 완성된 게임 영상 녹화를 제공할 수 없어 인코딩·출력 소리 캡처 방식 결정이 필요하다.
 
-크레페는 오른쪽 이동 턴(guide)에서 중심 기준으로 좌우 반전하고, 왼쪽 이동 턴(player)에서는 원본 방향으로 그린다. 12프레임 애니메이션은 두 박자 동안 한 사이클을 재생하며, 이동은 소수 beat를 사용해 연속적으로 이어진다. 방향 반전은 기존처럼 정수 박자에 적용하므로 Turn이 2.5박에 시작하면 3박에 방향을 바꾸되 위치는 끊기지 않는다. 이때 2박 주기의 프레임 전환과도 일치하며 애니메이션을 강제로 처음으로 돌리지 않는다. 중간 재생·되감기에도 같은 박자 기준으로 복원된다.
+크레페는 첫 스피키 자동 Turn 이동 전까지 중앙에서 대기한다. 첫 Turn 시작(첫 Cue보다 0.5박 전, 음수면 0박)을 기준으로 왼쪽 4박 → 오른쪽 8박 → 왼쪽 8박을 반복한다. 중심 이동 범위는 기존 30%~70%, 속도는 5%/박이며 좌우 여백과 0.25박 플립을 유지한다. Stage beat와 첫 이동 시점으로 직접 계산해 중간 재생·되감기에도 같으며 Turn이 없는 Stage는 계속 대기한다.
 
 Editor 미리보기 합성 시 직전에 사용한 UI 색상·알파가 Canvas에 곱해져 흰색이 어두워지는 문제를 수정했다. `TestPlayer:draw`는 Canvas를 흰색·불투명으로 합성한 뒤 이전 색상을 복원한다. Project 배경색은 기존 순백색을 유지한다.
 
-스피키송 소환 이후 `CrepeActor`는 Stage beat 0에서 상단 중앙에 있는 한 명만 표시한다. 가로 반복 복사본을 제거했으며 기존 12프레임의 두 박자 걷기, Turn 방향별 연속 이동과 0.25박 종이 플립은 유지한다. 화면 밖으로 완전히 나가면 반대쪽에서 다시 들어온다. 세로 중심은 화면 높이 22%, 이미지 영역 높이는 32%(너비 상한 30%)이며 Stage beat로 위치와 프레임을 복원한다.
+스피키송 크레페는 한 명만 표시한다. 24프레임(`crepe_walk_0.png`~`crepe_walk_23.png`)을 30fps로 재생하는 0.8초 반복 걷기 애니메이션, 세로 중심 화면 높이 60%, 이미지 영역 높이 32%(너비 상한 30%)를 유지한다. 화면 끝에서 반대편으로 순간 이동하지 않고 방향을 바꿔 걷는다.
 
 스피키송 배경은 사용자 요청으로 `ghost_basic.png`를 다시 로드하고 표시한다. 소환 이후 이미지 비율을 유지하며 화면 전체를 채우도록 중앙에 확대해서 그린다.
 
@@ -38,9 +51,63 @@ Project Event는 `categoryId + eventId` 조합으로 저장·조회·dispatch한
 
 ## 알려진 실패
 
-현재 알려진 자동 테스트 실패는 없다.
+실제 Speaki Song Stage 로드 테스트가 이벤트 수 5개를 고정 기대하지만 현재 사용자 Stage는 54개이므로 실패한다. 소수 Snap 수정 전에도 같은 실패가 있었으며 Stage와 해당 테스트는 변경하지 않았다.
 
 ## 최신 검증
+
+- 2026-09-16 바운스 RED: `& 'C:/Program Files/LOVE/lovec.exe' . --test` → 크레페 눌림·스피키 중지·Runtime 중지 상태 신규 3건 실패 및 기존 Stage 고정 개수 검사 1건 실패.
+- 구현 후 같은 명령 → 관련 테스트 통과, 기존 Stage 검사 1건만 실패(기대 5, 실제 54). 두 크기의 크레페 하단 고정·눌림/복원, 초기 idle·걷기, 복귀 시 정지·다음 Turn 재개·마지막 복귀 후 중간 시작의 정지 상태를 검증했다.
+- `& 'C:/Program Files/LOVE/love.exe' .` → 앱 실행. 실제 화면 육안 확인은 수행하지 않았다. `git diff --check` → 오류 없음.
+
+
+- 2026-09-16 복귀 시 크레페 정지 RED: `& 'C:/Program Files/LOVE/lovec.exe' . --test` → `stopMovement` 부재로 신규 테스트 실패.
+- 구현 후 같은 명령 → 관련 테스트 통과, 기존 실제 Stage 이벤트 수 검사 1건만 실패(기대 5, 실제 54). idle 전환·현재 위치 유지·다음 자동 Turn 재개·반복 정지·플립 중 정지·중간 시작과 큰 beat 점프 결과 일치를 검증했다.
+- 정지 구간 이력은 CrepeActor가 소유하고 Core occurrence로 실행된 ReturnActors가 정지를 요청한다. Runtime의 기존 자동 Turn은 재개만 요청하며 Stage 재시작 시 이력을 초기화한다.
+- `& 'C:/Program Files/LOVE/love.exe' .` → 앱 실행. 실제 화면 육안 확인은 수행하지 않았다. `git diff --check` → 오류 없음.
+
+
+- 2026-09-16 idle 40장 수정: `& 'C:/Program Files/LOVE/lovec.exe' . --test` RED → 기대 40, 실제 24 실패. 수정 후 idle 0~39 숫자순 재생·40/30초 반복·39번 누락 시 fallback 및 기존 걷기 24프레임 테스트 통과. 기존 Stage 이벤트 수 검사 1건만 실패(기대 5, 실제 54).
+- `git diff --check` → 오류 없음. 실제 idle 리소스 육안 확인은 수행하지 않았다.
+
+
+- 2026-09-16 크레페 중앙 대기 RED: `& 'C:/Program Files/LOVE/lovec.exe' . --test` → 초기 중앙 위치 기대 640, 실제 768로 신규 요구사항 실패.
+- 구현 후 같은 명령 → 신규·관련 테스트 통과. 기존 실제 Stage 이벤트 수 검사 1건만 실패(기대 5, 실제 54). idle 24프레임, 미배치 fallback, 걷기 프레임 초기화, 첫 Turn 7.5박 출발·4/8박 왕복, 중간 시작·되감기·새 Stage 초기화를 검증했다.
+- `& 'C:/Program Files/LOVE/love.exe' .` → 앱 실행. 실제 idle 리소스는 아직 없으며 애니메이션은 모의 이미지로 검증했다. 실제 게임 화면 육안 확인은 수행하지 않았다. `git diff --check` → 오류 없음.
+
+
+- 2026-09-16 위치 복귀 RED: `& 'C:/Program Files/LOVE/lovec.exe' . --test` → 미등록 Event·등록 개수 신규 2건과 기존 실제 Stage 고정 개수 검사 1건 실패.
+- 구현 후 같은 명령 → 위치 복귀 관련 테스트 통과, 기존 실제 Stage 고정 개수 검사 1건만 실패(기대 5, 실제 54). 0.5박 보간, 중간 시작·큰 beat 점프·재시작의 위치 일치, 다음 자동 Turn과 같은 역할 Cue의 재개를 검증했다.
+- `& 'C:/Program Files/LOVE/love.exe' .` → 앱 실행. 실제 Editor 이벤트 배치 육안 확인은 수행하지 않았다. `git diff --check` → 오류 없음.
+
+
+- 2026-09-16 소수 Snap RED: `& 'C:/Program Files/LOVE/lovec.exe' . --test` → 신규 소수 Schema·Editor 배치·0.1 셀 경계 검증 3건 및 기존 실제 Stage 이벤트 수 검사 1건 실패.
+- GREEN: 같은 명령 → Snap 관련 테스트 전부 통과. 전체에서는 기존 실제 Stage 테스트 1건만 실패(기대 5, 실제 22). 소수 JSON 왕복, 0·음수·무한·NaN·문자열 거부, 0.5 배치·0.25 이동·저장, 소수 셀 경계와 경계 직전을 검증했다.
+- `& 'C:/Program Files/LOVE/love.exe' .` → 앱 실행. 실제 UI 입력 육안 확인은 수행하지 않았다. `git diff --check` → 오류 없음.
+
+
+- 2026-09-16 패키징 RED: `python -m unittest tests_python.test_build_rhythm_dotgeo -v` → 빌드 모듈 부재로 실패. `& 'C:/Program Files/LOVE/lovec.exe' . --test` → fused EXE Stage 읽기 테스트가 native 경로 접근으로 실패.
+- GREEN: `& 'C:/Program Files/LOVE/lovec.exe' . --test` → `PASS: 352 tests`.
+- `python -m unittest discover -s tests_python -v` → 7개 통과. 샌드박스 임시 디렉터리 권한 오류 후 정상 권한으로 실행했다. 아카이브 제외 항목, EXE 바이너리 결합, 반복 빌드, 누락 런타임 사전 실패를 검증했다.
+- `python tools/build_rhythm_dotgeo.py --verify` → 성공. 실제 fused EXE에서 Stage 로드·시작·update·draw 및 종료 코드 0을 확인했다. 약 14.3MB 배포 ZIP 생성. 수동 게임 플레이와 음악 청취는 수행하지 않았다.
+- `git diff --check` → 오류 없음.
+
+
+- 2026-09-16 크레페 24프레임 RED: `& 'C:/Program Files/LOVE/lovec.exe' . --test` → 프레임 수 기대 24, 실제 12로 실패.
+- GREEN: 같은 명령 → `PASS: 351 tests`. 24장 숫자순 재생, 1/30초 경계, 0.8초 반복, 동일 시간·되감기, BPM 120·152·240의 초 변환과 기존 8박 왕복을 검증했다.
+- `& 'C:/Program Files/LOVE/love.exe' .` → 앱 실행. 실제 플레이 화면 육안 확인은 수행하지 않았다. `git diff --check` → 오류 없음.
+
+
+- 2026-09-16 크레페 8박 왕복 RED: `& 'C:/Program Files/LOVE/lovec.exe' . --test` → 시작 위치 기대 0.7, 실제 0.5로 신규 요구사항 실패 확인.
+- GREEN: 같은 명령 → `PASS: 350 tests`. 세 화면 크기에서 8박 전환·좌우 동일 여백·중간 위치·큰 beat·되감기·단일 표시·기존 Y 위치·프레임·플립을 검증했다.
+- `& 'C:/Program Files/LOVE/love.exe' .` → 앱 실행. 실제 플레이 화면 육안 확인은 수행하지 않았다.
+- `git diff --check` → 오류 없음.
+
+
+- 2026-09-16 크레페 경계·랜덤 전환 RED: `& 'C:/Program Files/LOVE/lovec.exe' . --test` → 신규 이동 API 부재로 1건 실패.
+- GREEN: 같은 명령 → `PASS: 350 tests`. 기존 Turn·순환 이동 테스트 두 개를 새 정책 테스트로 통합했다. 두 화면 크기, 좌우 경계 반사, 경계와 랜덤 동시 발생, 10% 임계값, 프레임당 재추첨 방지, 되감기, 재시작 초기화, 종이 플립과 단일 표시를 검증했다.
+- 임시 LÖVE 하네스로 실제 이미지의 중앙·좌우 경계·반전 후 위치를 렌더링해 확인했다. 하네스는 제거했다. 실제 곡 재생 청취는 수행하지 않았다.
+- `& 'C:/Program Files/LOVE/love.exe' .` → 실행 명령 정상 종료. `git diff --check` → 오류 없음.
+
 
 - 2026-09-16 크레페 한 명 표시 RED: `& 'C:/Program Files/LOVE/lovec.exe' . --test` → 표시 개수 기대 1, 실제 9로 신규 요구사항 실패 확인.
 - GREEN: 같은 명령 → `PASS: 351 tests`. 두 화면 크기에서 단일 표시, 중앙 시작, 이동·화면 경계 순환, 프레임·턴·플립·되감기를 검증했다.
@@ -146,10 +213,33 @@ Project Event는 `categoryId + eventId` 조합으로 저장·조회·dispatch한
 
 ## 다음 작업
 
+크레페 공통 박자 바운스와 위치 복귀 시 전체 바운스 정지 구현 완료.
+
+
+위치 복귀 시 크레페 정지·idle과 다음 스피키 이동 시 재개까지 완료했다.
+
+
+크레페 idle PNG 40장을 지정 경로에 넣고 앱을 재시작하면 자동 적용된다. 대기·이동 로직은 완료했다.
+
+
+스피키 위치 복귀 이벤트 추가 완료. 앱 재시작 후 스피키송 Category에서 선택해 배치한다. 사용자 Stage에는 자동 삽입하지 않았다.
+
+
+소수 Snap 구현은 완료했다. 실제 Stage 이벤트 수를 고정 기대하는 기존 테스트는 별도 정리가 필요하다.
+
+
+Rhythm Dotgeo 패키징 완료. 배포 시 ZIP 전체를 전달한다. 임의 Project 선택 빌드는 후속 작업이며 현재 스크립트는 Rhythm Dotgeo 전용이다.
+
+
+크레페 24프레임·30fps 적용 완료. `CrepeActor.lua`의 `FRAME_COUNT`, `ANIMATION_FPS`에서 조정한다. Runtime은 `Core.TempoMap`으로 Stage beat를 초로 변환해 전달하며 일시정지·seek에 동기화한다. 정상 배속에서 30fps이며 재생 배속 변경 시 Stage 시간과 함께 빨라지거나 느려진다. 기존 두 박자 반복 주기를 대체했으며 8박 왕복 이동은 유지한다.
+
+
+크레페 8박 왕복 구현은 완료했다. `CrepeActor.lua`의 `TURN_BEATS`로 주기, `STEP_WIDTH_RATIO`로 박자당 이동 거리를 조정한다. 이전 랜덤·경계 반사 방식은 대체되었다.
+
 크레페 한 명 표시 변경은 완료했다. 앱 재시작 후 스피키송에서 중앙의 한 명으로 시작하는 것을 확인할 수 있다.
 
 
-스피키 idle 눌림 구현은 완료했다. 강도와 누름·복원 시간은 `SpeakiActor.lua`의 `IDLE_SQUASH`, `IDLE_PRESS_BEATS`, `IDLE_RECOVER_BEATS`에서 조정한다.
+스피키 idle 눌림 구현은 완료했다. 강도와 누름·복원 시간은 `BeatBounce.lua`의 `SQUASH`, `PRESS_BEATS`, `RECOVER_BEATS`에서 조정한다.
 
 크레페 종이 플립 구현은 완료했다. 현재 전환 길이는 0.25박이다.
 
@@ -179,4 +269,4 @@ Project Event는 `categoryId + eventId` 조합으로 저장·조회·dispatch한
 
 코드 분석용 주석의 다음 순서는 `launcher/Launcher.lua`, `launcher/ProjectLoader.lua`의 Launcher와 Project 로딩 흐름이다. 사용자가 현재 `main.lua`를 읽고 이해한 뒤 다음 단계로 진행한다.
 
-기능 개발은 Phase 2에서 Editor와 Project가 각각 조립하는 `StageRuntime`을 단일 실행 권위로 통합한다. Phase 3의 동적 Launcher Project 메뉴와 EditorApp/EditorSession 책임 분리, Project별 packaging은 아직 현재 구현이 아니다.
+기능 개발은 Phase 2에서 Editor와 Project가 각각 조립하는 `StageRuntime`을 단일 실행 권위로 통합한다. Phase 3의 동적 Launcher Project 메뉴와 EditorApp/EditorSession 책임 분리, 범용 Project 선택 packaging은 아직 현재 구현이 아니며 Rhythm Dotgeo Windows 빌드는 완료했다.

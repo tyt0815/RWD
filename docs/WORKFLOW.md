@@ -60,7 +60,7 @@ New는 Project, Stage ID, Name과 BPM으로 `events: []`인 schemaVersion 3 Stag
 
 `Editor Properties`는 다음 순서다.
 
-1. Snap: Timeline 재생 바와 Event 노드를 맞출 박자 간격 `1~32`. 값 1은 한 박, 값 4는 네 박 크기의 노드 스냅 박스를 뜻한다.
+1. Snap: Timeline 재생 바와 Event 노드를 맞출 박자 간격 `0 < Snap <= 32` (소수 허용). 값 0.25는 ¼박, 0.5는 반 박, 1은 한 박, 4는 네 박 크기의 노드 스냅 박스를 뜻한다.
 2. Scale: Timeline 확대 배율 `0.25~8.0`
 3. Playback Rate: Editor preview 속도 `0.25~4.0`
 4. Auto Play: 기본값 `None`. `Good`, `Bad`, `Miss` 선택 시 Play 중 Project가 해당 판정을 자동 실행한다.
@@ -109,4 +109,28 @@ Core는 `JudgmentResult`만 전달한다. Project는 `GOOD`, `BAD`, `MISS`, `EMP
 
 ## 8. 독립 배포
 
-배포 시에는 선택 Project의 코드·리소스·Stage와 호환 Core만 포함한다. Editor와 다른 Project는 포함하지 않는다. 패키징 도구는 로드맵의 후속 단계에서 구현한다.
+Rhythm Dotgeo Windows 배포는 Python 3와 LÖVE 11.5 Windows 런타임으로 만든다. 저장소 루트에서 실행한다.
+
+```powershell
+python tools/build_rhythm_dotgeo.py --verify
+```
+
+기본 런타임 위치는 `C:/Program Files/LOVE`다. 다른 경로라면 `--love-dir "D:/love-11.5-win64"`를 지정한다. 같은 버전·아키텍처의 EXE와 DLL을 한 폴더에 둔다. Python 표준 라이브러리만 사용하며 별도 pip 설치는 필요 없다.
+
+- `dist/RhythmDotgeo.love`: Core, Rhythm Dotgeo 전체 코드·리소스·설정·Stage, 공통 폰트·JSON 라이브러리·필요한 Launcher 보조 모듈을 담은 아카이브.
+- `dist/RhythmDotgeo/RhythmDotgeo.exe`: LÖVE 실행 파일과 위 아카이브를 결합한 실행 파일. 같은 폴더의 DLL이 필요하다.
+- `dist/RhythmDotgeo-windows.zip`: EXE·DLL·LÖVE 라이선스를 담은 배포 파일. 받는 사람은 ZIP을 풀고 EXE를 실행한다. LÖVE 별도 설치는 필요 없다.
+
+재실행하면 지정된 빌드 산출물을 덮어쓴다. 실행 중인 배포 EXE를 닫고 빌드한다. Editor, Sample, 테스트, 개발 문서는 게임 아카이브에서 제외된다. 현재 스크립트는 Rhythm Dotgeo 전용이다.
+
+배포용 `main.lua`와 `conf.lua`는 `tools/packaging/rhythm_dotgeo/`에 있다. 개발용 진입점은 그대로 유지한다. 배포판은 Stage 선택 화면으로 바로 시작하고 Stage에서 Esc는 목록으로, 목록에서 Esc는 종료한다. 콘솔 창은 표시하지 않으며 저장 identity는 `rhythm_dotgeo`다.
+
+`--verify`는 실제 결합 EXE를 별도 프로세스에서 실행해 Stage 목록·각 Stage 시작·update·draw, Editor/Sample 제외와 정상 종료를 검사한다. 실패 또는 60초 시간 초과 시 빌드 명령이 실패한다. 플레이 조작·음악 청취와 코드 서명·설치 프로그램 생성은 포함하지 않는다.
+
+### 스피키송 위치 복귀
+
+Game Manager의 스피키송 Category에서 **스피키 위치 복귀**를 선택해 배치한다. 두 스피키가 Event 시작부터 0.5박 동안 최초 등장 위치로 돌아온다. 크레페는 복귀 이벤트 시작 시 현재 위치에서 멈추고 idle로 전환한다. 다음 자동 Turn에서 멈춘 위치·왕복 진행도를 이어 걷는다. 복귀 시 스피키와 크레페의 박자 바운스도 멈추며 다음 자동 Turn에서 재개한다. 마지막 복귀 이후 Turn이 없으면 바운스는 계속 꺼져 있고 idle 프레임 재생은 유지된다. 배경·Tap/Long 반응·사운드는 초기화하지 않는다. 복귀 후 다음 자동 Turn 이동은 계속 적용하며, 같은 역할의 다음 Cue도 새 Turn으로 처리한다. 노드 표시 폭은 0.5박이고 반복 배치할 수 있다.
+
+### 크레페 idle 리소스
+
+`projects/rhythm_dotgeo/assets/image/`에 `crepe_idle_0.png`부터 `crepe_idle_39.png`까지 넣고 앱을 재시작한다. 40장이 모두 있어야 idle이 30fps로 반복되며, 없거나 일부만 있으면 걷기 첫 프레임으로 중앙에서 대기한다. 걷기 이미지와 동일한 캔버스 크기·정렬을 사용한다. 첫 스피키 자동 Turn부터 왼쪽 4박, 이후 오른쪽·왼쪽 8박씩 왕복한다.

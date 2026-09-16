@@ -11,6 +11,20 @@ end
 
 return {
     {
+        name = "Snap 소수는 정규화와 JSON 저장 후 다시 읽어도 유지된다",
+        run = function(test)
+            local Schema = require("core").StageSchema
+            local json = require("vendor.dkjson")
+            for _, snap in ipairs({ 0.1, 0.125, 0.25, 0.5, 1.5, 32 }) do
+                local stage = validStage()
+                stage.editorSettings = { snap = snap }
+                local normalized = assert(Schema.normalize(stage))
+                local decoded = assert(json.decode(json.encode(normalized)))
+                test.assertEqual(assert(Schema.normalize(decoded)).editorSettings.snap, snap)
+            end
+        end,
+    },
+    {
         name = "Fullscreen은 boolean만 허용하고 false는 생략하며 true는 보존한다",
         run = function(test)
             local Schema = require("core").StageSchema
@@ -96,7 +110,7 @@ return {
             local invalidValues = {
                 { metronome = "true" },
                 { metronomePeriod = 0 }, { metronomePeriod = 33 }, { metronomePeriod = 1.5 },
-                { snap = 0 }, { snap = 33 }, { snap = 1.5 },
+                { snap = 0 }, { snap = 33 }, { snap = -0.5 }, { snap = math.huge }, { snap = 0 / 0 }, { snap = "0.5" },
                 { onsetThreshold = -0.01 }, { onsetThreshold = 1.01 }, { onsetThreshold = "0" },
                 { scale = 0.24 }, { scale = 8.01 },
                 { playbackRate = 0.24 }, { playbackRate = 4.01 },

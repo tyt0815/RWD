@@ -59,6 +59,8 @@ function StagePlayback:start(game, stage, startBeat)
         self.runtime:getCurrentBeat()
     )
     if not applied then return nil, applyError end
+    -- catch-up Event를 순서대로 적용한 뒤 시작 beat까지 연출 상태를 완성한다.
+    if self.categoryHost then self.categoryHost:update(0, self.runtime:getCurrentBeat()) end
     if not self.standalone or self.runtime:isEnded() then return true, nil end
 
     local transport, transportError = self.transportFactory(stage)

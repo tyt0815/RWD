@@ -58,10 +58,9 @@ function StageSettings.validate(value)
     end
     if value.snap ~= nil
         and (not isFiniteNumber(value.snap)
-            or value.snap % 1 ~= 0
-            or value.snap < 1
+            or value.snap <= 0
             or value.snap > 32) then
-        return "$.editorSettings.snap must be an integer between 1 and 32."
+        return "$.editorSettings.snap must be a finite number greater than 0 and at most 32."
     end
     if value.onsetThreshold ~= nil
         and (not isFiniteNumber(value.onsetThreshold)

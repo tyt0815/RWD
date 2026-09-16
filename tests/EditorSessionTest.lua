@@ -1096,6 +1096,22 @@ return {
         end,
     },
     {
+        name = "소수 Snap 설정으로 Event를 배치 이동하고 저장한다",
+        run = function(test)
+            local state = { stored = VALID_STAGE }
+            local session = newSession(state)
+            assert(session:openStage("sample", "tutorial"))
+            assert(session:setProperty("editorProperties", "snap", 0.5))
+            local event = assert(session:addTimelineEvent("setInputEnabled", 1.9, 1))
+            test.assertEqual(event.startBeat, 1.5)
+            assert(session:setProperty("editorProperties", "snap", 0.25))
+            assert(session:moveTimelineEvent(event.id, 2.9, 1))
+            test.assertEqual(session:getTimelineEvents()[1].startBeat, 2.75)
+            assert(session:save())
+            test.assertEqual(state.lastSaved.editorSettings.snap, 0.25)
+        end,
+    },
+    {
         name = "Timeline Event API는 Snap과 Track 범위를 적용한다",
         run = function(test)
             local session = newSession({ stored = VALID_STAGE })

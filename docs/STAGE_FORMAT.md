@@ -115,7 +115,7 @@ Mixtape와 Editor 설정이 모두 기본값이면 `mixtape`와 `editorSettings`
 | --- | ---: | --- |
 | `metronome` | `false` | boolean |
 | `metronomePeriod` | `4` | 강박 반복 BPM 박자 수, `1~32` 정수 |
-| `snap` | `1` | Timeline 편집 박자 간격, `1~32` 정수 |
+| `snap` | `1` | Timeline 편집 박자 간격, `0 < snap <= 32`의 유한수 (소수 허용) |
 | `onsetThreshold` | `0.01` | Music onset 검출 RMS 기준, `0.0~1.0` 유한 수 |
 | `scale` | `1.0` | `0.25~8.0` 유한 수 |
 | `playbackRate` | `1.0` | `0.25~4.0` 유한 수 |
@@ -171,5 +171,7 @@ Stage 파일 이름은 `<stageId>.json`이며 경로는 `projects/<projectId>/st
 지원하지 않는 schemaVersion과 잘못된 필드는 가능한 JSON 경로를 포함한 오류로 거부한다. `Core.StageSchema.validate/normalize`는 이 경우 `nil, message, "INVALID_STAGE"`를 반환한다. `Core.StageRepository`는 JSON 문법 오류에 `DECODE_FAILED`, 파일 읽기 실패에 `READ_FAILED`, 저장 실패에 `WRITE_FAILED`, 없는 Stage에 `NOT_FOUND`, 덮어쓰기 없는 중복 저장에 `STAGE_EXISTS`를 반환한다. 로드 실패는 현재 편집 중인 Stage와 재생 상태를 바꾸지 않는다.
 
 ## 버전 호환 정책
+
+Snap 소수 허용은 기존 필드의 값 범위 확장으로 schemaVersion 3을 유지한다. 기본값 1과 기존 정수의 의미는 같다. 소수 Snap을 저장한 Stage는 정수만 허용하는 구버전 로더에서 거부되므로 갱신된 버전으로 연다.
 
 현재 로더는 schemaVersion 3만 허용하며 버전 2 Stage를 자동 변환하지 않는다. 기존 v2 파일은 `schemaVersion`을 3으로 올리고 모든 `projectEvent`에 소유 Category의 `categoryId`를 추가한 뒤 명시적으로 저장해야 한다. 이후 기존 필드 의미를 호환되지 않게 바꾸는 경우에는 schemaVersion을 증가시키고 별도 변환 정책과 함께 도입한다.

@@ -5,7 +5,7 @@
 - [x] Phase 1: `Core.StageSchema`, `Core.StageRepository`, `Core.ProjectManifest`로 형식·I/O·manifest 검증을 통합하고 Launcher의 Repository 하나를 Editor와 Project에 주입한다. schemaVersion 3과 `categoryId + eventId` Project Event 식별을 적용하고 정적 모듈 경계 테스트를 둔다.
 - [ ] Phase 2: Editor와 Project의 `StageRuntime` 조립을 단일 실행 권위로 통합한다.
 - [ ] Phase 3: Launcher의 동적 Project 메뉴를 구현하고 `EditorApp`의 화면 입력 책임과 `EditorSession`의 편집 상태 책임을 더 분리한다.
-- [ ] Later: 선택 Project별 실제 독립 packaging을 구현한다.
+- [x] Rhythm Dotgeo Windows 독립 패키징 구현 (임의 Project 선택은 후속 작업).
 
 ## 0. Project 초기화
 
@@ -87,7 +87,7 @@
 - [x] 스피키송 상단 중앙 크레페 이미지 2장의 매 박자 교대 애니메이션
 - [x] 크레페의 매 박자 왼쪽 이동과 화면 밖 오른쪽 재등장, 중간 재생 위치 동기화
 - [x] 크레페를 상단 중앙에서 시작하는 한 명으로 변경하고 기존 걷기·턴·플립 유지 (가로 반복 표시 대체)
-- [x] 크레페 행 이동 방향을 Turn에 연결: 왼쪽 스피키는 오른쪽 이동, 오른쪽 스피키는 왼쪽 이동
+- [x] 크레페 이동을 8박 주기 왕복으로 변경하고 이동 거리·스프라이트 크기에 따른 좌우 여백 균등 배분 (랜덤·경계 반사 대체)
 - [x] 오른쪽 이동 턴에서 크레페 스프라이트 좌우 반전, 왼쪽 이동 턴에서 원본 방향 복원
 - [x] 크레페 방향 반전·프레임 교대·이동을 같은 정수 박자로 동기화
 - [x] 크레페 이미지를 0~11의 12프레임으로 교체하고 한 박자에 한 사이클 반복, 방향 반전은 사이클 시작에 적용
@@ -98,7 +98,8 @@
 
 ## 5. 배포와 엔진 버전 관리
 
-- [ ] 선택 Project와 Core만 포함하는 독립 패키징
+- [x] Rhythm Dotgeo와 Core만 포함하는 Windows EXE·ZIP 빌드 및 결합 EXE 검증
+- [ ] 임의 Project를 선택하는 범용 패키징
 - [ ] Core API 호환 버전 검사 확장
 - [ ] 버전형 Core·Editor 패키지 분리 검토
 
@@ -114,3 +115,15 @@
 
 - [x] Editor 화면, Architecture, 제작 Workflow, 역할 구분과 현재 한계를 중심으로 README 랜딩 페이지 재구성·압축
 - [ ] README에 데모 플레이 영상 추가
+
+- [x] 크레페 걷기 이미지를 24프레임·30fps(0.8초 반복)로 적용하고 Stage 재생 시간에 동기화
+
+- [x] 소수 Snap 입력·저장·노드 배치 허용 및 소수 셀 경계 오차 보정
+
+- [x] 스피키송 `스피키 위치 복귀` 이벤트: 두 스피키의 초기 위치로 0.5박 복귀, 중간 시작과 자동 Turn 재개
+
+- [x] 크레페 중앙 idle 대기·첫 스피키 이동 동기 출발·4/8박 왕복 및 idle 40프레임 자동 인식
+
+- [x] 스피키 위치 복귀 시 크레페 현재 위치 정지·idle 전환, 다음 자동 Turn에서 왕복 진행도 유지 재개
+
+- [x] 크레페에 하단 고정 박자 바운스 적용 및 위치 복귀 시 스피키·크레페 바운스 정지

@@ -4,6 +4,7 @@ local Config = require("projects.rhythm_dotgeo.game.SpeakiSong.Config")
 local CrepeActor = require("projects.rhythm_dotgeo.game.SpeakiSong.CrepeActor")
 local GameplayConfig = require("projects.rhythm_dotgeo.game.GameplayConfig")
 local LongCueResponse = require("projects.rhythm_dotgeo.game.SpeakiSong.LongCueResponse")
+local ReturnActors = require("projects.rhythm_dotgeo.game.SpeakiSong.ReturnActors")
 local Sounds = require("projects.rhythm_dotgeo.game.SpeakiSong.Sounds")
 local SpawnActors = require("projects.rhythm_dotgeo.game.SpeakiSong.SpawnActors")
 local SpeakiActor = require("projects.rhythm_dotgeo.game.SpeakiSong.SpeakiActor")
@@ -21,6 +22,7 @@ local AUTO_BAD_OFFSET_BEATS = 0.2
 
 local EVENT_HANDLERS = {
     speakiSong = SpawnActors,
+    returnActors = ReturnActors,
     heue = LongCueResponse,
     doNotNer = TapCueResponse,
 }
@@ -47,6 +49,10 @@ local function buildTurnSchedule(stage, categoryId)
                 beat = event.startBeat + responseDelayBeats,
                 order = index * 2 + 1,
             })
+        elseif event.type == "projectEvent" and event.categoryId == categoryId
+            and event.eventId == "returnActors" then
+            -- 복귀 뒤 같은 역할의 Cue라도 새 Turn을 시작할 수 있게 구간을 나눈다.
+            table.insert(moments, { beat = event.startBeat, order = index * 2 })
         end
     end
     table.sort(moments, function(left, right)
@@ -57,7 +63,9 @@ local function buildTurnSchedule(stage, categoryId)
     local schedule = {}
     local previousRole = nil
     for _, moment in ipairs(moments) do
-        if moment.role ~= previousRole then
+        if moment.role == nil then
+            previousRole = nil
+        elseif moment.role ~= previousRole then
             table.insert(schedule, {
                 role = moment.role,
                 startBeat = moment.beat - TURN_LEAD_BEATS,
@@ -116,10 +124,14 @@ end
 
 function Runtime:startStage(stage, startBeat)
     self.stage = stage
+    self.tempoMap = assert(Core.TempoMap.new(stage.bpm))
     self.currentBeat = startBeat or 0
     self.lastUpdatedBeat = self.currentBeat
     self.turnSchedule = buildTurnSchedule(stage, self.category.id)
-    self.crepeActor:setTurnSchedule(self.turnSchedule)
+    local firstTurn = self.turnSchedule[1]
+    local movementStart = firstTurn and math.max(0, firstTurn.startBeat) or nil
+    self.crepeActor:setMovementStart(movementStart,
+        movementStart and self.tempoMap:beatToSeconds(movementStart) or nil)
     self.nextTurnIndex = 1
     self.tapCues = {}
     self.longCues = {}
@@ -137,7 +149,6 @@ function Runtime:startStage(stage, startBeat)
     self.sounds:configure(projectConfig)
     self.guideActor:configure(projectConfig.actor)
     self.playerActor:configure(projectConfig.actor)
-    self:processTurnSchedule(self.currentBeat)
     self.tapDurationBeats = projectConfig.actor.tapDurationBeats
     self.playerAction = Core.PlayerAction.new({
         longHoldThresholdMs = gameplayConfig.longHoldThresholdMs,
@@ -154,12 +165,17 @@ end
 
 function Runtime:handleEvent(event, occurrence, beat)
     self.currentBeat = beat
+    self:processTurnSchedule(event.startBeat)
     local handler = EVENT_HANDLERS[event.eventId]
     if not handler then error("Unknown SpeakiSong Event: " .. tostring(event.eventId)) end
     handler.apply(self, event, occurrence)
 end
 
 function Runtime:applyTurn(role, startBeat)
+    self.guideActor.bounceEnabled = true
+    self.playerActor.bounceEnabled = true
+    local movementBeat = math.max(0, startBeat)
+    self.crepeActor:resumeMovement(movementBeat, self.tempoMap:beatToSeconds(movementBeat))
     local showGuide = role == "guide"
     self.guideActor:moveOutside(not showGuide, startBeat, TURN_DURATION_BEATS)
     self.playerActor:moveOutside(showGuide, startBeat, TURN_DURATION_BEATS)
@@ -324,7 +340,8 @@ end
 function Runtime:draw(width, height)
     self.background:draw(width, height)
     if self.background.spawned then
-        self.crepeActor:draw(width, height, self.currentBeat)
+        self.crepeActor:draw(width, height, self.currentBeat,
+            self.tempoMap:beatToSeconds(math.max(0, self.currentBeat)))
     end
     self.guideActor:draw(width, height, self.currentBeat)
     self.playerActor:draw(width, height, self.currentBeat)

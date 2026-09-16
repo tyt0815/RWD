@@ -70,3 +70,9 @@ Project가 Categories/Events 등록 → Editor가 TimelineEvent 배치 → Stage
 → Pattern이 Tap/Long Note로 전개 → Core가 JudgmentResult 생성
 → Project가 피드백 연출
 ```
+
+## Rhythm Dotgeo 배포 진입점
+
+`tools/build_rhythm_dotgeo.py`는 개발 시에만 실행되는 Windows 빌드 도구다. 배포용 `tools/packaging/rhythm_dotgeo/main.lua`가 Launcher 조립 역할을 맡아 `StageRepository` 하나와 `ProjectLoader.createGame(..., { standalone = true })`를 연결한다. Core·Project 공개 계약은 바꾸지 않으며 개발용 Launcher·Editor 진입점은 배포하지 않는다.
+
+`NativeFileSystem.new()`는 기본 source가 fused EXE인 경우 `love.filesystem.isFused()`로 패키지를 인식한다. 기존 `.love` 경로도 지원하며 두 경우 모두 LÖVE 가상 파일시스템으로 Stage를 읽고 패키지 내부 쓰기는 거부한다. 명시적으로 주입한 일반 디렉터리의 Native I/O 계약은 유지한다.

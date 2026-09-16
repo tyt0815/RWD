@@ -27,6 +27,80 @@ end
 
 return {
     {
+        name = "스피키 위치 복귀는 두 액터를 돌려놓고 중간 재생과 다음 턴을 유지한다",
+        run = function(test)
+            local Game = require("projects.rhythm_dotgeo.game.Game")
+            local game = Game.new(require("projects.rhythm_dotgeo.project"), {
+                stageRepository = createStageRepository(),
+            })
+            local stage = { schemaVersion = 3, projectId = "rhythm_dotgeo",
+                stageId = "return", name = "Return", bpm = 120, events = {
+                    { id = "spawn", type = "projectEvent", categoryId = "speakiSong",
+                        eventId = "speakiSong", startBeat = 0, track = 1, params = {} },
+                    { id = "cue", type = "projectEvent", categoryId = "speakiSong",
+                        eventId = "doNotNer", startBeat = 1, track = 2,
+                        params = { responseDelayBeats = 2 } },
+                    { id = "return", type = "projectEvent", categoryId = "speakiSong",
+                        eventId = "returnActors", startBeat = 4, track = 1, params = {} },
+                    { id = "next", type = "projectEvent", categoryId = "speakiSong",
+                        eventId = "doNotNer", startBeat = 6, track = 2,
+                        params = { responseDelayBeats = 2 } },
+                } }
+            for _, target in ipairs({ 4, 4.25, 4.5, 5.75, 6, 8 }) do
+                assert(game:startStage(stage, 0))
+                for _, beat in ipairs({ 1, 3, 4 }) do game:update(0, beat) end
+                game:update(0, target)
+                local runtime = game:getCategoryRuntime("speakiSong")
+                local guide = runtime.guideActor.movement:getValue(target)
+                local player = runtime.playerActor.movement:getValue(target)
+                local crepe = runtime.crepeActor:getMotion(target, 0.09)
+                if target < 5.5 then
+                    test.assertNear(crepe, 0.325, 0.000001)
+                    local _, _, walking = runtime.crepeActor:getPlayback(target, target / 2)
+                    test.assertEqual(walking, false)
+                    test.assertEqual(runtime.guideActor.bounceEnabled, false)
+                    test.assertEqual(runtime.playerActor.bounceEnabled, false)
+                else
+                    local _, _, walking = runtime.crepeActor:getPlayback(target, target / 2)
+                    test.assertEqual(walking, true)
+                    test.assertEqual(runtime.guideActor.bounceEnabled, true)
+                    test.assertEqual(runtime.playerActor.bounceEnabled, true)
+                end
+                if target <= 4.5 then
+                    test.assertNear(guide, math.max(0, 1 - (target - 4) / 0.5), 0.000001)
+                    test.assertNear(player, 0, 0.000001)
+                elseif target == 6 then
+                    test.assertNear(guide, 0, 0.000001)
+                    test.assertNear(player, 1, 0.000001)
+                end
+                assert(game:startStage(stage, target))
+                runtime = game:getCategoryRuntime("speakiSong")
+                test.assertNear(runtime.crepeActor:getMotion(target, 0.09), crepe, 0.000001)
+                test.assertNear(runtime.guideActor.movement:getValue(target), guide, 0.000001)
+                test.assertNear(runtime.playerActor.movement:getValue(target), player, 0.000001)
+                assert(game:startStage(stage, 0))
+                game:update(0, target)
+                test.assertNear(runtime.crepeActor:getMotion(target, 0.09), crepe, 0.000001)
+                test.assertNear(runtime.guideActor.movement:getValue(target), guide, 0.000001)
+                test.assertNear(runtime.playerActor.movement:getValue(target), player, 0.000001)
+            end
+            stage.events[3].startBeat = 2
+            stage.events[4].startBeat = 2.75
+            assert(game:startStage(stage, 2.3))
+            local runtime = game:getCategoryRuntime("speakiSong")
+            test.assertNear(runtime.guideActor.movement:getValue(2.3), 0, 0.000001)
+            test.assertNear(runtime.playerActor.movement:getValue(2.3), 0.55, 0.000001)
+            stage.events[3].startBeat = 4
+            stage.events[4] = nil
+            assert(game:startStage(stage, 100.12))
+            runtime = game:getCategoryRuntime("speakiSong")
+            test.assertEqual(runtime.guideActor.bounceEnabled, false)
+            test.assertEqual(runtime.playerActor.bounceEnabled, false)
+            local _, _, walking = runtime.crepeActor:getPlayback(100.12, 50.06)
+            test.assertEqual(walking, false)
+        end,
+    },
+    {
         name = "스피키 idle은 바닥을 고정하고 매 박자 눌렸다 복원된다",
         run = function(test)
             local Actor = require("projects.rhythm_dotgeo.game.SpeakiSong.SpeakiActor")
@@ -82,6 +156,10 @@ return {
                         sample(1.12, 1)
                         actor:stopLong()
                         sample(1.12, 0.88)
+                        actor.bounceEnabled = false
+                        sample(2.12, 1)
+                        actor.bounceEnabled = true
+                        sample(3.12, 0.88)
                     end
                 end
             end, debug.traceback)
@@ -90,135 +168,188 @@ return {
         end,
     },
     {
-        name = "크레페 이동은 스피키 Turn 방향을 따르고 중간 재생 위치를 복원한다",
+        name = "크레페는 중앙에서 왼쪽 4박 이후 8박씩 대칭 왕복한다",
         run = function(test)
-            local Game = require("projects.rhythm_dotgeo.game.Game")
-            local game = Game.new(require("projects.rhythm_dotgeo.project"), {
-                stageRepository = createStageRepository(),
-            })
-            local stage = {
-                projectId = "rhythm_dotgeo", stageId = "turn_walk", name = "Turn Walk",
-                bpm = 120,
-                events = {
-                    { id = "cue", type = "projectEvent", categoryId = "speakiSong",
-                        eventId = "doNotNer", startBeat = 2, track = 1,
-                        params = { responseDelayBeats = 4 } },
-                    { id = "cue2", type = "projectEvent", categoryId = "speakiSong",
-                        eventId = "doNotNer", startBeat = 10, track = 1,
-                        params = { responseDelayBeats = 4 } },
-                },
-            }
-            for _, startBeat in ipairs({ 0, 7, 0 }) do
-                assert(game:startStage(stage, startBeat))
-                local actor = game:getCategoryRuntime("speakiSong").crepeActor
-                for _, sample in ipairs({ { 0, 0 }, { 1, -1 }, { 1.5, -1.5 },
-                    { 2, -2 }, { 5, 1 }, { 5.5, 1.5 }, { 6, 2 }, { 7, 1 },
-                    { 9, -1 }, { 9.5, -1.5 }, { 10, -2 }, { 2, -2 } }) do
-                    test.assertEqual(actor:getStepOffset(sample[1]), sample[2])
-                end
-            end
-            stage.events = {}
-            assert(game:startStage(stage, 0))
-            test.assertEqual(game:getCategoryRuntime("speakiSong").crepeActor:getStepOffset(7), -7)
-            local actor = game:getCategoryRuntime("speakiSong").crepeActor
-            actor:setTurnSchedule({
-                { startBeat = -0.5, role = "guide" },
-                { startBeat = 2, role = "player" },
-                { startBeat = 2.25, role = "guide" },
-            })
-            test.assertEqual(actor:getStepOffset(0), 0)
-            test.assertEqual(actor:getStepOffset(1), 1)
-            test.assertEqual(actor:getStepOffset(2), 2)
-            test.assertEqual(actor:getStepOffset(2.25), 1.75)
-            test.assertEqual(actor:getStepOffset(3), 1)
-            for _, boundary in ipairs({ 1, 2, 3 }) do
-                test.assertNear(actor:getStepOffset(boundary - 0.000001),
-                    actor:getStepOffset(boundary), 0.000002)
-                test.assertNear(actor:getStepOffset(boundary + 0.000001),
-                    actor:getStepOffset(boundary), 0.000002)
-            end
-        end,
-    },
-    {
-        name = "스피키송 크레페는 중앙에서 한 명만 시작하고 박자에 맞춰 걷는다",
-        run = function(test)
-            local CrepeActor = require("projects.rhythm_dotgeo.game.SpeakiSong.CrepeActor")
+            local Actor = require("projects.rhythm_dotgeo.game.SpeakiSong.CrepeActor")
             local previousGraphics = love.graphics
-            local loadedPaths, draws = {}, {}
+            local draws = {}
             love.graphics = {
                 newImage = function(path)
-                    table.insert(loadedPaths, path)
-                    return {
-                        path = path,
-                        setFilter = function() end,
+                    return { path = path, setFilter = function() end,
                         getWidth = function() return 500 end,
-                        getHeight = function() return 500 end,
-                    }
+                        getHeight = function() return 500 end }
                 end,
                 setColor = function() end,
                 draw = function(...) table.insert(draws, { ... }) end,
             }
             local succeeded, errorMessage = xpcall(function()
-                local actor = CrepeActor.new()
-                test.assertEqual(#loadedPaths, 12)
-                for index = 1, 12 do
-                    test.assertEqual(loadedPaths[index],
-                        "projects/rhythm_dotgeo/assets/image/crepe_walk_" .. (index - 1) .. ".png")
+                local actor = Actor.new(nil, function() return false end)
+                draws = {}
+                actor:draw(1280, 720, 2, 1)
+                test.assertNear(draws[1][2], 640, 0.000001)
+                test.assertEqual(draws[1][1].path, "projects/rhythm_dotgeo/assets/image/crepe_walk_0.png")
+                local idleActor = Actor.new(nil, function() return true end)
+                test.assertEqual(#idleActor.idleFrames, 40)
+                local incomplete = Actor.new(nil, function(path)
+                    return not path:find("crepe_idle_39.png", 1, true)
+                end)
+                test.assertEqual(#incomplete.idleFrames, 0)
+                draws = {}
+                idleActor:draw(1280, 720, 1, 40 / 30)
+                test.assertEqual(draws[1][1].path,
+                    "projects/rhythm_dotgeo/assets/image/crepe_idle_0.png")
+                idleActor:setMovementStart(8, 4)
+                for frame = 0, 39 do
                     draws = {}
-                    actor:draw(1280, 720, (index - 0.5) / 6)
-                    test.assertEqual(draws[1][1].path, loadedPaths[index])
+                    idleActor:draw(1280, 720, 1, (frame + 0.5) / 30)
+                    test.assertNear(draws[1][2], 640, 0.000001)
+                    test.assertEqual(draws[1][1].path,
+                        "projects/rhythm_dotgeo/assets/image/crepe_idle_" .. frame .. ".png")
                 end
+                draws = {}
+                idleActor:draw(1280, 720, 8, 4)
+                test.assertEqual(draws[1][1].path, "projects/rhythm_dotgeo/assets/image/crepe_walk_0.png")
+                test.assertNear(idleActor:getMotion(12, 0.09), 0.3, 0.000001)
+                test.assertNear(idleActor:getMotion(20, 0.09), 0.7, 0.000001)
+                test.assertNear(idleActor:getMotion(2, 0.09), 0.5, 0.000001)
+                idleActor:setMovementStart(nil)
+                test.assertNear(idleActor:getMotion(100, 0.09), 0.5, 0.000001)
+                idleActor:setMovementStart(0, 0)
+                idleActor:stopMovement(2, 1)
+                test.assertNear(idleActor:getMotion(3, 0.09), 0.4, 0.000001)
+                draws = {}
+                idleActor:draw(1280, 720, 3, 1.5)
+                test.assertEqual(draws[1][1].path,
+                    "projects/rhythm_dotgeo/assets/image/crepe_idle_15.png")
+                test.assertNear(draws[1][2], 512, 0.000001)
+                test.assertNear(idleActor:getMotion(1, 0.09), 0.45, 0.000001)
+                idleActor:resumeMovement(4, 2)
+                test.assertNear(idleActor:getMotion(4, 0.09), 0.4, 0.000001)
+                test.assertNear(idleActor:getMotion(6, 0.09), 0.3, 0.000001)
+                idleActor:stopMovement(6.125, 3.0625)
+                local _, _, flip = idleActor:getMotion(7, 0.09)
+                test.assertEqual(flip, -1)
+                idleActor:resumeMovement(8, 4)
+                test.assertNear(idleActor:getMotion(3, 0.09), 0.4, 0.000001)
+                test.assertNear(idleActor:getMotion(8, 0.09), 0.30625, 0.000001)
+                idleActor:setMovementStart(0, 0)
+                test.assertNear(idleActor:getMotion(3, 0.09), 0.35, 0.000001)
                 for _, size in ipairs({ { 1280, 720 }, { 480, 270 } }) do
-                    for _, sample in ipairs({ { 0, 1 }, { 0.166, 1 }, { 1 / 6, 2 },
-                        { 0.5, 4 }, { 0.999, 6 }, { 1, 7 }, { 1, 7 }, { 1.999, 12 },
-                        { 2, 1 }, { 11, 7 }, { 12, 1 }, { 13, 7 },
-                        { 36.5, 4 }, { 10000, 1 }, { 4, 1 }, { 0, 1 } }) do
+                    for _, sample in ipairs({ { 0.12, 0.88 }, { 0.36, 0.94 }, { 0.6, 1 },
+                        { 1.12, 0.88 }, { 0.12, 0.88 } }) do
                         draws = {}
-                        actor:draw(size[1], size[2], sample[1])
-                        local imageWidth = size[2] * 0.32
-                        test.assertEqual(#draws, 1)
-                        local anchor = size[1] * (0.5 - sample[1] * 0.05)
-                        local expectedX = (anchor + imageWidth / 2) % (size[1] + imageWidth)
-                            - imageWidth / 2
-                        for _, draw in ipairs(draws) do
-                            test.assertEqual(draw[1].path, loadedPaths[sample[2]])
-                            test.assertNear(draw[2], expectedX, 0.000001)
-                            test.assertNear(draw[3], size[2] * 0.22, 0.000001)
-                            test.assertNear(draw[5] * 500, imageWidth, 0.000001)
-                            test.assertEqual(draw[5], draw[6])
-                            test.assertEqual(draw[7], 250)
-                            test.assertEqual(draw[8], 250)
-                        end
+                        actor:draw(size[1], size[2], sample[1], sample[1] / 2)
+                        local draw = draws[1]
+                        local scale = size[2] * 0.32 / 500
+                        test.assertNear(draw[6], scale * sample[2], 0.000001)
+                        test.assertNear(draw[3] + 250 * draw[6], size[2] * 0.76, 0.000001)
                     end
                 end
-                actor:setTurnSchedule({
-                    { startBeat = 0, role = "guide" },
-                    { startBeat = 2.5, role = "player" },
-                })
-                for _, sample in ipairs({ { -0.1, 1 }, { 0, 1 }, { 0.0625, 0.5 },
-                    { 0.125, 0 }, { 0.1875, -0.5 }, { 0.25, -1 }, { 1, -1 },
-                    { 2, -1 }, { 2.499, -1 }, { 2.5, -1 }, { 2.999, -1 },
-                    { 3, -1 }, { 3.0625, -0.5 }, { 3.125, 0 }, { 3.1875, 0.5 },
-                    { 3.25, 1 }, { 3.125, 0 }, { 2.5, -1 }, { 1, -1 } }) do
+                actor:setMovementStart(0, 0)
+                actor:stopMovement(2, 1)
+                draws = {}
+                actor:draw(1280, 720, 2.12, 1.06)
+                test.assertNear(draws[1][6], 720 * 0.32 / 500, 0.000001)
+                actor:resumeMovement(3, 1.5)
+                draws = {}
+                actor:draw(1280, 720, 3.12, 1.56)
+                test.assertNear(draws[1][6], 720 * 0.32 / 500 * 0.88, 0.000001)
+                actor:setMovementStart(0, 0)
+                test.assertEqual(#actor.frames, 24)
+                for frame = 0, 23 do
                     draws = {}
-                    actor:draw(1280, 720, sample[1])
-                    test.assertEqual(#draws, 1)
-                    for _, draw in ipairs(draws) do
-                        test.assertEqual(draw[1].path, loadedPaths[math.floor((sample[1] % 2) * 6) + 1])
-                        test.assertNear(draw[5], draw[6] * sample[2], 0.000001)
-                        test.assertEqual(draw[7], 250)
-                        test.assertEqual(draw[8], 250)
-                        if sample[1] >= 2 then
-                            local offset = sample[1] <= 3 and sample[1] or 6 - sample[1]
-                            local anchor = 1280 * (0.5 + offset * 0.05)
-                            test.assertNear(draw[2], anchor, 0.000001)
-                        end
-                    end
+                    actor:draw(1280, 720, 0, (frame + 0.5) / 30)
+                    test.assertEqual(draws[1][1].path,
+                        "projects/rhythm_dotgeo/assets/image/crepe_walk_" .. frame .. ".png")
                 end
-                test.assertEqual(#loadedPaths, 12)
+                for _, sample in ipairs({ { 0.799, 23 }, { 0.8, 0 }, { 0.8, 0 },
+                    { 0, 0 }, { 1 / 30, 1 } }) do
+                    draws = {}
+                    actor:draw(1280, 720, 0, sample[1])
+                    test.assertEqual(draws[1][1].path,
+                        "projects/rhythm_dotgeo/assets/image/crepe_walk_" .. sample[2] .. ".png")
+                end
+                for _, size in ipairs({ { 1280, 720 }, { 480, 270 }, { 300, 720 } }) do
+                    local halfWidth = math.min(size[2] * 0.32, size[1] * 0.3) / 2
+                    for _, sample in ipairs({ { 0, 0.5, -1 }, { 2, 0.4, -1 },
+                        { 3.999, 0.30005, -1 }, { 4, 0.3, 1 }, { 4.5, 0.325, 1 },
+                        { 8, 0.5, 1 }, { 12, 0.7, -1 }, { 20, 0.3, 1 },
+                        { 10000, 0.5, -1 }, { 4, 0.3, 1 }, { 0, 0.5, -1 } }) do
+                        local position, direction = actor:getMotion(sample[1], halfWidth / size[1])
+                        test.assertNear(position, sample[2], 0.000001)
+                        test.assertEqual(direction, sample[3])
+                        draws = {}
+                        actor:draw(size[1], size[2], sample[1], sample[1] / 2)
+                        test.assertEqual(#draws, 1)
+                        test.assertNear(draws[1][2], sample[2] * size[1], 0.000001)
+                        test.assertNear(draws[1][3] + 250 * draws[1][6], size[2] * 0.6 + halfWidth, 0.000001)
+                        test.assertEqual(draws[1][1].path,
+                            "projects/rhythm_dotgeo/assets/image/crepe_walk_" .. (math.floor(sample[1] / 2 * 30) % 24) .. ".png")
+                    end
+                    local left = actor:getMotion(4, halfWidth / size[1]) * size[1] - halfWidth
+                    local right = size[1] - actor:getMotion(12, halfWidth / size[1]) * size[1] - halfWidth
+                    test.assertNear(left, right, 0.000001)
+                    test.assertTrue(left > 0)
+                end
+                for _, sample in ipairs({ { 4, 1 }, { 4.0625, 0.5 }, { 4.125, 0 },
+                    { 4.25, -1 }, { 12, -1 }, { 12.125, 0 }, { 12.25, 1 } }) do
+                    local _, _, flip = actor:getMotion(sample[1], 0.09)
+                    test.assertNear(flip, sample[2], 0.000001)
+                end
             end, debug.traceback)
             love.graphics = previousGraphics
             if not succeeded then error(errorMessage, 0) end
+        end,
+    },
+    {
+        name = "크레페는 첫 자동 Turn부터 걷고 새 Stage에서 중앙 대기로 초기화된다",
+        run = function(test)
+            local Game = require("projects.rhythm_dotgeo.game.Game")
+            local game = Game.new(require("projects.rhythm_dotgeo.project"), {
+                stageRepository = createStageRepository(),
+            })
+            local stage = { projectId = "rhythm_dotgeo", stageId = "walk",
+                name = "Walk", bpm = 120, events = {
+                    { id = "cue", type = "projectEvent", categoryId = "speakiSong",
+                        eventId = "doNotNer", startBeat = 8, track = 1,
+                        params = { responseDelayBeats = 4 } },
+                } }
+            for _, startBeat in ipairs({ 0, 9, 20, 0 }) do
+                assert(game:startStage(stage, startBeat))
+                local actor = game:getCategoryRuntime("speakiSong").crepeActor
+                test.assertEqual(actor.movementStartBeat, 7.5)
+                test.assertEqual(actor.movementStartSeconds, 3.75)
+                test.assertNear(actor:getMotion(7, 0.09), 0.5, 0.000001)
+                test.assertNear(actor:getMotion(11.5, 0.09), 0.3, 0.000001)
+                test.assertNear(actor:getMotion(19.5, 0.09), 0.7, 0.000001)
+            end
+            stage.events = {}
+            assert(game:startStage(stage, 0))
+            local actor = game:getCategoryRuntime("speakiSong").crepeActor
+            test.assertEqual(actor.movementStartBeat, nil)
+            test.assertNear(actor:getMotion(100, 0.09), 0.5, 0.000001)
+        end,
+    },
+    {
+        name = "크레페 애니메이션 시간은 Stage BPM에서 초로 변환한다",
+        run = function(test)
+            local Game = require("projects.rhythm_dotgeo.game.Game")
+            local game = Game.new(require("projects.rhythm_dotgeo.project"), {
+                stageRepository = createStageRepository(),
+            })
+            for _, bpm in ipairs({ 120, 152, 240 }) do
+                assert(game:startStage({ projectId = "rhythm_dotgeo", stageId = "frames",
+                    name = "Frames", bpm = bpm, events = {} }, bpm / 60 * 0.8))
+                local runtime = game:getCategoryRuntime("speakiSong")
+                runtime.background.spawned = true
+                runtime.background.draw = function() end
+                runtime.guideActor.draw = function() end
+                runtime.playerActor.draw = function() end
+                local captured
+                runtime.crepeActor.draw = function(_, _, _, _, seconds) captured = seconds end
+                runtime:draw(1280, 720)
+                test.assertNear(captured, 0.8, 0.000001)
+            end
         end,
     },
     {
@@ -327,7 +458,8 @@ return {
             test.assertEqual(category.events[2].geometry.endEndpointWidthProperty,
                 "longNoteLengthBeats")
             test.assertEqual(category.events[3].label, "네르지마세요")
-            test.assertEqual(#category.events, 3)
+            test.assertEqual(#category.events, 4)
+            test.assertEqual(category.events[4].id, "returnActors")
         end,
     },
     {

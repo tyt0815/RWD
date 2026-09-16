@@ -59,11 +59,18 @@ return {
             },
             geometry = {
                 durationProperty = "responseDelayBeats",
-                endpointWidthBeats = 1,
+                endpointWidthBeats = 0.5,
                 connector = true,
                 startColor = { 0.32, 0.68, 0.95, 1 },
                 endColor = { 1, 0.67, 0.2, 1 },
             },
+        },
+        {
+            id = "returnActors",
+            label = "스피키 위치 복귀",
+            color = { 0.45, 0.85, 0.65, 1 },
+            properties = {},
+            geometry = { widthBeats = 0.5 },
         },
     },
 }

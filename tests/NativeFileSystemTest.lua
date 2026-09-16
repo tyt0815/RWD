@@ -74,6 +74,31 @@ end
 
 return {
     {
+        name = "Fused EXE Stage 접근은 LÖVE 파일시스템을 사용하고 쓰기를 막는다",
+        run = function(test)
+            local NativeFileSystem = require("launcher.NativeFileSystem")
+            local operations = newFakeNativeOperations()
+            withLoveFilesystem({
+                getSource = function() return "C:/release/RhythmDotgeo.exe" end,
+                isFused = function() return true end,
+                read = function() return "packaged", 8 end,
+                getInfo = function() return { type = "file" } end,
+                getDirectoryItems = function() return { "speaki_song.json" } end,
+            }, function()
+                local fs = NativeFileSystem.new(nil, operations)
+                test.assertEqual(assert(fs:read("stage.json")), "packaged")
+                test.assertTrue(fs:isFile("stage.json"))
+                test.assertTrue(fs:exists("stage.json"))
+                test.assertEqual(fs:list("stages")[1], "speaki_song.json")
+                test.assertEqual(fs:write("stage.json", "x"), nil)
+                test.assertEqual(fs:remove("stage.json"), nil)
+                test.assertEqual(fs:copy("a", "b"), nil)
+                test.assertEqual(fs:rename("a", "b"), nil)
+            end)
+            test.assertEqual(#operations.calls, 0)
+        end,
+    },
+    {
         name = "Launcher NativeFileSystem supports Unicode source files and round-trip mutations",
         run = function(test)
             local NativeFileSystem = require("launcher.NativeFileSystem")

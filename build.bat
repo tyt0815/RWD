@@ -1,0 +1,1 @@
+python tools/build_rhythm_dotgeo.py --verify

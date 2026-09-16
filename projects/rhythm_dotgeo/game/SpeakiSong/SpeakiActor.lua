@@ -1,11 +1,8 @@
 local Core = require("core")
+local BeatBounce = require("projects.rhythm_dotgeo.game.SpeakiSong.BeatBounce")
 
 local SpeakiActor = {}
 SpeakiActor.__index = SpeakiActor
-
-local IDLE_SQUASH = 0.12
-local IDLE_PRESS_BEATS = 0.12
-local IDLE_RECOVER_BEATS = 0.48
 
 function SpeakiActor.new(options)
     options = options or {}
@@ -17,6 +14,7 @@ function SpeakiActor.new(options)
         settings = options.settings,
         movement = Core.BeatTween.new(0),
         spawned = false,
+        bounceEnabled = true,
         effect = nil,
         effectStartBeat = 0,
         effectEndBeat = 0,
@@ -30,6 +28,7 @@ end
 function SpeakiActor:reset()
     self.movement = Core.BeatTween.new(0)
     self.spawned = false
+    self.bounceEnabled = true
     self.effect = nil
     self.effectStartBeat = 0
     self.effectEndBeat = 0
@@ -146,15 +145,7 @@ function SpeakiActor:draw(width, height, beat)
             scale, 1)
     else
         -- Stage beat로 직접 계산해 중간 재생과 일시정지에도 같은 모양을 유지한다.
-        local phase = beat - math.floor(beat)
-        local squash = 0
-        if phase < IDLE_PRESS_BEATS then
-            squash = (1 - math.cos(math.pi * phase / IDLE_PRESS_BEATS)) / 2
-        elseif phase < IDLE_PRESS_BEATS + IDLE_RECOVER_BEATS then
-            squash = (1 + math.cos(math.pi * (phase - IDLE_PRESS_BEATS)
-                / IDLE_RECOVER_BEATS)) / 2
-        end
-        local heightRatio = 1 - IDLE_SQUASH * squash
+        local heightRatio = self.bounceEnabled and BeatBounce.getHeightRatio(beat) or 1
         drawImage(self, smile, centerX, topY + actorHeight * (1 - heightRatio),
             scale, 1, scale * heightRatio)
     end

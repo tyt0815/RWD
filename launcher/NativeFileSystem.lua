@@ -111,11 +111,13 @@ function NativeFileSystem.new(sourceRoot, operations)
     return setmetatable({
         sourceRoot = normalizeRoot(sourceRoot or love.filesystem.getSource()),
         operations = operations or NATIVE_OPERATIONS,
+        packaged = isPackaged(sourceRoot or love.filesystem.getSource())
+            or (sourceRoot == nil and love.filesystem.isFused and love.filesystem.isFused()) or false,
     }, NativeFileSystem)
 end
 
 function NativeFileSystem:list(relativePath)
-    if not isPackaged(self.sourceRoot) then
+    if not self.packaged then
         return self.operations:list(relativePath)
     end
     local succeeded, itemsOrError = pcall(love.filesystem.getDirectoryItems, relativePath)
@@ -124,7 +126,7 @@ function NativeFileSystem:list(relativePath)
 end
 
 function NativeFileSystem:read(relativePath)
-    if not isPackaged(self.sourceRoot) then
+    if not self.packaged then
         return self.operations:read(join(self.sourceRoot, relativePath))
     end
     local contents, sizeOrError = love.filesystem.read(relativePath)
@@ -133,31 +135,31 @@ function NativeFileSystem:read(relativePath)
 end
 
 function NativeFileSystem:isFile(relativePath)
-    if not isPackaged(self.sourceRoot) then
+    if not self.packaged then
         return self.operations:isFile(join(self.sourceRoot, relativePath))
     end
     return love.filesystem.getInfo(relativePath, "file") ~= nil
 end
 
 function NativeFileSystem:exists(relativePath)
-    if not isPackaged(self.sourceRoot) then
+    if not self.packaged then
         return self.operations:exists(join(self.sourceRoot, relativePath))
     end
     return love.filesystem.getInfo(relativePath, "file") ~= nil
 end
 
 function NativeFileSystem:write(relativePath, contents)
-    if isPackaged(self.sourceRoot) then return nil, PACKAGED_WRITE_ERROR end
+    if self.packaged then return nil, PACKAGED_WRITE_ERROR end
     return self.operations:write(join(self.sourceRoot, relativePath), contents)
 end
 
 function NativeFileSystem:remove(relativePath)
-    if isPackaged(self.sourceRoot) then return nil, PACKAGED_WRITE_ERROR end
+    if self.packaged then return nil, PACKAGED_WRITE_ERROR end
     return self.operations:remove(join(self.sourceRoot, relativePath))
 end
 
 function NativeFileSystem:rename(sourcePath, targetPath)
-    if isPackaged(self.sourceRoot) then return nil, PACKAGED_WRITE_ERROR end
+    if self.packaged then return nil, PACKAGED_WRITE_ERROR end
     return self.operations:rename(
         join(self.sourceRoot, sourcePath),
         join(self.sourceRoot, targetPath)
@@ -165,7 +167,7 @@ function NativeFileSystem:rename(sourcePath, targetPath)
 end
 
 function NativeFileSystem:copy(sourcePath, targetPath)
-    if isPackaged(self.sourceRoot) then return nil, PACKAGED_WRITE_ERROR end
+    if self.packaged then return nil, PACKAGED_WRITE_ERROR end
     return self.operations:copy(
         join(self.sourceRoot, sourcePath),
         join(self.sourceRoot, targetPath)
