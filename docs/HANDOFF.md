@@ -2,6 +2,9 @@
 
 ## 현재 구현 상태
 
+Editor/독립 실행의 첫 프레임에 로딩 시간이 포함되는 문제는 수정했지만, 사용자가 보고한 런처 직접 실행의 가이드 지연은 아직 해결 확인되지 않았다. 재생 전 로딩 시간을 포함한 첫 프레임 deltaTime을 그대로 더하던 문제로, 실제 리소스 진단에서 독립 실행 약 14ms·Preview 약 118ms의 차이를 확인했다. PlaybackTransport에 선택적 `now`를 추가하고 두 실제 실행 경로에서 love.timer.getTime을 주입해 음악 시작 이후 시간만 첫 update에 반영한다. BPM 152·beat0Offset 0.607과 게임 코드는 기존 빌드/소스가 같았으며 오프셋을 변경하지 않았다.
+
+
 크레페에도 스피키와 동일한 매 박자 바운스를 적용했다. Category 전용 `BeatBounce.lua`가 0.12박 동안 12% 눌림·0.48박 복원의 높이 비율을 공유하며 이미지 하단은 고정한다. 크레페는 초기 idle·걷기 모두 적용하고, 스피키는 기존처럼 idle만 적용한다. 위치 복귀 시 모두 바운스를 끄고 크레페 idle 프레임 재생은 유지한다. 다음 자동 Turn에서 재개하며 마지막 복귀 뒤 Turn이 없으면 계속 멈춘다.
 
 
@@ -51,9 +54,22 @@ Project Event는 `categoryId + eventId` 조합으로 저장·조회·dispatch한
 
 ## 알려진 실패
 
-실제 Speaki Song Stage 로드 테스트가 이벤트 수 5개를 고정 기대하지만 현재 사용자 Stage는 54개이므로 실패한다. 소수 Snap 수정 전에도 같은 실패가 있었으며 Stage와 해당 테스트는 변경하지 않았다.
+실제 Speaki Song Stage 로드 테스트가 이벤트 수 5개를 고정 기대하지만 현재 사용자 Stage는 55개이므로 실패한다. 소수 Snap 수정 전에도 같은 실패가 있었으며 Stage와 해당 테스트는 변경하지 않았다.
 
 ## 최신 검증
+
+- 2026-09-17 런처 프로젝트 대 Editor 경로 재조사: 임시 `dist/timing_paths.love`에서 실제 Launcher.openProject → Stage 선택 실행과 Launcher.openEditor → EditorSession.play를 각각 12초 실행했다. 저장 Stage(BPM 152, beat0Offset 0.212), 같은 음악 리소스·Core를 사용했다.
+- `& 'C:/Program Files/LOVE/lovec.exe' dist/timing_paths.love` → 두 경로 모두 음악 tell - (timelineSeconds + offset)가 약 -0.8~-2.6ms. 가이드 9·11·13·15·25·27·29박의 dispatch 지연은 두 경로 모두 약 0.003~0.016박. 이 조건에서 경로별 뚜렷한 지연 차이는 재현되지 않았다. 숨겨진 창에서 실제 리소스를 그려 계측했으며 청취 비교는 하지 않았다. 진단 아카이브는 제거했다.
+- 조사 중 사용자 저장 Stage의 offset이 0.607에서 0.212로 변경된 것을 확인했다. Agent는 Stage를 수정하지 않았다. 에디터 미저장 상태·이전 실행 프로세스·시작 beat 차이 여부는 미확인이다.
+- 추가 음악 타이밍 코드 변경은 하지 않았다. Ctrl+S 저장·앱 완전 재시작 후에도 같은 현상인지 사용자 확인 대기.
+
+
+- 2026-09-16 시작 타이밍 RED: `& 'C:/Program Files/LOVE/lovec.exe' . --test` → 재생 후 5ms 기대에 로딩 포함 15ms로 신규 테스트 실패.
+- 구현 후 같은 명령 → 신규 시작 프레임·재개·배속 검증 및 기존 관련 테스트 통과. 기존 실제 Stage 개수 검사 1건만 실패(기대 5, 실제 55). 실제 대기 없이 deltaTime을 주입하는 Editor workflow fixture는 가상 Transport를 명시했다.
+- 임시 실제 리소스 하네스: `& 'C:/Program Files/LOVE/lovec.exe' dist/timing_probe.love` → 독립 실행 첫 프레임 raw 0.014061초 / 보정 0.000003초, Preview raw 0.117720초 / 보정 0.000002초. 동일 Stage·Core·음악 리소스로 비교했으며 실제 음향 청취 비교는 수행하지 않았다. 진단 아카이브는 제거했다.
+- `python tools/build_rhythm_dotgeo.py --verify` → EXE·ZIP 재생성 및 실제 fused EXE Stage 로드·시작·draw 성공.
+- `git diff --check` → 오류 없음.
+
 
 - 2026-09-16 바운스 RED: `& 'C:/Program Files/LOVE/lovec.exe' . --test` → 크레페 눌림·스피키 중지·Runtime 중지 상태 신규 3건 실패 및 기존 Stage 고정 개수 검사 1건 실패.
 - 구현 후 같은 명령 → 관련 테스트 통과, 기존 Stage 검사 1건만 실패(기대 5, 실제 54). 두 크기의 크레페 하단 고정·눌림/복원, 초기 idle·걷기, 복귀 시 정지·다음 Turn 재개·마지막 복귀 후 중간 시작의 정지 상태를 검증했다.
@@ -212,6 +228,12 @@ Project Event는 `categoryId + eventId` 조합으로 저장·조회·dispatch한
 - `git diff --check` → 출력 없음. `git diff 68fd12a -- editor/playback/MetronomePlayback.lua tests/MetronomePlaybackTest.lua`와 `.references` diff도 출력 없음.
 
 ## 다음 작업
+
+런처 직접 실행의 가이드 지연은 조사 중이다. 사용자에게 저장·재시작 이후 재현 여부를 확인하고, 계속 발생하면 시작 beat와 지연 크기를 동일 조건에서 비교한다. 이전 첫 프레임 수정만으로 증상 해결을 단정하지 않는다.
+
+
+시작 프레임 동기화 수정 완료. 새 빌드와 재시작한 Editor에서 가이드/음악 타이밍을 청취 비교한다.
+
 
 크레페 공통 박자 바운스와 위치 복귀 시 전체 바운스 정지 구현 완료.
 

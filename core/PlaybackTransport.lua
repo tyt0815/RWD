@@ -27,6 +27,7 @@ function PlaybackTransport.new(options)
     return setmetatable({
         tempoMap = tempoMap,
         musicPlayback = options.musicPlayback,
+        now = options.now,
         mixtape = DEFAULT_MIXTAPE,
         resolvedMusicPath = nil,
         timelineSeconds = 0,
@@ -125,10 +126,12 @@ function PlaybackTransport:play(playbackRate)
     end
 
     self.playing = true
+    self.startedAt = self.now and self.now() or nil
     return true, nil
 end
 
 function PlaybackTransport:pause()
+    self.startedAt = nil
     self.playing = false
     self.musicStarted = false
     return self.musicPlayback:pause()
@@ -151,6 +154,11 @@ end
 function PlaybackTransport:update(deltaTime)
     if not self.playing then return true, nil end
 
+    -- Play 호출 프레임의 deltaTime에는 재생 전 로딩 시간도 포함될 수 있다.
+    if self.startedAt then
+        deltaTime = math.min(deltaTime, math.max(0, self.now() - self.startedAt))
+        self.startedAt = nil
+    end
     local previousTimelineSeconds = self.timelineSeconds
     self.timelineSeconds = self.timelineSeconds + deltaTime * self.playbackRate
     local musicSeconds = self.timelineSeconds + self.mixtape.beat0Offset

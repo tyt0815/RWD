@@ -61,7 +61,11 @@ local function newFixture(config)
         projectCatalog = catalog,
         stageRepository = stageRepository,
         testPlayer = testPlayer,
-        transportFactory = config.transportFactory,
+        -- 테스트는 실제 대기 없이 deltaTime으로 시간을 진행한다.
+        transportFactory = config.transportFactory or function(bpm)
+            local Core = require("core")
+            return Core.PlaybackTransport.new({ bpm = bpm, musicPlayback = Core.MusicPlayback.new() })
+        end,
         metronome = config.metronome,
     })
     local EditorApp = require("editor.EditorApp")

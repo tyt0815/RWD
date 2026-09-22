@@ -50,6 +50,34 @@ end
 
 return {
     {
+        name = "재생 시작 프레임은 로딩 시간을 제외하고 음악 시작 이후 시간만 진행한다",
+        run = function(test)
+            local Core = require("core")
+            for _, loading in ipairs({ 0.01, 0.25 }) do
+                local time = 10 + loading
+                local transport = assert(Core.PlaybackTransport.new({
+                    bpm = 120,
+                    musicPlayback = newMusicPlayback({}),
+                    now = function() return time end,
+                }))
+                assert(transport:play())
+                time = time + 0.005
+                assert(transport:update(loading + 0.005))
+                test.assertNear(transport:getTimelineSeconds(), 0.005, 0.000001)
+                time = time + 0.02
+                assert(transport:update(0.02))
+                test.assertNear(transport:getTimelineSeconds(), 0.025, 0.000001)
+                assert(transport:pause())
+                assert(transport:seekBeat(8))
+                time = time + 5
+                assert(transport:play(2))
+                time = time + 0.01
+                assert(transport:update(5.01))
+                test.assertNear(transport:getTimelineSeconds(), 4.02, 0.000001)
+            end
+        end,
+    },
+    {
         name = "PlaybackTransport advances one beat after 0.5 seconds at rate 1",
         run = function(test)
             local transport = newTransport({})

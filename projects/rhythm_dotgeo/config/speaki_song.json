@@ -41,14 +41,6 @@
     "tapShakeRatio": 0.012
   },
   "tapSounds": [
-    "assets/audio/sfx/speaki_tap1.mp3",
-    "assets/audio/sfx/speaki_tap2.mp3",
-    "assets/audio/sfx/speaki_tap3.mp3",
-    "assets/audio/sfx/speaki_tap4.mp3",
-    "assets/audio/sfx/speaki_tap5.mp3",
-    "assets/audio/sfx/speaki_tap6.mp3",
-    "assets/audio/sfx/speaki_tap7.mp3",
-    "assets/audio/sfx/speaki_tap8.mp3",
-    "assets/audio/sfx/speaki_tap9.mp3"
+    "assets/audio/sfx/speaki_ae.mp3"
   ]
 }

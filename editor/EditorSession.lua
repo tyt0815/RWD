@@ -11,6 +11,7 @@ local function defaultTransportFactory(bpm)
     return Core.PlaybackTransport.new({
         bpm = bpm,
         musicPlayback = Core.MusicPlayback.new(),
+        now = love.timer.getTime,
     })
 end
 

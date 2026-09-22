@@ -7,15 +7,14 @@
   "mixtape":{
     "music":"assets/audio/music/Moai_Doo-Wop.mp3",
     "volume":0.8,
-    "beat0Offset":0.607
+    "beat0Offset":0.13
   },
   "editorSettings":{
     "snap":0.5,
     "scale":1.1920928955078,
-    "metronome":true,
     "onsetThreshold":0,
-    "autoPlay":"good",
-    "fullscreen":true
+    "fullscreen":true,
+    "autoPlay":"good"
   },
   "events":[{
       "id":"event-001",
@@ -28,7 +27,7 @@
       "track":1
     },{
       "id":"event-003",
-      "startBeat":24,
+      "startBeat":25,
       "type":"projectEvent",
       "categoryId":"speakiSong",
       "eventId":"heue",
@@ -39,7 +38,7 @@
       "track":2
     },{
       "id":"event-007",
-      "startBeat":26,
+      "startBeat":27,
       "type":"projectEvent",
       "categoryId":"speakiSong",
       "eventId":"heue",
@@ -50,7 +49,7 @@
       "track":2
     },{
       "id":"event-008",
-      "startBeat":28,
+      "startBeat":29,
       "type":"projectEvent",
       "categoryId":"speakiSong",
       "eventId":"heue",
@@ -61,16 +60,6 @@
       "track":2
     },{
       "id":"event-009",
-      "startBeat":30,
-      "type":"projectEvent",
-      "categoryId":"speakiSong",
-      "eventId":"doNotNer",
-      "params":{
-        "responseDelayBeats":8
-      },
-      "track":2
-    },{
-      "id":"event-010",
       "startBeat":31,
       "type":"projectEvent",
       "categoryId":"speakiSong",
@@ -80,8 +69,18 @@
       },
       "track":2
     },{
+      "id":"event-010",
+      "startBeat":32,
+      "type":"projectEvent",
+      "categoryId":"speakiSong",
+      "eventId":"doNotNer",
+      "params":{
+        "responseDelayBeats":8
+      },
+      "track":2
+    },{
       "id":"event-011",
-      "startBeat":40,
+      "startBeat":41,
       "type":"projectEvent",
       "categoryId":"speakiSong",
       "eventId":"heue",
@@ -92,16 +91,6 @@
       "track":2
     },{
       "id":"event-012",
-      "startBeat":44,
-      "type":"projectEvent",
-      "categoryId":"speakiSong",
-      "eventId":"doNotNer",
-      "params":{
-        "responseDelayBeats":8
-      },
-      "track":2
-    },{
-      "id":"event-013",
       "startBeat":45,
       "type":"projectEvent",
       "categoryId":"speakiSong",
@@ -111,7 +100,7 @@
       },
       "track":2
     },{
-      "id":"event-014",
+      "id":"event-013",
       "startBeat":46,
       "type":"projectEvent",
       "categoryId":"speakiSong",
@@ -121,8 +110,18 @@
       },
       "track":2
     },{
+      "id":"event-014",
+      "startBeat":47,
+      "type":"projectEvent",
+      "categoryId":"speakiSong",
+      "eventId":"doNotNer",
+      "params":{
+        "responseDelayBeats":8
+      },
+      "track":2
+    },{
       "id":"event-015",
-      "startBeat":56,
+      "startBeat":57,
       "type":"projectEvent",
       "categoryId":"speakiSong",
       "eventId":"heue",
@@ -133,7 +132,7 @@
       "track":2
     },{
       "id":"event-016",
-      "startBeat":58,
+      "startBeat":59,
       "type":"projectEvent",
       "categoryId":"speakiSong",
       "eventId":"heue",
@@ -144,7 +143,7 @@
       "track":2
     },{
       "id":"event-017",
-      "startBeat":60,
+      "startBeat":61,
       "type":"projectEvent",
       "categoryId":"speakiSong",
       "eventId":"heue",
@@ -154,18 +153,8 @@
       },
       "track":2
     },{
-      "id":"event-018",
-      "startBeat":63,
-      "type":"projectEvent",
-      "categoryId":"speakiSong",
-      "eventId":"doNotNer",
-      "params":{
-        "responseDelayBeats":8
-      },
-      "track":2
-    },{
       "id":"event-019",
-      "startBeat":62.5,
+      "startBeat":63.5,
       "type":"projectEvent",
       "categoryId":"speakiSong",
       "eventId":"doNotNer",
@@ -175,7 +164,7 @@
       "track":2
     },{
       "id":"event-020",
-      "startBeat":72,
+      "startBeat":73,
       "type":"projectEvent",
       "categoryId":"speakiSong",
       "eventId":"heue",
@@ -186,7 +175,7 @@
       "track":2
     },{
       "id":"event-021",
-      "startBeat":74,
+      "startBeat":75,
       "type":"projectEvent",
       "categoryId":"speakiSong",
       "eventId":"heue",
@@ -197,7 +186,7 @@
       "track":2
     },{
       "id":"event-022",
-      "startBeat":76,
+      "startBeat":77,
       "type":"projectEvent",
       "categoryId":"speakiSong",
       "eventId":"heue",
@@ -207,28 +196,8 @@
       },
       "track":2
     },{
-      "id":"event-023",
-      "startBeat":79,
-      "type":"projectEvent",
-      "categoryId":"speakiSong",
-      "eventId":"doNotNer",
-      "params":{
-        "responseDelayBeats":8
-      },
-      "track":2
-    },{
-      "id":"event-024",
-      "startBeat":78.5,
-      "type":"projectEvent",
-      "categoryId":"speakiSong",
-      "eventId":"doNotNer",
-      "params":{
-        "responseDelayBeats":8
-      },
-      "track":2
-    },{
       "id":"event-025",
-      "startBeat":88,
+      "startBeat":89,
       "type":"projectEvent",
       "categoryId":"speakiSong",
       "eventId":"heue",
@@ -239,7 +208,7 @@
       "track":2
     },{
       "id":"event-026",
-      "startBeat":93,
+      "startBeat":94,
       "type":"projectEvent",
       "categoryId":"speakiSong",
       "eventId":"doNotNer",
@@ -249,17 +218,7 @@
       "track":2
     },{
       "id":"event-027",
-      "startBeat":95,
-      "type":"projectEvent",
-      "categoryId":"speakiSong",
-      "eventId":"doNotNer",
-      "params":{
-        "responseDelayBeats":8
-      },
-      "track":2
-    },{
-      "id":"event-031",
-      "startBeat":105.5,
+      "startBeat":96,
       "type":"projectEvent",
       "categoryId":"speakiSong",
       "eventId":"doNotNer",
@@ -269,27 +228,7 @@
       "track":2
     },{
       "id":"event-029",
-      "startBeat":107,
-      "type":"projectEvent",
-      "categoryId":"speakiSong",
-      "eventId":"doNotNer",
-      "params":{
-        "responseDelayBeats":8
-      },
-      "track":2
-    },{
-      "id":"event-030",
-      "startBeat":109,
-      "type":"projectEvent",
-      "categoryId":"speakiSong",
-      "eventId":"doNotNer",
-      "params":{
-        "responseDelayBeats":8
-      },
-      "track":2
-    },{
-      "id":"event-032",
-      "startBeat":109.5,
+      "startBeat":108,
       "type":"projectEvent",
       "categoryId":"speakiSong",
       "eventId":"doNotNer",
@@ -299,27 +238,7 @@
       "track":2
     },{
       "id":"event-033",
-      "startBeat":111,
-      "type":"projectEvent",
-      "categoryId":"speakiSong",
-      "eventId":"doNotNer",
-      "params":{
-        "responseDelayBeats":8
-      },
-      "track":2
-    },{
-      "id":"event-028",
-      "startBeat":105,
-      "type":"projectEvent",
-      "categoryId":"speakiSong",
-      "eventId":"doNotNer",
-      "params":{
-        "responseDelayBeats":8
-      },
-      "track":2
-    },{
-      "id":"event-034",
-      "startBeat":121.5,
+      "startBeat":112,
       "type":"projectEvent",
       "categoryId":"speakiSong",
       "eventId":"doNotNer",
@@ -329,17 +248,7 @@
       "track":2
     },{
       "id":"event-035",
-      "startBeat":123,
-      "type":"projectEvent",
-      "categoryId":"speakiSong",
-      "eventId":"doNotNer",
-      "params":{
-        "responseDelayBeats":8
-      },
-      "track":2
-    },{
-      "id":"event-036",
-      "startBeat":125,
+      "startBeat":124,
       "type":"projectEvent",
       "categoryId":"speakiSong",
       "eventId":"doNotNer",
@@ -349,7 +258,7 @@
       "track":2
     },{
       "id":"event-037",
-      "startBeat":125.5,
+      "startBeat":126.5,
       "type":"projectEvent",
       "categoryId":"speakiSong",
       "eventId":"doNotNer",
@@ -359,57 +268,7 @@
       "track":2
     },{
       "id":"event-038",
-      "startBeat":127,
-      "type":"projectEvent",
-      "categoryId":"speakiSong",
-      "eventId":"doNotNer",
-      "params":{
-        "responseDelayBeats":8
-      },
-      "track":2
-    },{
-      "id":"event-039",
-      "startBeat":121,
-      "type":"projectEvent",
-      "categoryId":"speakiSong",
-      "eventId":"doNotNer",
-      "params":{
-        "responseDelayBeats":8
-      },
-      "track":2
-    },{
-      "id":"event-040",
-      "startBeat":137.5,
-      "type":"projectEvent",
-      "categoryId":"speakiSong",
-      "eventId":"doNotNer",
-      "params":{
-        "responseDelayBeats":8
-      },
-      "track":2
-    },{
-      "id":"event-042",
-      "startBeat":141,
-      "type":"projectEvent",
-      "categoryId":"speakiSong",
-      "eventId":"doNotNer",
-      "params":{
-        "responseDelayBeats":8
-      },
-      "track":2
-    },{
-      "id":"event-043",
-      "startBeat":141.5,
-      "type":"projectEvent",
-      "categoryId":"speakiSong",
-      "eventId":"doNotNer",
-      "params":{
-        "responseDelayBeats":8
-      },
-      "track":2
-    },{
-      "id":"event-045",
-      "startBeat":137,
+      "startBeat":128,
       "type":"projectEvent",
       "categoryId":"speakiSong",
       "eventId":"doNotNer",
@@ -419,7 +278,7 @@
       "track":2
     },{
       "id":"event-044",
-      "startBeat":142,
+      "startBeat":143,
       "type":"projectEvent",
       "categoryId":"speakiSong",
       "eventId":"heue",
@@ -430,7 +289,7 @@
       "track":2
     },{
       "id":"event-041",
-      "startBeat":138,
+      "startBeat":139,
       "type":"projectEvent",
       "categoryId":"speakiSong",
       "eventId":"heue",
@@ -463,7 +322,7 @@
       "track":2
     },{
       "id":"event-048",
-      "startBeat":168,
+      "startBeat":169,
       "type":"projectEvent",
       "categoryId":"speakiSong",
       "eventId":"heue",
@@ -474,7 +333,7 @@
       "track":2
     },{
       "id":"event-049",
-      "startBeat":172,
+      "startBeat":173,
       "type":"projectEvent",
       "categoryId":"speakiSong",
       "eventId":"heue",
@@ -485,7 +344,7 @@
       "track":2
     },{
       "id":"event-050",
-      "startBeat":184,
+      "startBeat":185,
       "type":"projectEvent",
       "categoryId":"speakiSong",
       "eventId":"heue",
@@ -496,16 +355,6 @@
       "track":2
     },{
       "id":"event-052",
-      "startBeat":189,
-      "type":"projectEvent",
-      "categoryId":"speakiSong",
-      "eventId":"doNotNer",
-      "params":{
-        "responseDelayBeats":8
-      },
-      "track":2
-    },{
-      "id":"event-053",
       "startBeat":190,
       "type":"projectEvent",
       "categoryId":"speakiSong",
@@ -515,7 +364,7 @@
       },
       "track":2
     },{
-      "id":"event-051",
+      "id":"event-053",
       "startBeat":191,
       "type":"projectEvent",
       "categoryId":"speakiSong",
@@ -525,13 +374,23 @@
       },
       "track":2
     },{
+      "id":"event-051",
+      "startBeat":192,
+      "type":"projectEvent",
+      "categoryId":"speakiSong",
+      "eventId":"doNotNer",
+      "params":{
+        "responseDelayBeats":8
+      },
+      "track":2
+    },{
       "id":"event-054",
-      "startBeat":208,
+      "startBeat":209,
       "type":"end",
       "track":1
     },{
       "id":"event-055",
-      "startBeat":200,
+      "startBeat":201,
       "type":"projectEvent",
       "categoryId":"speakiSong",
       "eventId":"returnActors",
@@ -540,7 +399,7 @@
       "track":1
     },{
       "id":"event-002",
-      "startBeat":8,
+      "startBeat":9,
       "type":"projectEvent",
       "categoryId":"speakiSong",
       "eventId":"heue",
@@ -551,7 +410,7 @@
       "track":2
     },{
       "id":"event-004",
-      "startBeat":10,
+      "startBeat":11,
       "type":"projectEvent",
       "categoryId":"speakiSong",
       "eventId":"heue",
@@ -562,7 +421,7 @@
       "track":2
     },{
       "id":"event-005",
-      "startBeat":12,
+      "startBeat":13,
       "type":"projectEvent",
       "categoryId":"speakiSong",
       "eventId":"heue",
@@ -573,13 +432,153 @@
       "track":2
     },{
       "id":"event-006",
-      "startBeat":14,
+      "startBeat":15,
       "type":"projectEvent",
       "categoryId":"speakiSong",
       "eventId":"heue",
       "params":{
         "responseDelayBeats":8,
         "longNoteLengthBeats":1
+      },
+      "track":2
+    },{
+      "id":"event-056",
+      "startBeat":142.5,
+      "type":"projectEvent",
+      "categoryId":"speakiSong",
+      "eventId":"doNotNer",
+      "params":{
+        "responseDelayBeats":8
+      },
+      "track":2
+    },{
+      "id":"event-057",
+      "startBeat":142,
+      "type":"projectEvent",
+      "categoryId":"speakiSong",
+      "eventId":"doNotNer",
+      "params":{
+        "responseDelayBeats":8
+      },
+      "track":2
+    },{
+      "id":"event-042",
+      "startBeat":138.5,
+      "type":"projectEvent",
+      "categoryId":"speakiSong",
+      "eventId":"doNotNer",
+      "params":{
+        "responseDelayBeats":8
+      },
+      "track":2
+    },{
+      "id":"event-043",
+      "startBeat":138,
+      "type":"projectEvent",
+      "categoryId":"speakiSong",
+      "eventId":"doNotNer",
+      "params":{
+        "responseDelayBeats":8
+      },
+      "track":2
+    },{
+      "id":"event-040",
+      "startBeat":126,
+      "type":"projectEvent",
+      "categoryId":"speakiSong",
+      "eventId":"doNotNer",
+      "params":{
+        "responseDelayBeats":8
+      },
+      "track":2
+    },{
+      "id":"event-036",
+      "startBeat":122.5,
+      "type":"projectEvent",
+      "categoryId":"speakiSong",
+      "eventId":"doNotNer",
+      "params":{
+        "responseDelayBeats":8
+      },
+      "track":2
+    },{
+      "id":"event-045",
+      "startBeat":122,
+      "type":"projectEvent",
+      "categoryId":"speakiSong",
+      "eventId":"doNotNer",
+      "params":{
+        "responseDelayBeats":8
+      },
+      "track":2
+    },{
+      "id":"event-034",
+      "startBeat":106.5,
+      "type":"projectEvent",
+      "categoryId":"speakiSong",
+      "eventId":"doNotNer",
+      "params":{
+        "responseDelayBeats":8
+      },
+      "track":2
+    },{
+      "id":"event-039",
+      "startBeat":106,
+      "type":"projectEvent",
+      "categoryId":"speakiSong",
+      "eventId":"doNotNer",
+      "params":{
+        "responseDelayBeats":8
+      },
+      "track":2
+    },{
+      "id":"event-028",
+      "startBeat":110.5,
+      "type":"projectEvent",
+      "categoryId":"speakiSong",
+      "eventId":"doNotNer",
+      "params":{
+        "responseDelayBeats":8
+      },
+      "track":2
+    },{
+      "id":"event-031",
+      "startBeat":110,
+      "type":"projectEvent",
+      "categoryId":"speakiSong",
+      "eventId":"doNotNer",
+      "params":{
+        "responseDelayBeats":8
+      },
+      "track":2
+    },{
+      "id":"event-030",
+      "startBeat":79.5,
+      "type":"projectEvent",
+      "categoryId":"speakiSong",
+      "eventId":"doNotNer",
+      "params":{
+        "responseDelayBeats":8
+      },
+      "track":2
+    },{
+      "id":"event-023",
+      "startBeat":80,
+      "type":"projectEvent",
+      "categoryId":"speakiSong",
+      "eventId":"doNotNer",
+      "params":{
+        "responseDelayBeats":8
+      },
+      "track":2
+    },{
+      "id":"event-024",
+      "startBeat":64,
+      "type":"projectEvent",
+      "categoryId":"speakiSong",
+      "eventId":"doNotNer",
+      "params":{
+        "responseDelayBeats":8
       },
       "track":2
     }]

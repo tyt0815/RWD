@@ -7,6 +7,7 @@ local function defaultTransportFactory(stage)
     return Core.PlaybackTransport.new({
         bpm = stage.bpm,
         musicPlayback = Core.MusicPlayback.new(),
+        now = love.timer.getTime,
     })
 end
 

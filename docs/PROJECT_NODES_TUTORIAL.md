@@ -261,3 +261,7 @@ Stage별 노드 값은 계속 Event `params`를 사용한다. Project JSON은 St
 8. 공통 규칙을 Core에 추가했다면 공개 API 테스트와 이 튜토리얼을 갱신한다.
 9. Event 등록, Stage 왕복, 판정과 연출 상태를 테스트한다.
 10. Stage 필드 계약을 바꾸면 `docs/STAGE_FORMAT.md`도 갱신한다.
+
+## 독립 실행 음악 시작 시각
+
+Sample처럼 외부 beat를 받는 게임은 전달받은 beat를 그대로 사용한다. 별도 독립 실행 경로에서 `Core.PlaybackTransport`를 조립할 때는 `now = love.timer.getTime`을 함께 전달한다. 이는 Play를 누른 프레임의 리소스 로딩 시간이 첫 박자 진행량에 포함되는 것을 막는다. Event 코드가 별도의 시계나 음악 오프셋 보정을 구현하지 않는다.
