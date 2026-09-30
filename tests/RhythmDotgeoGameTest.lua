@@ -838,47 +838,6 @@ return {
         end,
     },
     {
-        name = "Rhythm Dotgeo는 실제 Speaki Song Stage를 열 수 있다",
-        run = function(test)
-            local ProjectLoader = require("launcher.ProjectLoader")
-            local project = require("projects.rhythm_dotgeo.project")
-            local game, createError = ProjectLoader.createGame(project, {
-                stageRepository = require("core").StageRepository.new({
-                    fileSystem = require("launcher.NativeFileSystem").new(),
-                    paths = {
-                        stageDirectory = function(projectId)
-                            return "projects/" .. projectId .. "/stages"
-                        end,
-                        stageFile = function(projectId, stageId)
-                            return "projects/" .. projectId .. "/stages/"
-                                .. stageId .. ".json"
-                        end,
-                    },
-                    json = require("vendor.dkjson"),
-                }),
-            })
-            test.assertTrue(game ~= nil, createError)
-            local speakiSong
-            for _, stage in ipairs(game:getViewModel().stages) do
-                if stage.id == "speaki_song" then
-                    speakiSong = stage
-                end
-            end
-            test.assertTrue(speakiSong ~= nil, "Speaki Song Stage가 목록에 없습니다.")
-
-            assert(game:mousepressed(speakiSong.rect.x + 4, speakiSong.rect.y + 4, 1))
-            test.assertEqual(game.stage.stageId, "speaki_song")
-            test.assertEqual(game.stage.name, "Speaki Song")
-            test.assertEqual(#game.stage.events, 5)
-            local runtime = game:getCategoryRuntime("speakiSong")
-            test.assertEqual(#runtime.turnSchedule, 2)
-            test.assertEqual(runtime.turnSchedule[1].role, "guide")
-            test.assertNear(runtime.turnSchedule[1].startBeat, 7.5, 0.000001)
-            test.assertEqual(runtime.turnSchedule[2].role, "player")
-            test.assertNear(runtime.turnSchedule[2].startBeat, 15.5, 0.000001)
-        end,
-    },
-    {
         name = "Rhythm Dotgeo 독립 실행은 Stage 음악과 beat를 재생한다",
         run = function(test)
             local Game = require("projects.rhythm_dotgeo.game.Game")

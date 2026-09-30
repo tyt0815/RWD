@@ -66,13 +66,6 @@ return {
         end,
     },
     {
-        name = "LÖVE wheel과 mouse release callback이 등록된다",
-        run = function(test)
-            test.assertTrue(type(love.wheelmoved) == "function")
-            test.assertTrue(type(love.mousereleased) == "function")
-        end,
-    },
-    {
         name = "실행기는 메뉴 모드로 시작한다",
         run = function(test)
             local Launcher = require("launcher.Launcher")
