@@ -3,9 +3,8 @@
 ## 세션 시작 순서
 
 1. `README.md`에서 프로젝트 목표와 실행법을 확인한다.
-2. `docs/HANDOFF.md`에서 현재 상태, 마지막 검증 결과와 다음 작업을 확인한다.
-3. 변경할 영역의 문서를 읽는다. 구조 변경은 `docs/ARCHITECTURE.md`, Stage 변경은 `docs/STAGE_FORMAT.md`, 제작 흐름 변경은 `docs/WORKFLOW.md`를 먼저 읽는다.
-4. 다단계 작업은 구현 전에 성공 기준과 짧은 계획을 작성한다.
+2. `docs/adr.md`에서 관련 ADR을 확인한다.
+3. 다단계 작업은 구현 전에 성공 기준과 짧은 계획을 작성한다.
 
 ## 프로젝트 원칙
 
@@ -24,13 +23,13 @@
 - 프로젝트별 코드와 리소스는 `projects/<projectId>/` 안에 둔다.
 - 게임플레이 노드는 공통 판정·등록 계약처럼 재사용 가능한 규칙만 Core 공개 API에 두고, 노드 정의·화면·색·사운드·연출은 해당 Project에 둔다.
 - Stage Event의 beat 순서 실행, 중간 시작 상태 복원, End와 입력 활성 상태는 `Core.StageRuntime`을 사용한다. Project에서 Event crossing과 Game Manager 실행을 다시 구현하지 않는다.
-- Stage 형식과 정규화는 `Core.StageSchema`, Stage 경로·JSON decode/encode·원자 저장은 `Core.StageRepository`, Project 매니페스트 검증은 `Core.ProjectManifest`만 소유한다. 공개 signature는 `docs/ARCHITECTURE.md`를 따른다.
+- Stage 형식과 정규화는 `Core.StageSchema`, Stage 경로·JSON decode/encode·원자 저장은 `Core.StageRepository`, Project 매니페스트 검증은 `Core.ProjectManifest`만 소유한다.
 - Launcher는 `Core.StageRepository` 인스턴스 하나를 조립해 Editor와 Project에 `stageRepository`로 주입한다. Editor와 Project가 별도 Repository나 Stage I/O 절차를 만들지 않는다.
 - `projectEvent`는 Project 범위에서 고유한 `categoryId`와 해당 Category 범위에서 고유한 `eventId` 조합으로 식별하고 실행한다.
 - Project 기능은 `projects/<projectId>/game/<CategoryName>/`에 Category 단위로 모으고, Event·Actor·Sprite·SFX·이동 등 해당 기능에만 필요한 구현은 Category 폴더 밖으로 흩뜨리지 않는다. `Definition.lua`와 `Runtime.lua`를 추가하면 `Core.ProjectCategories`가 자동 발견하므로 새 Category나 노드를 만들기 위해 기존 `project.lua`, 게임 진입 모듈 또는 다른 Category를 수정하지 않는다. 게임 진입 모듈은 Core 런타임과 Category Host 조립만 소유한다.
 - Project는 Stage JSON을 직접 decode·검증하거나 경로를 계산하지 않는다. Stage 실행 규칙은 Core 공개 API를 사용하고 Launcher가 Project 경로와 파일 접근을 조립한다.
 - Project 기능을 구현하기 전에 Core 공개 API를 검색하고, 기존 Core 인스턴스 조합으로 해결할지 공통 기능을 Core에 추가할지 판단한다. Lua에서는 상속보다 조합을 우선하며 선택 근거가 불명확하면 구현 전에 질문한다.
-- 공통 기능을 Core에 추가하면 공개 API와 Core 테스트를 함께 변경하고, 새 Project 제작자가 알아야 하는 경우 Sample 참고 주석과 `docs/PROJECT_NODES_TUTORIAL.md`도 갱신한다.
+- 공통 기능을 Core에 추가하면 공개 API와 Core 테스트를 함께 변경한다.
 
 ## Project Category 구성
 
@@ -44,7 +43,7 @@
 ## Project 템플릿 유지보수
 
 - 새 Project는 수동으로 기본 폴더를 만들지 않고 `python tools/create_project.py <projectId> "<title>"`로 생성한다.
-- Project 매니페스트 필수 필드, 게임 진입 계약, 필수 리소스 폴더처럼 빈 Project가 기본으로 가져야 할 구조가 바뀌면 같은 작업에서 `tools/create_project.py`, `tests_python/test_create_project.py`와 `docs/WORKFLOW.md`를 함께 갱신한다.
+- Project 매니페스트 필수 필드, 게임 진입 계약, 필수 리소스 폴더처럼 빈 Project가 기본으로 가져야 할 구조가 바뀌면 같은 작업에서 `tools/create_project.py`와 `tests_python/test_create_project.py`를 함께 갱신한다.
 - 생성기는 Sample의 게임 규칙·노드·연출을 복사하지 않고 실행 가능한 최소 Project만 만든다.
 
 ## 코드 컨벤션
@@ -70,12 +69,10 @@
 - 전체 자동 테스트는 `love . --test`로 실행한다.
 - LÖVE 화면 변경은 `love .`로 직접 확인한다.
 - Stage JSON은 PowerShell의 `ConvertFrom-Json`으로 문법을 확인한다.
-- 완료를 보고하기 전에 실행한 명령과 결과를 `docs/HANDOFF.md`에 기록한다.
 
-## 문서와 인수인계
+## 문서와 결정 기록
 
 - 사용자 대상 문서는 한국어로 작성한다.
-- 공개 모듈 경계가 바뀌면 `docs/ARCHITECTURE.md`를 갱신한다.
-- 제작 흐름이 바뀌면 `docs/WORKFLOW.md`를 갱신한다.
-- Stage 필드가 바뀌면 `docs/STAGE_FORMAT.md`와 `schemaVersion` 정책을 함께 갱신한다.
-- 각 작업을 마칠 때 `docs/ROADMAP.md`의 진행 상태와 `docs/HANDOFF.md`의 현재 상태, 검증 결과, 다음 작업을 갱신한다.
+- 중요한 구조 결정을 내리거나 기존 결정을 변경하면 별도 ADR에 결정과 이유를 기록하고 `docs/adr.md`에 추가한다.
+- 현재 사용법과 실행법은 `README.md`에 기록한다.
+- Editor 튜토리얼은 재설계가 완료된 뒤 다시 작성한다.

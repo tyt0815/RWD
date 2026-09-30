@@ -190,7 +190,7 @@ projects/      서로 독립적인 Sample·Rhythm Dotgeo 게임 코드와 리소
 tests/         LÖVE 기반 Core·Editor·Project 회귀 테스트
 tests_python/  Project 생성기 테스트
 tools/         새 Project 생성 도구
-docs/          Architecture, Workflow, Stage 형식과 제작 튜토리얼
+docs/          Architecture Decision Records
 ```
 
 ## Run / Test
@@ -221,12 +221,9 @@ python -m unittest discover -s tests_python -v
 
 ## Documentation
 
-- [Architecture](docs/ARCHITECTURE.md) — 현재 모듈 책임, 공개 API와 데이터 흐름
-- [Workflow](docs/WORKFLOW.md) — Project 생성부터 Stage 편집·재생까지의 제작 흐름
-- [Stage Format](docs/STAGE_FORMAT.md) — schemaVersion 3 JSON 계약
-- [Project Node Tutorial](docs/PROJECT_NODES_TUTORIAL.md) — Category와 Event 제작 방법
-- [Roadmap](docs/ROADMAP.md) — 완료·진행·보류 기능
-- [Handoff](docs/HANDOFF.md) — 현재 상태, 최신 검증과 다음 작업
+- [Architecture Decision Records](docs/adr.md) — 현재 유지하는 구조 결정과 선택 이유
+
+기존 Editor의 상세 문서와 튜토리얼은 재설계를 앞두고 폐기했다. 현재 동작은 코드와 테스트를 기준으로 분석하며 새 튜토리얼은 Editor 완성 후 작성한다.
 
 ## Current Status / Limitations
 
@@ -240,7 +237,7 @@ python -m unittest discover -s tests_python -v
 
 ### In Progress
 
-- Editor와 Project가 각각 조립하는 StageRuntime을 단일 실행 권위로 통합
+- 기존 Editor 코드 분석과 재설계
 
 ### Planned / Deferred
 
