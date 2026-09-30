@@ -8,6 +8,8 @@
 
 [Public Repository](https://github.com/tyt0815/RWD)
 
+[게임 플레이 데모 영상](https://youtu.be/7eLAOlfyDK0)
+
 ![RWD Stage Editor에서 Rhythm Dotgeo Project를 미리 실행하는 화면](docs/Images/editor.png)
 
 ## Goal
