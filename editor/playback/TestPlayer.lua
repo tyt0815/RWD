@@ -1,3 +1,6 @@
+-- 실제 Project 게임을 생성하고 Preview lifecycle·입력·Canvas 그리기를 중계한다.
+-- 게임 callback 예외를 오류 문자열로 반환하며 자체 시간축이나 게임 판정 규칙은 만들지 않는다.
+
 local TestPlayer = {}
 TestPlayer.__index = TestPlayer
 
@@ -18,6 +21,7 @@ function TestPlayer.new(options)
     }, TestPlayer)
 end
 
+-- 이전 게임을 폐기하고 새 게임을 생성해 AutoPlay와 Stage를 설정한다. Play마다 설정 JSON을 다시 읽을 수 있다.
 function TestPlayer:start(project, stage, startBeat, autoPlay)
     self:stop()
 
@@ -122,6 +126,7 @@ function TestPlayer:keyreleased(key, beat)
     return sendInput(self, "keyreleased", key, beat)
 end
 
+-- 게임 화면을 rect 크기의 Canvas에 그리고 Editor 위치에 합성한다. push/pop으로 그래픽 상태를 복원한다.
 function TestPlayer:draw(rect)
     if not self.playing or not self.game then
         return true, nil

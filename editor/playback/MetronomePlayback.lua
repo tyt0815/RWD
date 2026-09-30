@@ -1,3 +1,6 @@
+-- Preview용 강박/일반박 클릭음을 합성하고 외부 beat에 맞춰 재생한다.
+-- 자체 시계 없이 Session Transport의 정수 beat 진행을 따라가며 큰 frame 점프에서는 마지막 박만 울린다.
+
 local MetronomePlayback = {}
 MetronomePlayback.__index = MetronomePlayback
 

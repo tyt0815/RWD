@@ -1,3 +1,6 @@
+-- 미판정 Tap 중 입력 beat에 가장 가까운 노트를 찾아 GOOD/BAD를 결정한다.
+-- 판정 창이 지난 노트는 update에서 MISS로 확정하며 Actor와 SFX는 호출자가 처리한다.
+
 local TapJudgment = {}
 TapJudgment.__index = TapJudgment
 

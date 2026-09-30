@@ -1,3 +1,6 @@
+-- Sample 게임 진입점. Core.StageRuntime occurrence를 Category Host에 전달하고 화면을 조립한다.
+-- 현재 자체 음악 Transport는 없고 Editor에서 주는 beat로 Stage를 진행한다.
+
 local Core = require("core")
 
 local SampleGame = {}

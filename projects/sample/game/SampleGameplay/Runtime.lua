@@ -1,3 +1,6 @@
+-- SampleGameplay 조립 지점. 공유 Sprite/SFX와 두 Actor, Tap 판정을 소유한다.
+-- Stage Event는 handler map으로 해당 Event 모듈에 전달하고, Cue 뒤의 응답 시점과 연출은 update로 진행한다.
+
 local Core = require("core")
 local CueResponse = require("projects.sample.game.SampleGameplay.CueResponse")
 local GuideTurn = require("projects.sample.game.SampleGameplay.GuideTurn")

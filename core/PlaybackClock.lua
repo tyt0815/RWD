@@ -1,3 +1,6 @@
+-- 음악 Source 없이 deltaTime과 BPM만으로 beat를 누적하는 단순 시계.
+-- 현재 Editor의 음악 재생 경로는 이 객체 대신 PlaybackTransport를 사용한다.
+
 local PlaybackClock = {}
 PlaybackClock.__index = PlaybackClock
 

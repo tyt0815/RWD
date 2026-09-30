@@ -1,3 +1,6 @@
+-- 등록된 Lua 테스트 모듈의 각 testCase.run을 실행하고 실패를 모아 보고한다.
+-- main.lua의 --test 분기에서 호출되며 실패는 프로세스 종료 코드 1로 이어진다.
+
 local TestSupport = require("tests.TestSupport")
 
 local TestRunner = {}

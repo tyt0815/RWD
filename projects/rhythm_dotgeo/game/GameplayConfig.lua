@@ -1,3 +1,6 @@
+-- 게임 전체의 실제 hold 시간 임계값을 ProjectConfig로 읽고 검증한다.
+-- 연출 설정과 분리된 longHoldThresholdMs를 Core.PlayerAction 생성에 전달한다.
+
 local Core = require("core")
 
 local GameplayConfig = {}

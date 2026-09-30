@@ -1,3 +1,5 @@
+-- Rhythm Dotgeo 독립 배포 패키지의 LÖVE 창과 엔진 설정.
+
 function love.conf(config)
     config.identity = "rhythm_dotgeo"
     config.version = "11.5"

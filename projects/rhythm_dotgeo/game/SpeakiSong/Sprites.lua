@@ -1,3 +1,5 @@
+-- 스피키와 배경의 공유 이미지를 Category 수명에 맞춰 한 번 로드하고 ID로 제공한다.
+
 local Sprites = {}
 Sprites.__index = Sprites
 

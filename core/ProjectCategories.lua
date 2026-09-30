@@ -1,3 +1,6 @@
+-- Project의 Category 폴더 발견과 실행 Host를 제공한다.
+-- 발견은 Definition만 읽고, 실제 게임 생성 시 Runtime을 로드해 lifecycle과 occurrence를 전달한다.
+
 local ProjectEvents = require("core.ProjectEvents")
 
 local ProjectCategories = {}
@@ -151,6 +154,7 @@ function Host:applyOccurrences(occurrences, beat)
     end
 end
 
+-- 현재 Host update 계약은 두 인자다. 호출자가 준 세 번째 realDeltaTime은 여기서 Category로 전달되지 않는다.
 function Host:update(deltaTime, beat)
     callEach(self, "update", deltaTime, beat)
 end

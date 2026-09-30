@@ -1,3 +1,6 @@
+-- Guide/Player가 공통으로 쓰는 Actor 구현. 등장·이동·판정 flash와 그림을 소유한다.
+-- 이동은 beat 보간, flash 수명은 초 단위 deltaTime이며 Sprite는 Runtime에서 주입받는다.
+
 local Core = require("core")
 
 local SampleActor = {}

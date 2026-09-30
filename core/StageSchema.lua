@@ -1,3 +1,6 @@
+-- schemaVersion 3 Stage의 데이터 형식 검증과 정규화. 파일 접근이나 Project 동작은 소유하지 않는다.
+-- Project Event의 존재와 params별 범위 검증은 별도 ProjectEvents 정의를 이용한다.
+
 local MixtapeSettings = require("core.MixtapeSettings")
 local StageSettings = require("core.StageSettings")
 
@@ -71,6 +74,7 @@ local function deepCopy(value, seen)
     return setmetatable(copy, getmetatable(value))
 end
 
+-- 빈 params를 JSON []가 아닌 {}로 저장하도록 object 메타정보를 붙인다.
 local function normalizeEmptyEventParams(stage)
     for _, event in ipairs(stage.events) do
         if (event.type == "pattern" or event.type == "projectEvent")
@@ -189,6 +193,7 @@ function StageSchema.validate(stage)
     return true, nil, nil
 end
 
+-- 유효한 데이터의 복사본에서 기본 설정을 생략한다. Event 배열을 실행 순서로 정렬하는 곳은 StageRuntime이다.
 function StageSchema.normalize(stage)
     local valid, message, code = StageSchema.validate(stage)
     if not valid then return nil, message, code end

@@ -1,3 +1,6 @@
+-- SpeakiSong 연출 설정 JSON의 SFX 경로·Actor 배치·반응 값을 검증하고 실행용 형태로 변환한다.
+-- StageRepository가 아닌 Core.ProjectConfig를 쓰며 Stage 배치 데이터와는 별개다.
+
 local Core = require("core")
 
 local Config = {}

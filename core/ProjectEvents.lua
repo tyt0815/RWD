@@ -1,3 +1,6 @@
+-- 순수 Event 정의에서 Category/Event 조회, params 기본값 생성과 범위 검증을 제공한다.
+-- Stage 배치 ID(event.id)와 Event 종류 ID(event.eventId)는 서로 다른 식별자다.
+
 local ProjectEvents = {}
 
 local function isFinite(value)

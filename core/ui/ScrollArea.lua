@@ -1,3 +1,6 @@
+-- 콘텐츠와 viewport 크기에 따른 스크롤 범위, offset, thumb 비율을 계산한다.
+-- 색상이나 패널 배치는 알지 못하며 Editor가 계산 결과를 그린다.
+
 local ScrollArea = {}
 ScrollArea.__index = ScrollArea
 

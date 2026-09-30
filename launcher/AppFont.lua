@@ -1,3 +1,5 @@
+-- 앱 공용 한글 지원 폰트를 설치하는 초기화 모듈. Launcher와 Editor, Project가 같은 기본 폰트를 사용한다.
+
 local AppFont = {}
 
 local FONT_PATH = "assets/fonts/D2Coding-Ver1.3.3-20260725-all.ttc"

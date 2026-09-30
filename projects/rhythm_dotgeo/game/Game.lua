@@ -1,3 +1,6 @@
+-- Rhythm Dotgeo의 Stage 선택 화면과 플레이 화면을 전환하는 게임 진입점.
+-- StagePlayback과 Category Host를 조합하며 Category별 Actor나 판정 구현은 직접 소유하지 않는다.
+
 local Core = require("core")
 local StagePlayback = require("projects.rhythm_dotgeo.game.StagePlayback")
 local StageSelect = require("projects.rhythm_dotgeo.game.StageSelect")

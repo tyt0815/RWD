@@ -1,3 +1,5 @@
+-- Rhythm Dotgeo manifest. SpeakiSong Definition을 자동 발견해 Editor와 Launcher에 같은 등록 정보를 제공한다.
+
 local Core = require("core")
 
 -- game/ 바로 아래 Category를 자동 발견하므로 SpeakiSong 추가를 위해 Game을 수정하지 않는다.

@@ -1,3 +1,6 @@
+-- 크레페 전용 애니메이션 프레임과 이동/정지 이력을 소유한다.
+-- 이동은 beat, 이미지 프레임은 Stage 초로 계산해 중간 시작에서도 재현한다.
+
 local Core = require("core")
 local BeatBounce = require("projects.rhythm_dotgeo.game.SpeakiSong.BeatBounce")
 

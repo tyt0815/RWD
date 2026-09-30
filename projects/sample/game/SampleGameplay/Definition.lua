@@ -1,3 +1,6 @@
+-- SampleGameplay의 Event 종류, 기본 params와 Timeline geometry 등록 데이터.
+-- Stage에 배치된 개별 Event 인스턴스가 아니라 Editor가 선택할 노드 종류를 정의한다.
+
 -- 이 파일은 Editor가 Category와 노드를 발견할 때도 읽는다.
 -- 따라서 Runtime, Actor, 이미지와 사운드를 require하지 않고 순수 등록 데이터만 반환한다.
 return {

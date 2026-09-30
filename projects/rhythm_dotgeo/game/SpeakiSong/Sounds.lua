@@ -1,3 +1,6 @@
+-- Guide/Player별 Tap 순환 재생과 Long 시작→루프→해제 SFX를 관리한다.
+-- Long은 queueable Source에 버퍼를 보충하며 음악 Transport와 독립적인 Category 리소스다.
+
 local Sounds = {}
 Sounds.__index = Sounds
 

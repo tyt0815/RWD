@@ -1,3 +1,6 @@
+-- 음악 상대 경로, 음량, beat0Offset의 검증과 기본값 처리를 담당한다.
+-- 음악 파일 자체를 로드하거나 재생하지 않으며 offset의 단위는 초다.
+
 local MixtapeSettings = {}
 
 local DEFAULTS = {

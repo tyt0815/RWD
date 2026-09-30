@@ -1,3 +1,6 @@
+-- 음악을 순차 decode해 첫 유효 소리의 초 위치를 찾는다.
+-- 10ms 창 RMS가 threshold를 두 번 연속 넘으면 첫 창 시작을 반환하며 결과를 beat0Offset으로 적용하는 것은 App의 책임이다.
+
 local MusicOnsetDetector = {}
 MusicOnsetDetector.__index = MusicOnsetDetector
 

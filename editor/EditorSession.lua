@@ -1,3 +1,7 @@
+-- 열린 Project·StageDocument, Undo 스냅샷, 편집 기준 beat와 재생 객체를 조립하는 작업 세션.
+-- 화면 좌표 대신 beat/track과 문서 데이터를 받고 Repository, Transport, TestPlayer에 작업을 위임한다.
+-- 현재는 Timeline 편집 규칙과 재생 orchestration을 함께 소유하므로 재설계 때 책임 경계를 살펴볼 중심 파일이다.
+
 local Core = require("core")
 local StageDocument = require("editor.stage.StageDocument")
 local MetronomePlayback = require("editor.playback.MetronomePlayback")
@@ -46,6 +50,7 @@ local function getProjectEventDefinition(project, categoryId, eventId)
     return Core.ProjectEvents.getEvent(project, categoryId, eventId)
 end
 
+-- Stage 형식 검증과 별도로 현재 Project의 Event 존재, params 범위와 singleton을 검사한다.
 local function validateProjectEventData(project, document)
     local singletonCounts = {}
     for _, event in ipairs(document:getEvents()) do
@@ -77,6 +82,7 @@ local function validateProjectEventData(project, document)
     return nil
 end
 
+-- Timeline 표시/충돌 계산에 필요한 geometry를 복사된 Event에 붙인다. 저장 모델에는 넣지 않는다.
 local function decorateProjectEvent(event, definition)
     if event.type ~= "projectEvent" or not definition then return event end
     event.projectDefinition = definition
@@ -128,6 +134,7 @@ function EditorSession:resetTimelineHistory()
     if self.document then self:recordTimelineHistory() end
 end
 
+-- 편집 성공 후 문서 전체와 dirty를 스냅샷으로 저장한다. Undo 뒤 새 편집을 하면 이후 Redo 이력은 제거한다.
 function EditorSession:recordTimelineHistory()
     for index = #self.timelineHistory, self.timelineHistoryIndex + 1, -1 do
         table.remove(self.timelineHistory, index)
@@ -139,6 +146,7 @@ function EditorSession:recordTimelineHistory()
     self.timelineHistoryIndex = #self.timelineHistory
 end
 
+-- 문서와 dirty를 복원하고 Transport BPM을 맞춘다. 선택/클립보드/화면 pan 상태는 이력에 없다.
 function EditorSession:restoreTimelineHistory(index)
     local snapshot = self.timelineHistory[index]
     if not snapshot then return nil, "No Timeline edit history is available." end
@@ -208,6 +216,7 @@ function EditorSession:isInputEnabled()
     return self.inputEnabled
 end
 
+-- 재생 위치와 다음 Play 시작점(anchorBeat)을 함께 옮긴다. 재생 중 seek 허용 여부는 Transport가 검사한다.
 function EditorSession:seekTimeline(beat)
     if not self.document then return nil, "No Stage is open." end
     local snap = self.document:getEditorSettings().snap
@@ -234,6 +243,7 @@ function EditorSession:panTimeline(deltaX, pixelsPerBeat)
     return true, nil
 end
 
+-- 확대 전후 커서가 가리키는 beat를 유지하도록 scale과 화면 시작 beat를 함께 조정한다.
 function EditorSession:zoomTimeline(cursorOffsetX, wheelY)
     if not self.document then return nil, "No Stage is open." end
 
@@ -257,6 +267,7 @@ function EditorSession:listStages(projectId)
     return self.stageRepository:listStages(projectId)
 end
 
+-- Project Event 검증과 새 Transport 생성이 성공한 뒤 기존 재생을 멈추고 세션 전체를 교체한다.
 function EditorSession:replaceStage(project, document)
     local projectEventError = validateProjectEventData(project, document)
     if projectEventError then return nil, projectEventError end
@@ -300,6 +311,7 @@ function EditorSession:openStage(projectId, stageId)
     return self:replaceStage(project, document)
 end
 
+-- Repository 저장 성공 후에만 dirty를 해제한다. 현재 이력 항목도 clean으로 갱신한다.
 function EditorSession:save()
     if not self.document then return nil, "No Stage is open." end
 
@@ -317,6 +329,7 @@ function EditorSession:save()
     return true, nil
 end
 
+-- 새 ID/이름의 문서 복사본을 저장한 뒤 현재 문서로 교체하고 이력을 다시 시작한다.
 function EditorSession:saveAs(stageId, name, overwrite)
     if not self.document then return nil, "No Stage is open." end
 
@@ -351,6 +364,7 @@ function EditorSession:setBpm(bpm)
     return changed, errorMessage
 end
 
+-- Document가 반환한 복사본에 Project geometry를 보강한다. 렌더링과 충돌 preview에 사용하는 조회 경로다.
 function EditorSession:getTimelineEvents()
     if not self.document then return {} end
     local events = self.document:getEvents()
@@ -369,6 +383,7 @@ function EditorSession:getTimelineEvents()
     return events
 end
 
+-- Project 종류 문자열을 해석하고 params/singleton/snap/충돌을 검사한 후 Document에 추가한다.
 function EditorSession:addTimelineEvent(eventType, beat, track, params)
     if not self.document then return nil, "No Stage is open." end
     if self:isPlaying() then return nil, "Pause before placing Timeline Events." end
@@ -465,6 +480,8 @@ function EditorSession:getTimelineEventCopies(eventIds)
     return copies
 end
 
+-- 클립보드 그룹의 상대 beat/track은 유지하고 새 배치 ID를 부여한다.
+-- 후보 전체를 충돌 검사한 뒤 Document.addEvents로 한 번에 반영한다.
 function EditorSession:pasteTimelineEvents(sourceEvents, beat, track)
     if not self.document then return nil, "No Stage is open." end
     if self:isPlaying() then return nil, "Pause before pasting Timeline Events." end
@@ -556,6 +573,7 @@ function EditorSession:pasteTimelineEvents(sourceEvents, beat, track)
     return added, nil
 end
 
+-- 이동 후보 전체를 검사한 뒤 문서에 반영한다. 현재 이 경로는 getTimelineEvents의 geometry 보강을 사용하지 않는다.
 function EditorSession:moveTimelineEvents(positions)
     if not self.document then return nil, "No Stage is open." end
     if self:isPlaying() then return nil, "Pause before moving Timeline Events." end
@@ -602,6 +620,7 @@ function EditorSession:deleteTimelineEvents(eventIds)
     return deleted, errorMessage
 end
 
+-- Project params 후보를 Definition으로 검증하고 Document에 반영한다. geometry 충돌 재검사는 이 함수에 없다.
 function EditorSession:setTimelineEventProperty(eventId, propertyId, value)
     if not self.document then return nil, "No Stage is open." end
     if self:isPlaying() then return nil, "Pause before editing Timeline Events." end
@@ -674,6 +693,8 @@ function EditorSession:setProperty(groupId, propertyId, value)
     return nil, "Unknown property group: " .. tostring(groupId)
 end
 
+-- anchorBeat로 이동 → 세션 StageRuntime 시작 → 음악 설정 → 게임 Preview 시작 → Transport → Metronome 순서.
+-- 세션 Runtime은 End/입력 제어용이고 Project Event occurrence 실행은 게임 내부 Runtime이 맡는다.
 function EditorSession:play()
     if not self.document then return nil, "No Stage is open." end
     if self:isPlaying() then return true, nil end
@@ -740,6 +761,7 @@ function EditorSession:play()
     return true, nil
 end
 
+-- 음악과 Metronome을 멈추고 Preview 게임을 폐기한다. 다음 Play는 새 게임을 만들므로 단순 resume이 아니다.
 function EditorSession:pause()
     if self.transport then self.transport:pause() end
     self.metronome:pause()
@@ -747,6 +769,8 @@ function EditorSession:pause()
     self.stageRuntime = nil
 end
 
+-- Transport beat를 먼저 갱신한 뒤 End/입력 상태를 확인하고 Metronome과 실제 게임을 갱신한다.
+-- 게임에는 속도 적용 deltaTime과 실제 deltaTime을 함께 보내고, Preview 오류 시 이전 beat로 되돌린다.
 function EditorSession:update(deltaTime, visibleBeatCount)
     if not self:isPlaying() then return true, nil end
 
@@ -813,6 +837,7 @@ function EditorSession:update(deltaTime, visibleBeatCount)
     return true, nil
 end
 
+-- 세션 재생 여부와 Core 입력 활성 상태를 통과한 입력만 Preview 게임으로 넘긴다.
 function EditorSession:handleInput(key)
     if not self:isPlaying() or not self.inputEnabled then return true, nil end
     local handled, errorMessage = self.testPlayer:keypressed(key, self:getBeat())

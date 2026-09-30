@@ -1,3 +1,5 @@
+-- 등장 여부와 공유 Sprite를 이용한 Category 배경 그리기. Stage 진행이나 판정 상태는 소유하지 않는다.
+
 local Background = {}
 Background.__index = Background
 

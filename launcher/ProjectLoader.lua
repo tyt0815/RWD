@@ -1,3 +1,6 @@
+-- Project manifest를 Core 계약으로 검사한 뒤 entryModule.new로 게임 객체를 생성한다.
+-- standalone 옵션과 공통 Repository를 전달하고 로드·생성 예외를 오류 반환값으로 변환한다.
+
 local Core = require("core")
 
 local ProjectLoader = {}

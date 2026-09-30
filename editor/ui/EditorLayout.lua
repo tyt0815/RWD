@@ -1,3 +1,6 @@
+-- Editor의 패널·Timeline 좌표 계산, hit test와 렌더링. Document를 직접 수정하지 않는다.
+-- getViewModel로 받은 Event 복사본과 UI 컴포넌트 상태를 읽고 Preview 그리기는 callback으로 요청한다.
+
 local EditorMenu = require("editor.menu.EditorMenu")
 local TimelineEventGeometry = require("editor.timeline.TimelineEventGeometry")
 
@@ -155,6 +158,7 @@ function EditorLayout.hitTestTimelineHeader(timeline, x, y)
         and y >= header.y and y < header.y + header.height
 end
 
+-- Timeline 왼쪽에 한 beat 폭 여백을 둔다. 화면 x를 beat로 바꿀 때 같은 원점을 사용해야 한다.
 function EditorLayout.getTimelineBeatOriginX(timeline, scale)
     return timeline.x + EditorLayout.getPixelsPerBeat(scale)
 end
@@ -189,6 +193,7 @@ function EditorLayout.getTimelineEventRect(timeline, event, viewModel)
     }
 end
 
+-- connector 양 끝의 클릭을 먼저 검사한 뒤 연결선 전체를 fallback으로 검사한다. 충돌 면적과 클릭 면적은 다르다.
 function EditorLayout.hitTestTimelineEvent(timeline, events, viewModel, x, y)
     local pixelsPerBeat = EditorLayout.getPixelsPerBeat(viewModel.scale)
     for index = #events, 1, -1 do
@@ -728,6 +733,7 @@ local function drawToasts(width, toasts)
     end
 end
 
+-- 문서 변경 없이 배치와 화면 그리기를 수행한다. Project Canvas는 전달받은 drawPreview로 그린다.
 function EditorLayout.draw(width, height, viewModel, drawPreview)
     local layout = EditorLayout.getLayout(width, height)
 

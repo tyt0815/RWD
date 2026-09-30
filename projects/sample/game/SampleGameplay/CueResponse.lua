@@ -1,3 +1,5 @@
+-- Cue 시점에서 응답 beat와 Tap 노트를 등록한다. catchUp 시 지난 소리는 생략하고 남은 응답 상태를 복원한다.
+
 local CueResponse = {}
 
 function CueResponse.apply(runtime, event, occurrence)

@@ -1,3 +1,6 @@
+-- Long의 시작 입력과 해제 입력을 별도로 판정한다. 대기 노트와 현재 누른 노트를 관리한다.
+-- 이 모듈은 키를 얼마나 오래 눌렀는지로 Tap/Long을 분류하지 않는다. 그 분류는 PlayerAction의 책임이다.
+
 local JudgmentResult = {
     GOOD = "GOOD",
     BAD = "BAD",

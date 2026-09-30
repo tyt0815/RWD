@@ -1,3 +1,6 @@
+-- LÖVE 오디오 Source를 감싸 로딩·seek·재생·정지와 진행량 drift 보정을 수행한다.
+-- beat 계산은 PlaybackTransport에 맡기고 이 계층은 초 단위 음악 위치만 취급한다.
+
 local MusicPlayback = {}
 MusicPlayback.__index = MusicPlayback
 
@@ -121,6 +124,7 @@ function MusicPlayback:play(positionSeconds, playbackRate)
     return true, nil
 end
 
+-- 1초마다 Source 진행량을 비교한다. 최초 관측을 기준점으로 삼고 진행량 차이가 50ms를 넘으면 seek한다.
 function MusicPlayback:update(expectedSeconds, playbackRate, deltaTime)
     if not self.source or not self.started then
         return true, nil

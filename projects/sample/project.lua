@@ -1,3 +1,5 @@
+-- Sample manifest. 순수 Category 등록 정보와 게임 진입 모듈 이름을 제공하며 리소스는 생성하지 않는다.
+
 local Core = require("core")
 
 -- game/ 바로 아래에서 Definition.lua와 Runtime.lua를 가진 Category를 자동 발견한다.

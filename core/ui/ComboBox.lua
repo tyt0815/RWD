@@ -1,3 +1,6 @@
+-- 선택 목록의 열림 상태, 검색 필터, 강조 항목과 목록 스크롤을 관리한다.
+-- 검색 문자열은 TextInput을 조합하며 목록 렌더링과 좌표 hit test는 화면 쪽에서 연결한다.
+
 local TextInput = require("core.ui.TextInput")
 
 local ComboBox = {}

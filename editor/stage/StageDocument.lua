@@ -1,3 +1,6 @@
+-- Stage 데이터의 편집 모델. 데이터를 복사한 후보를 Core.StageSchema로 정규화한 뒤 교체한다.
+-- 변경 성공 시 dirty를 표시하며 파일 I/O, Project Event의 구체적인 params 계약, 화면 선택 상태는 소유하지 않는다.
+
 local Core = require("core")
 
 local StageDocument = {}
@@ -59,6 +62,7 @@ function StageDocument.fromSnapshot(data, dirty)
     return newDocument(data, dirty == true)
 end
 
+-- 외부 편집이나 저장 준비가 원본을 바꾸지 않도록 깊은 복사본을 반환한다.
 function StageDocument:toTable()
     return deepCopy(self.data)
 end
@@ -107,6 +111,7 @@ function StageDocument:setBpm(bpm)
     return true, nil
 end
 
+-- 기본값이 채워진 설정을 수정한 뒤 Core 정규화로 다시 희소 저장 형태로 만든다.
 local function setSparseValue(document, sectionName, key, value, resolve)
     local current = resolve(document.data)
     local candidateSection = deepCopy(current)
@@ -135,6 +140,7 @@ function StageDocument:setEditorSetting(key, value)
     end)
 end
 
+-- 조회 결과도 복사본이다. 화면 라벨/geometry/드래그 후보를 붙여도 원본 Event는 변하지 않는다.
 function StageDocument:getEvents()
     return deepCopy(self.data.events)
 end
@@ -178,6 +184,7 @@ function StageDocument:addEvent(
     return deepCopy(storedEvent), nil
 end
 
+-- 모든 추가 후보를 한 데이터 복사본에 넣고 한 번 정규화한다. 하나라도 형식이 잘못되면 원본은 유지된다.
 function StageDocument:addEvents(events)
     local candidateData = self:toTable()
     local usedIds = {}
@@ -211,6 +218,7 @@ function StageDocument:addEvents(events)
     return added, nil
 end
 
+-- beat/track 변경 후보의 형식만 검증한다. 화면 노드끼리의 충돌은 Session이 검사한다.
 function StageDocument:moveEvents(positions)
     local candidateData = self:toTable()
     local changed = false

@@ -1,3 +1,5 @@
+-- 두 스피키의 위치 복귀와 bounce 정지, 크레페 이동 정지를 조율하는 Event handler.
+
 local ReturnActors = {}
 
 function ReturnActors.apply(runtime, event)

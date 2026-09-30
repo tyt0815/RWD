@@ -1,3 +1,6 @@
+-- beat 단위 Event 폭과 같은 track 내 충돌을 계산하는 순수 모듈.
+-- connector는 선 전체가 아니라 Cue/Response 양 끝 구간만 충돌 면적으로 사용한다.
+
 local TimelineEventGeometry = {}
 
 local DEFAULT_GAMEPLAY_WIDTH_BEATS = 1
@@ -12,6 +15,7 @@ function TimelineEventGeometry.getWidthBeats(event)
     return NON_RHYTHMIC_WIDTHS[event.type] or DEFAULT_GAMEPLAY_WIDTH_BEATS
 end
 
+-- 응답 지연과 endpoint 폭을 params에서 계산한다. 연결선 사이 공간은 collisionSegments에 포함하지 않는다.
 function TimelineEventGeometry.resolveConnector(params, geometry)
     params = params or {}
     geometry = geometry or {}
@@ -80,6 +84,7 @@ local function eventsOverlap(first, second)
     return false
 end
 
+-- 같은 track의 구간을 쌍별 비교한다. 경계가 딱 맞닿은 경우는 허용하며 relevantIds로 검사 대상을 좁힌다.
 function TimelineEventGeometry.findCollisionIds(events, relevantIds)
     local collisions = {}
     for firstIndex = 1, #events - 1 do

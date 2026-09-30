@@ -1,3 +1,6 @@
+-- 실제 누른 시간(초)을 누적해 Tap/Long 입력을 분류한다. 임계값 설정은 ms로 받는다.
+-- pressBeat는 최초 입력 시점을 보존하고, 판정 노트 선택과 연출은 Project가 수행한다.
+
 local PlayerAction = {}
 PlayerAction.__index = PlayerAction
 

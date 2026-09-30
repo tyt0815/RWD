@@ -1,3 +1,5 @@
+-- Sample Cue/판정음을 사인파로 합성해 재사용한다. 파일 음악 재생과는 별도의 Category SFX다.
+
 local Sounds = {}
 Sounds.__index = Sounds
 

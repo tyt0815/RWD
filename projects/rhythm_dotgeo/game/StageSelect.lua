@@ -1,3 +1,5 @@
+-- Repository에서 Stage를 읽어 선택 버튼과 화면을 만든다. 버튼 동작은 Core.UI.Button으로 판정한다.
+
 local Core = require("core")
 
 local StageSelect = {}

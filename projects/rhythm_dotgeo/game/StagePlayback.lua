@@ -1,3 +1,6 @@
+-- Rhythm Dotgeo Stage 실행 조립. Preview는 외부 beat를 쓰고 standalone일 때만 음악 Transport를 만든다.
+-- Event 순서와 End·입력 상태는 Core.StageRuntime에 맡기고 occurrence는 Category Host에 전달한다.
+
 local Core = require("core")
 
 local StagePlayback = {}
@@ -40,6 +43,7 @@ function StagePlayback:applyOccurrences(_, occurrences, beat)
     return true, nil
 end
 
+-- Category 초기화 → Core catchUp → occurrence 적용 → 시작점 연출 갱신. standalone일 때만 자체 음악을 시작한다.
 function StagePlayback:start(game, stage, startBeat)
     self:stop()
     self.runtime = Core.StageRuntime.new()
@@ -81,6 +85,7 @@ function StagePlayback:start(game, stage, startBeat)
     return true, nil
 end
 
+-- Preview는 Editor의 externalBeat, 독립 실행은 자체 Transport의 beat를 사용한다. Event 실행 규칙은 동일한 Core Runtime을 따른다.
 function StagePlayback:update(game, deltaTime, externalBeat, realDeltaTime)
     local beat = externalBeat
     if self.transport and beat == nil then

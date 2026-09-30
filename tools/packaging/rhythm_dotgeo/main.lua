@@ -1,3 +1,5 @@
+-- Rhythm Dotgeo 독립 배포용 진입점. 일반 루트 main.lua와 별개로 패키지 실행을 시작한다.
+
 local Core = require("core")
 local ProjectLoader = require("launcher.ProjectLoader")
 local game

@@ -1,3 +1,6 @@
+-- Editor 설정의 허용 키, 범위, 기본값을 관리하는 Core 내부 모듈.
+-- 외부에서는 StageSchema.resolveEditorSettings를 사용하며 기본값과 같은 설정은 저장 시 생략한다.
+
 local StageSettings = {}
 
 local DEFAULTS = {

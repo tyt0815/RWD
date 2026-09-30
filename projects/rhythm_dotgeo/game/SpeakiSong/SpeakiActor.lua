@@ -1,3 +1,6 @@
+-- Guide/Player가 공유하는 스피키 Actor. 역할별 인스턴스에 위치·반전·공유 Sprite를 주입한다.
+-- 이동과 Tap/Long 반응은 beat로 계산하며 판정이나 SFX 실행은 Runtime에 맡긴다.
+
 local Core = require("core")
 local BeatBounce = require("projects.rhythm_dotgeo.game.SpeakiSong.BeatBounce")
 

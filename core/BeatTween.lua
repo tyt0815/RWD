@@ -1,3 +1,5 @@
+-- beat를 기준으로 두 숫자 사이를 선형 보간한다. Actor의 위치 같은 값만 계산하며 렌더링은 하지 않는다.
+
 local BeatTween = {}
 BeatTween.__index = BeatTween
 

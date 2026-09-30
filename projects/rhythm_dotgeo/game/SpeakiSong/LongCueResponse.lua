@@ -1,3 +1,6 @@
+-- Long Cue Event에서 가이드 hold와 플레이어 시작/해제 목표 beat를 등록한다.
+-- 중간 시작에서는 남아 있는 상태를 복원하고 과거 일회성 소리는 재생하지 않는다.
+
 local LongCueResponse = {}
 
 function LongCueResponse.apply(runtime, event, occurrence)

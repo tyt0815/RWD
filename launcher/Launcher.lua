@@ -1,3 +1,6 @@
+-- 메뉴·Editor·Project 전환과 의존성 조립. StageRepository 한 인스턴스를 모든 실행 경로에 주입한다.
+-- 현재 Project 메뉴는 sample/rhythm_dotgeo로 고정되어 있고 나머지 lifecycle과 입력은 activeApp에 위임한다.
+
 local Core = require("core")
 local Editor = require("editor")
 local json = require("vendor.dkjson")

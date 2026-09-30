@@ -1,3 +1,6 @@
+-- Stage가 아닌 Project 설정 JSON을 읽는 공통 로더. 호출마다 디스크를 읽어 설정 변경을 반영한다.
+-- 구체적인 설정 필드와 경로 규칙의 검증은 해당 Project의 Config 모듈이 담당한다.
+
 local defaultJson = require("vendor.dkjson")
 
 local ProjectConfig = {}

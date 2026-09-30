@@ -1,3 +1,6 @@
+-- Stage Event를 beat 순서대로 소비하고 입력 활성 상태와 End를 관리한다.
+-- 반환하는 occurrence는 { event, catchUp }이며 Project Event의 실제 동작은 Category Host가 수행한다.
+
 local StageRuntime = {}
 StageRuntime.__index = StageRuntime
 
@@ -8,6 +11,7 @@ local function isNonNegativeFinite(value)
         and value < math.huge
 end
 
+-- 같은 beat에서는 원래 events 배열 순서를 유지한다. track 번호는 실행 순서에 영향을 주지 않는다.
 local function sortedEvents(stage)
     local events = {}
     for index, event in ipairs(stage.events or {}) do
@@ -55,6 +59,7 @@ function StageRuntime:processUntil(targetBeat, catchUp)
     return occurrences
 end
 
+-- 시작 beat 이하의 Event를 catchUp=true로 소비해 상태를 복원한다. 시작 beat와 같은 Event도 포함된다.
 function StageRuntime:start(stage, startBeat)
     startBeat = startBeat or 0
     if type(stage) ~= "table" or type(stage.events) ~= "table" then
@@ -88,6 +93,7 @@ function StageRuntime:start(stage, startBeat)
     return occurrences, nil
 end
 
+-- 앞으로만 진행하는 커서다. 중간 beat로 되돌릴 때는 update가 아니라 새 start로 상태를 다시 만들어야 한다.
 function StageRuntime:update(beat)
     if not self.started then return nil, "StageRuntime has not started." end
     if not isNonNegativeFinite(beat) then

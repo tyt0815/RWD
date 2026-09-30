@@ -1,3 +1,5 @@
+-- SpeakiSong 노드 종류와 숫자 params, singleton, Cue/Response connector geometry의 순수 등록 데이터.
+
 -- Editor도 읽는 순수 등록 데이터다. Runtime과 LÖVE 리소스를 여기서 불러오지 않는다.
 return {
     id = "speakiSong",

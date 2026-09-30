@@ -1,3 +1,6 @@
+-- Global/Game Manager와 Project Definition을 Editor의 Category·Event·Property 목록으로 변환한다.
+-- 배치 전 기본 params용 properties와 기존 노드 편집용 nodeProperties를 화면에 제공한다.
+
 local Core = require("core")
 
 local PropertyCatalog = {}

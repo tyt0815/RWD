@@ -1,3 +1,6 @@
+-- Stage 목록·불러오기·저장의 단일 창구. 경로 함수, 파일 시스템, JSON 구현을 외부에서 주입받는다.
+-- 읽기와 쓰기는 StageSchema 정규화를 거치며 저장은 임시 파일과 백업을 이용해 원본 복구를 시도한다.
+
 local StageSchema = require("core.StageSchema")
 
 local StageRepository = {}
@@ -93,6 +96,7 @@ function StageRepository:stageExists(projectId, stageId)
     return exists, nil, nil
 end
 
+-- JSON 뒤의 여분 내용까지 확인하고 형식 정규화 후 projectId와 파일 stageId 일치도 검사한다.
 function StageRepository:load(projectId, stageId)
     local exists, existsMessage, existsCode = self:stageExists(projectId, stageId)
     if exists == nil then return nil, existsMessage, existsCode end
@@ -129,6 +133,8 @@ function StageRepository:load(projectId, stageId)
     return normalized, nil, nil
 end
 
+-- 정규화/encode → .tmp 작성 → 원본을 .bak으로 이동 → .tmp를 원본으로 교체한다.
+-- 교체 실패 시 rename 복구 후 copy fallback을 시도하며, 복구 실패 백업은 남겨 오류에 경로를 알린다.
 function StageRepository:save(stage, overwrite)
     local normalized, normalizeMessage, normalizeCode = StageSchema.normalize(stage)
     if not normalized then return nil, normalizeMessage, normalizeCode end

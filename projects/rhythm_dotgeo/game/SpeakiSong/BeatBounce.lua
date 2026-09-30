@@ -1,3 +1,5 @@
+-- Stage beat에서 공통 세로 bounce 비율을 계산하는 순수 연출 함수. 스피키와 크레페가 함께 사용한다.
+
 local BeatBounce = {}
 
 local SQUASH = 0.12

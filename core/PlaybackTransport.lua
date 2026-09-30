@@ -1,3 +1,6 @@
+-- Editor와 독립 실행 게임이 사용하는 재생 시간축. TempoMap과 MusicPlayback을 조합한다.
+-- 음악 위치 = Timeline 초 + beat0Offset이며, 재생 속도는 Timeline 누적과 Source pitch에 함께 적용한다.
+
 local TempoMap = require("core.TempoMap")
 
 local PlaybackTransport = {}

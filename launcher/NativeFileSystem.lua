@@ -1,3 +1,6 @@
+-- Repository가 사용할 파일 접근 어댑터. 개발 실행은 소스 폴더의 실제 파일에 저장한다.
+-- 패키징 실행은 LÖVE 가상 파일 시스템으로 읽고 Stage 쓰기를 거부한다. Windows 한글 경로는 wide API를 사용한다.
+
 local NativeFileSystem = {}
 NativeFileSystem.__index = NativeFileSystem
 

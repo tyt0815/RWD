@@ -1,3 +1,6 @@
+-- Project의 assets/audio/music 폴더를 재귀 탐색해 지원 음악을 정렬한다.
+-- 결과는 Project 루트 기준 상대 경로이며 실제 오디오 디코딩은 하지 않는다.
+
 local MusicCatalog = {}
 MusicCatalog.__index = MusicCatalog
 

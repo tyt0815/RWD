@@ -1,3 +1,5 @@
+-- 두 Sample Actor가 공유하는 이미지 세트를 한 번 로드하고 상태 이름으로 제공한다.
+
 local Sprites = {}
 Sprites.__index = Sprites
 

@@ -1,3 +1,6 @@
+-- Core 공개 진입점. Editor와 Project는 이 테이블을 통해서만 공통 기능에 접근한다.
+-- CORE_API_VERSION은 Project manifest와 호환성을 검사하는 계약 버전이다.
+
 local Core = {}
 
 Core.CORE_API_VERSION = 2

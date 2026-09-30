@@ -1,3 +1,7 @@
+-- Editor 화면의 입력 라우팅과 임시 UI 상태를 소유한다. Session에 실제 문서 편집·저장·재생을 요청한다.
+-- 선택/클립보드/드래그/대화상자와 배치용 기본 params는 여기 있고, 화면 좌표와 그리기는 EditorLayout에 맡긴다.
+-- 분석 순서: new → getViewModel → 입력 콜백 → Session 호출 → update/draw.
+
 local EditorSession = require("editor.EditorSession")
 local EditorDialog = require("editor.ui.EditorDialog")
 local EditorLayout = require("editor.ui.EditorLayout")
@@ -35,6 +39,7 @@ local function getCategories(project)
     return PropertyCatalog.getCategories(project)
 end
 
+-- 의존성 조립과 UI 임시 상태 초기화. 테스트에서는 Session과 factory를 대체할 수 있다.
 function EditorApp.new(options)
     options = options or {}
     if not options.session then
@@ -150,6 +155,7 @@ function EditorApp:updatePanelScrollAreas()
     )
 end
 
+-- 노드 배치 전에 수정하는 기본 params 캐시다. 이미 배치한 노드의 params와는 별개다.
 function EditorApp:getEventDefaults(definition)
     local defaults = self.eventDefaults[definition.timelineType]
     if not defaults and definition.projectEventId then
@@ -165,6 +171,8 @@ function EditorApp:getEventDefaults(definition)
     return defaults
 end
 
+-- 문서/Session 상태와 UI 상태를 렌더링용 테이블로 합친다.
+-- 드래그 위치와 라벨/색은 Event 복사본에만 반영하며 Document를 수정하지 않는다.
 function EditorApp:getViewModel()
     self:updatePanelScrollAreas()
     local properties = {}
@@ -344,6 +352,8 @@ function EditorApp:beginValueEdit(groupId, propertyId)
     self.valueEdit.invalid = false
 end
 
+-- 문자열을 숫자로 해석하고 배치 기본값 또는 실제 Stage 설정에 적용한다.
+-- TextInput은 문자열 편집만 담당하므로 도메인 검증 실패는 여기서 UI에 표시한다.
 function EditorApp:commitValueEdit()
     if not self.valueEdit then return true end
 
@@ -474,6 +484,7 @@ function EditorApp:continueAction(action)
     end
 end
 
+-- New/Open/Quit 전에 미저장 여부를 검사하고 pendingAction을 모달에 보관한다.
 function EditorApp:requestGuarded(action)
     if self.session:isDirty() then
         self.dialog = EditorDialog.unsaved(action)
@@ -482,6 +493,7 @@ function EditorApp:requestGuarded(action)
     end
 end
 
+-- 메뉴와 단축키가 공유하는 작업 분기. 재생 전 편집 중인 숫자 필드를 먼저 확정한다.
 function EditorApp:executeAction(action)
     if action == "new" or action == "open" or action == "quit" then
         self:requestGuarded(action)
@@ -504,6 +516,8 @@ function EditorApp:executeAction(action)
     end
 end
 
+-- Dialog는 입력 결과만 내고 App이 Session 작업으로 연결한다.
+-- Save As의 이름 중복과 미저장 분기는 다음 모달로 이어지는 작은 상태 전이다.
 function EditorApp:processDialogResult()
     if not self.dialog then return end
     local result = self.dialog:consumeResult()
@@ -672,6 +686,7 @@ local function copySelection(selection)
     return copy
 end
 
+-- 선택 Event의 데이터 복사본을 App 내부 클립보드에 보관한다. OS 클립보드는 사용하지 않는다.
 function EditorApp:copyTimelineSelection()
     local events = self.session:getTimelineEventCopies(
         self.selectedTimelineEventIds
@@ -742,6 +757,7 @@ function EditorApp:updateTimelineSelection(x, y)
     self.selectedTimelineEventIds = selected
 end
 
+-- 드래그 시작 위치를 고정 보관해 모든 선택 노드에 같은 beat/track 이동량을 적용한다.
 function EditorApp:beginTimelineEventDrag(eventId)
     local origins = {}
     for _, event in ipairs(self.session:getTimelineEvents()) do
@@ -761,6 +777,8 @@ function EditorApp:beginTimelineEventDrag(eventId)
     }
 end
 
+-- 좌표를 beat/track으로 바꿔 이동 후보와 충돌 표시만 계산한다.
+-- 실제 문서 변경은 mouse release 시 Session.moveTimelineEvents로 한 번 요청한다.
 function EditorApp:updateTimelineEventDrag(x, y)
     local drag = self.timelineDrag
     drag.hasMoved = true
@@ -816,6 +834,7 @@ function EditorApp:updateTimelineEventDrag(x, y)
     )
 end
 
+-- 기준선 드래그가 Timeline 가장자리에 닿으면 화면을 이동하고 기준 beat를 다시 계산한다.
 function EditorApp:updateTimelineEdgeScroll(deltaTime)
     if self.timelineDrag ~= "playhead" or self.mouseX == nil then return true end
 
@@ -852,6 +871,8 @@ function EditorApp:updateTimelineEdgeScroll(deltaTime)
     return self:seekTimelineAtX(self.mouseX)
 end
 
+-- Dialog 결과와 임시 UI를 갱신한 다음 Session의 재생 tick을 실행한다.
+-- 모달이 열려 있으면 아래 Session.update는 호출하지 않는 현재 흐름을 유의한다.
 function EditorApp:update(deltaTime)
     for index = #self.toasts, 1, -1 do
         local toast = self.toasts[index]
@@ -883,6 +904,7 @@ function EditorApp:update(deltaTime)
     end
 end
 
+-- 일반 화면은 Layout + ViewModel, 확장 Preview는 게임 Canvas 중심으로 그린다.
 function EditorApp:draw(width, height)
     width = width or love.graphics.getWidth()
     height = height or love.graphics.getHeight()
@@ -988,6 +1010,8 @@ function EditorApp:wheelmoved(_, deltaY)
     return true
 end
 
+-- 모달/확장 Preview/값 편집 등 입력 문맥을 먼저 처리한 뒤 Timeline과 패널로 분기한다.
+-- 분기 순서를 바꾸면 같은 클릭을 소비하는 UI가 달라질 수 있다.
 function EditorApp:mousepressed(x, y, button, _, presses)
     if self:isPreviewExpanded() and not self.dialog then
         return true
@@ -1263,6 +1287,7 @@ function EditorApp:mousepressed(x, y, button, _, presses)
     return true
 end
 
+-- Event 드래그 후보를 문서에 반영하는 확정 지점. 충돌이 있으면 적용하지 않고 Toast를 띄운다.
 function EditorApp:mousereleased(_, _, button)
     if self:isPreviewExpanded() then return true end
     if button == 1 and self.timelineDrag == "playhead" then
@@ -1312,6 +1337,7 @@ function EditorApp:keyreleased(key)
     return true
 end
 
+-- 포커스가 있는 모달·ComboBox·TextInput을 우선 처리하고 이후 편집/재생 단축키로 분기한다.
 function EditorApp:keypressed(key, _, isRepeat)
     if self.dialog then
         self.dialog:keypressed(key)

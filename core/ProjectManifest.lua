@@ -1,3 +1,6 @@
+-- Project manifest의 ID, Core 버전, Category/Event/Property 등록 계약을 검증한다.
+-- 실제 Runtime이나 리소스를 생성하지 않으며 현재 Project Property 등록은 number 종류만 허용한다.
+
 local ProjectManifest = {}
 
 local IDENTIFIER_PATTERN = "^[A-Za-z0-9_][A-Za-z0-9_%-]*$"

@@ -1,3 +1,6 @@
+-- SpeakiSong Category의 상태와 Actor·SFX·설정·Tap/Long 판정을 조립한다.
+-- Core occurrence는 Event handler에 넘기고, 파생 Turn 일정·응답 입력·지속 연출은 Category 안에서 진행한다.
+
 local Core = require("core")
 local Background = require("projects.rhythm_dotgeo.game.SpeakiSong.Background")
 local Config = require("projects.rhythm_dotgeo.game.SpeakiSong.Config")
@@ -32,6 +35,7 @@ local CUE_EVENTS = {
     doNotNer = true,
 }
 
+-- Cue와 응답 배치에서 역할 전환 일정을 파생한다. Stage Event crossing이 아니라 Category 연출용 일정이다.
 local function buildTurnSchedule(stage, categoryId)
     local moments = {}
     for index, event in ipairs(stage.events or {}) do
@@ -122,6 +126,7 @@ function Runtime:setAutoPlay(value)
     self.autoPlay = value or "none"
 end
 
+-- Stage마다 설정 JSON을 다시 읽고 Actor, SFX, 입력 분류와 두 판정 객체를 초기화한다.
 function Runtime:startStage(stage, startBeat)
     self.stage = stage
     self.tempoMap = assert(Core.TempoMap.new(stage.bpm))
@@ -259,6 +264,8 @@ function Runtime:applyLongRelease(beat)
     return true
 end
 
+-- hold 분류는 실제 시간, 역할/응답/연출은 beat 기준이다.
+-- realDeltaTime이 없으면 deltaTime을 사용하므로 상위 Host의 전달 계약과 함께 확인해야 한다.
 function Runtime:update(deltaTime, beat, realDeltaTime)
     local previousBeat = self.lastUpdatedBeat
     self.currentBeat = beat
@@ -320,6 +327,7 @@ function Runtime:keypressed(key, beat)
     self.playerAction:press(beat)
 end
 
+-- 짧게 누르면 최초 pressBeat로 Tap 판정하고, Long 해제는 현재 releaseBeat로 판정한다.
 function Runtime:keyreleased(key, beat)
     if key ~= "space" or not self.stage or self.autoPlay ~= "none" then return end
     local action = self.playerAction:release(beat)

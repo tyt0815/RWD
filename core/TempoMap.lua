@@ -1,3 +1,5 @@
+-- 고정 BPM에서 beat와 초를 상호 변환한다. 이름과 달리 현재는 BPM 변경 구간 목록을 지원하지 않는다.
+
 local TempoMap = {}
 TempoMap.__index = TempoMap
 

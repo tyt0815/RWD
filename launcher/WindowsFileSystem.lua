@@ -1,3 +1,6 @@
+-- LuaJIT FFI로 Windows UTF-16 파일 API를 연결하는 플랫폼 어댑터.
+-- UTF-8 한글 경로를 변환해 파일 열기·삭제·이름 변경을 수행하며 Stage 형식은 알지 못한다.
+
 local ffi = require("ffi")
 
 ffi.cdef[[

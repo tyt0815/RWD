@@ -1,3 +1,6 @@
+-- 모달 종류별 구성과 입력·배치·렌더링을 관리한다. TextInput/ComboBox/Button은 Core.UI 인스턴스를 조합한다.
+-- 제출 결과는 consumeResult로 App에 전달하고 Stage 저장 같은 실제 동작은 App/Session이 실행한다.
+
 local Core = require("core")
 
 local ComboBox = Core.UI.ComboBox
@@ -32,6 +35,7 @@ local function stringOptions(values)
     return options
 end
 
+-- 화면별 구성 데이터를 Core.UI 인스턴스로 바꾼다. 문자열/검색/버튼 상태를 화면마다 재구현하지 않는다.
 local function newDialog(config)
     config.fields = config.fields or {}
     config.selectors = config.selectors or {}
@@ -302,6 +306,7 @@ function EditorDialog:textinput(text)
     if field then field.input:textinput(text) end
 end
 
+-- 필드와 선택 값을 결과 테이블에 담는다. 실제 Stage 동작은 결과를 소비하는 EditorApp에서 실행한다.
 function EditorDialog:submit(buttonId)
     if self.kind == "error" and buttonId == "copy" then
         love.system.setClipboardText(self.message)
@@ -375,6 +380,7 @@ function EditorDialog:update(deltaTime)
     if field then field.input:update(deltaTime) end
 end
 
+-- 완료 결과를 한 번만 꺼내고 비워 다음 frame에서 같은 작업이 중복 실행되지 않게 한다.
 function EditorDialog:consumeResult()
     local result = self.result
     self.result = nil

@@ -1,3 +1,5 @@
+-- LÖVE 실행 환경과 창 설정. 게임 상태가 아니라 엔진 초기 설정만 정의한다.
+
 function love.conf(config)
     config.identity = "rwd"
     config.version = "11.5"

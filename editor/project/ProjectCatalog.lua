@@ -1,3 +1,6 @@
+-- Editor용 Project 검색·manifest 검증과 주입된 게임 factory 호출.
+-- 게임 생성은 Launcher에서 받은 factory로 수행하며 자체적으로 StageRepository를 만들지 않는다.
+
 local Core = require("core")
 
 local ProjectCatalog = {}

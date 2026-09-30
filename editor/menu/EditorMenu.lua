@@ -1,3 +1,6 @@
+-- Session 상태를 메뉴 버튼의 활성 여부와 라벨로 바꾸고 메뉴를 그린다.
+-- 버튼의 action을 해석해 실제 저장·재생을 실행하는 곳은 EditorApp이다.
+
 local Button = require("core").UI.Button
 
 local EditorMenu = {}
